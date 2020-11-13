@@ -8,7 +8,7 @@ set (ADDITIONAL_LIBS "")
 
 add_executable ( udpserver
         iphelper.c
-        udpserver.c sockethelper.c )
+        udpserver.c sockethelper.c packettest.c ../include/packettest.h)
 
 target_link_libraries ( udpserver PRIVATE sockaddrutil
         pthread
@@ -19,7 +19,7 @@ set_target_properties(udpserver PROPERTIES BUILD_WITH_INSTALL_RPATH ON)
 
 add_executable ( udpclient
         iphelper.c
-        udpclient.c sockethelper.c )
+        udpclient.c sockethelper.c packettest.c ../include/packettest.h)
 
 target_link_libraries ( udpclient PRIVATE sockaddrutil
         pthread

@@ -19,10 +19,11 @@
 
 #include <string.h>
 #include <ctype.h>
+#include <packettest.h>
 
 #include "iphelper.h"
 #include "sockethelper.h"
-static struct listenConfig listenConfig;
+static struct ListenConfig listenConfig;
 
 
 #define max_iface_len 10
@@ -34,6 +35,7 @@ struct client_config {
   struct sockaddr_storage remoteAddr;
   int                     port;
   int                     jobs;
+  int                     numPktsToSend;
 };
 static struct client_config config;
 
@@ -74,6 +76,7 @@ configure(struct client_config* config,
   strncpy(config->interface, "default", 7);
   config->port  = 3478;
   config->jobs  = 1;
+  config->numPktsToSend = 3000;
 //  config->debug = false;
 
 
@@ -81,6 +84,7 @@ configure(struct client_config* config,
     {"interface", 1, 0, 'i'},
     {"port", 1, 0, 'p'},
     {"jobs", 1, 0, 'j'},
+    {"pkts", 1, 0, 'n'},
     {"debug", 0, 0, 'd'},
     {"csv", 0, 0, '2'},
     {"help", 0, 0, 'h'},
@@ -93,37 +97,45 @@ configure(struct client_config* config,
     exit(0);
   }
   int option_index = 0;
-  while ( ( c = getopt_long(argc, argv, "hvdi:p:j:o:",
+  while ( ( c = getopt_long(argc, argv, "hvdi:p:j:o:n:",
                             long_options, &option_index) ) != -1 )
   {
     /* int this_option_optind = optind ? optind : 1; */
     switch (c)
     {
-    case 'i':
-      strncpy(config->interface, optarg, max_iface_len);
-      break;
-    case 'p':
-      config->port = atoi(optarg);
-      break;
-    case 'd':
-    //  config->debug = true;
-      break;
-    case 'j':
-      config->jobs = atoi(optarg);
-      if (config->jobs > MAX_TRANSACTIONS)
-      {
-        config->jobs = MAX_TRANSACTIONS;
-      }
-      break;
-    case 'h':
-      printUsage();
-      break;
-    case 'v':
-      printf("Version \n");
-      exit(0);
-      break;
-    default:
-      printf("?? getopt returned character code 0%o ??\n", c);
+        case 'i':
+          strncpy(config->interface, optarg, max_iface_len);
+          break;
+        case 'p':
+          config->port = atoi(optarg);
+          break;
+        case 'd':
+        //  config->debug = true;
+          break;
+        case 'j':
+          config->jobs = atoi(optarg);
+          if (config->jobs > MAX_TRANSACTIONS)
+          {
+            config->jobs = MAX_TRANSACTIONS;
+          }
+          break;
+
+        case 'n':
+            config->numPktsToSend = atoi(optarg);
+            if (config->numPktsToSend > MAX_NUM_RCVD_TEST_PACKETS)
+            {
+                config->numPktsToSend = MAX_NUM_RCVD_TEST_PACKETS;
+            }
+            break;
+        case 'h':
+          printUsage();
+          break;
+        case 'v':
+          printf("Version \n");
+          exit(0);
+          break;
+        default:
+          printf("?? getopt returned character code 0%o ??\n", c);
     }
   }
   if (optind < argc)
@@ -181,10 +193,7 @@ main(int   argc,
   /* Read cmd line argumens and set it up */
   configure(&config,argc,argv);
 
-  /* Initialize STUNclient data structures */
-  //StunClient_Alloc(&clientData);
-
-  /* Setting up UDP socket and and aICMP sockhandle */
+  /* Setting up UDP socket  */
   setupSocket(&config);
 
   /* at least close the socket if we get a signal.. */
@@ -213,20 +222,42 @@ main(int   argc,
   for (int i = 0; i < listenConfig.numSockets; i++)
   {
       uint8_t buf[1200];
-      memset(&buf, 0, sizeof(buf));
+      memset(&buf, 43, sizeof(buf));
+      struct TestPacket pkt;
+      struct timespec timer;
+      struct timespec remaining;
+      timer.tv_sec  = 0;
+      timer.tv_nsec = 5000000;
+
       uint32_t pktCnt = 0;
       struct timespec begin, end;
       int sockfd = listenConfig.socketConfig[i].sockfd;
-      for(int i=0;i<500000;i++){
-
+      for(int i=0;i<config.numPktsToSend;i++){
           pktCnt++;
-          memcpy(buf, &pktCnt, sizeof(pktCnt));
+          fillPacket(&pkt, 23, pktCnt);
+          memcpy(buf, &pkt, sizeof(pkt));
 
           sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&config.remoteAddr, 0, 0 );
 
-          usleep(1000);
+          //usleep(2000);
+          nanosleep(&timer, &remaining);
+
 
       }
+
+      for(int i=0;i<10;i++){
+
+          fillPacket(&pkt, 23, UINT32_MAX);
+          memcpy(buf, &pkt, sizeof(pkt));
+
+          sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&config.remoteAddr, 0, 0 );
+
+          //usleep(2000);
+          nanosleep(&timer, &remaining);
+
+
+      }
+
   }
   return 0;
 }

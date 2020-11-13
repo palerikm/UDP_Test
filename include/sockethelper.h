@@ -7,27 +7,29 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-
+#include "packettest.h"
 
 #define MAXBUFLEN 1500
 #define MAX_LISTEN_SOCKETS 1
 #define MAX_THREADS 100000
-
+#define MAX_NUM_RCVD_TEST_PACKETS 500000
 
 struct SocketConfig {
     int   sockfd;
     uint32_t currentPktNum;
     struct timespec  currentPktTimeVal;
-    double sumPktInterval;
-    double maxPktInterval;
-    double minPktInterval;
+
+    struct TestData *testData;
+    uint32_t numTestData;
+
+
 };
 
 
 
 
 
-struct listenConfig {
+struct ListenConfig {
     void*               tInst;
     struct SocketConfig socketConfig[MAX_LISTEN_SOCKETS];
     int                 numSockets;

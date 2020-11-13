@@ -9,11 +9,13 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <inttypes.h>
 
 #include <pthread.h>
 #include <getopt.h>
 
 #include <stdbool.h>
+#include <packettest.h>
 
 #include "../include/iphelper.h"
 #include "../include/sockethelper.h"
@@ -26,6 +28,20 @@
 int             sockfd;
 
 
+uint64_t timespec_subtract(struct timespec *t2, struct timespec *t1)
+{
+    return ((t1->tv_sec - t2->tv_sec) * 1000000 + (t1->tv_nsec - t2->tv_nsec))/1000;
+}
+static inline void timespec_diff(struct timespec *a, struct timespec *b,
+                                 struct timespec *result) {
+    result->tv_sec  = a->tv_sec  - b->tv_sec;
+    result->tv_nsec = a->tv_nsec - b->tv_nsec;
+    if (result->tv_nsec < 0) {
+        --result->tv_sec;
+        result->tv_nsec += 1000000000L;
+    }
+}
+
 
 void
 packetHandler(struct SocketConfig* config,
@@ -33,42 +49,90 @@ packetHandler(struct SocketConfig* config,
             void*                cb,
             unsigned char*       buf,
             int                  buflen) {
-    struct timespec begin;
+    struct timespec begin, result;
     clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
-
+    struct TestData *testData = config->testData;
 
     //gettimeofday(&tv2, NULL);
-    uint32_t pktCnt = 0;
-    memcpy(&pktCnt, buf, sizeof(pktCnt));
-
-    double dur = (( begin.tv_nsec - config->currentPktTimeVal.tv_nsec ) / 1000000000.0 +
-                  (   begin.tv_sec - config->currentPktTimeVal.tv_sec  )) *1000;
-
-    if(dur<0){
-        printf("negative duration!\n");
+    struct TestPacket pkt;
+    memcpy(&pkt, buf, sizeof(pkt));
+    if(pkt.pktCookie != TEST_PKT_COOKIE){
+        printf("Not a test pkt! Ignoring\n");
+        return;
     }
 
-    if( config->currentPktNum+1!= pktCnt){
-        printf("Lost Packet!\n");
+    if( config->currentPktNum == UINT32_MAX && pkt.seq == UINT32_MAX){
+        //printf("Already recieved end of test. Ignoring..\n");
+        return;
     }
+    //uint64_t diff = timespec_subtract(&config->currentPktTimeVal,&begin );
+    timespec_diff(&begin, &config->currentPktTimeVal, &result);
 
-    config->currentPktNum = pktCnt;
+    if( config->currentPktNum+1!= pkt.seq){
+        printf("Lost Packet(s): %i\n", config->currentPktNum - pkt.seq);
+    }
+    struct TestData d;
+    d.pkt = pkt;
+    d.timeDiff = result.tv_nsec;
+    d.lostPkts = config->currentPktNum - pkt.seq;
+
+    memcpy((testData+config->numTestData), &d, sizeof(struct TestData));
+    config->numTestData++;
+
+    config->currentPktNum = pkt.seq;
     config->currentPktTimeVal = begin;
-    if(pktCnt > 1) {
-        config->sumPktInterval += dur;
-        if (config->maxPktInterval < dur) {
-            config->maxPktInterval = dur;
-        }
-        if (config->minPktInterval > dur) {
-            config->minPktInterval = dur;
-        }
-        if(pktCnt%100==0) {
-            printf("\r%i  %f %f", pktCnt, config->sumPktInterval / config->currentPktNum,
-                   config->maxPktInterval);
+#if 0
+    if(pkt.seq > 1) {
+
+        if(pkt.seq%100==0) {
+            printf("\r%i  ", pkt.seq);
+            //printf("       %ld.%06ld\n", diff.tv_sec, diff.tv_nsec);
+            printf("    Diff:  %ld\n", result.tv_nsec);
+
+
             fflush(stdout);
         }
     }
-    //printf("Got som data(%i): %s\n", buflen, buf);
+#endif
+
+}
+
+static void*
+saveAndMoveOn(void* ptr)
+{
+    struct SocketConfig *config = ptr;
+
+    for (;; )
+    {
+        usleep(5000);
+        if(config->numTestData < 4){
+            usleep(10000);
+            continue;
+        }
+        struct TestData *end;
+        end = config->testData+config->numTestData-1;
+        //Opps, Hopefully UINT32_MAX is not to different on the various targes..
+        //TODO Fix..
+        if(end->pkt.seq == UINT32_MAX){
+            printf("Saving--- (%i)\n", config->numTestData);
+            FILE *fptr;
+            fptr = fopen("data.txt","w");
+            if(fptr == NULL)
+            {
+                printf("Error!");
+                exit(1);
+            }
+            for(int i=1; i<config->numTestData-1;i++){
+                struct TestData *muh;
+                muh = config->testData+i;
+                fprintf(fptr, "%i,%ld\n", muh->pkt.seq, muh->timeDiff);
+            }
+            fclose(fptr);
+            config->numTestData = 0;
+            printf("----Done saving\n");
+        }
+    }
+    return NULL;
 }
 
 void
@@ -95,7 +159,6 @@ int
 main(int   argc,
      char* argv[])
 {
-
     struct sockaddr_storage localAddr;
     char                    interface[10];
     int                     port;
@@ -105,8 +168,10 @@ main(int   argc,
     pthread_t socketListenThread;
     pthread_t cleanupThread;
 
+    struct ListenConfig listenConfig;
 
-    struct listenConfig listenConfig;
+    listenConfig.socketConfig->testData = malloc(sizeof(struct TestData)*MAX_NUM_RCVD_TEST_PACKETS);
+    listenConfig.socketConfig->numTestData = 0;
 
 
     signal(SIGINT, teardown);
@@ -179,6 +244,7 @@ main(int   argc,
                    NULL,
                    socketListenDemux,
                    (void*)&listenConfig);
+    pthread_create(&cleanupThread, NULL, saveAndMoveOn, (void*)&listenConfig.socketConfig);
     pause();
 
 }

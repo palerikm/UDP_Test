@@ -102,7 +102,7 @@ void*
 socketListenDemux(void* ptr)
 {
     struct pollfd        ufds[10];
-    struct listenConfig* config = (struct listenConfig*)ptr;
+    struct ListenConfig* config = (struct ListenConfig*)ptr;
     /* struct sockaddr_storage their_addr; */
     /* unsigned char           buf[MAXBUFLEN]; */
     /* socklen_t               addr_len; */
