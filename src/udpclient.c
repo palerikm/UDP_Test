@@ -23,21 +23,24 @@
 
 #include "iphelper.h"
 #include "sockethelper.h"
+#include "packettest.h"
 static struct ListenConfig listenConfig;
 
 
 #define max_iface_len 10
-#define MAX_TRANSACTIONS 60
+
+#define MAX_DELAY_NS 999999999
 
 struct client_config {
   char                    interface[10];
   struct sockaddr_storage localAddr;
   struct sockaddr_storage remoteAddr;
   int                     port;
-  int                     jobs;
-  int                     numPktsToSend;
+  struct TestRunConfig    testRunConfig;
+
 };
 static struct client_config config;
+
 
 static void
 teardown()
@@ -57,8 +60,6 @@ printUsage()
   printf("Options: \n");
   printf("  -i, --interface           Interface\n");
   printf("  -p <port>, --port <port>  Destination port\n");
-  printf(
-    "  -j <num>, --jobs <num>    Run <num> transactions in paralell(almost)\n");
   printf("  -v, --version             Print version number\n");
   printf("  -h, --help                Print help text\n");
   exit(0);
@@ -75,17 +76,15 @@ configure(struct client_config* config,
   /* set config to default values */
   strncpy(config->interface, "default", 7);
   config->port  = 3478;
-  config->jobs  = 1;
-  config->numPktsToSend = 3000;
-//  config->debug = false;
+  config->testRunConfig.numPktsToSend = 3000;
+  config->testRunConfig.delayns = 5000000;
 
 
   static struct option long_options[] = {
     {"interface", 1, 0, 'i'},
     {"port", 1, 0, 'p'},
-    {"jobs", 1, 0, 'j'},
     {"pkts", 1, 0, 'n'},
-    {"debug", 0, 0, 'd'},
+    {"delay", 1, 0, 'd'},
     {"csv", 0, 0, '2'},
     {"help", 0, 0, 'h'},
     {"version", 0, 0, 'v'},
@@ -97,7 +96,7 @@ configure(struct client_config* config,
     exit(0);
   }
   int option_index = 0;
-  while ( ( c = getopt_long(argc, argv, "hvdi:p:j:o:n:",
+  while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:",
                             long_options, &option_index) ) != -1 )
   {
     /* int this_option_optind = optind ? optind : 1; */
@@ -110,21 +109,17 @@ configure(struct client_config* config,
           config->port = atoi(optarg);
           break;
         case 'd':
-        //  config->debug = true;
-          break;
-        case 'j':
-          config->jobs = atoi(optarg);
-          if (config->jobs > MAX_TRANSACTIONS)
-          {
-            config->jobs = MAX_TRANSACTIONS;
-          }
-          break;
-
-        case 'n':
-            config->numPktsToSend = atoi(optarg);
-            if (config->numPktsToSend > MAX_NUM_RCVD_TEST_PACKETS)
+            config->testRunConfig.delayns = atoi(optarg);
+            if (config->testRunConfig.delayns > MAX_DELAY_NS)
             {
-                config->numPktsToSend = MAX_NUM_RCVD_TEST_PACKETS;
+                config->testRunConfig.delayns = MAX_DELAY_NS;
+            }
+          break;
+        case 'n':
+            config->testRunConfig.numPktsToSend = atoi(optarg);
+            if (config->testRunConfig.numPktsToSend > MAX_NUM_RCVD_TEST_PACKETS)
+            {
+                config->testRunConfig.numPktsToSend = MAX_NUM_RCVD_TEST_PACKETS;
             }
             break;
         case 'h':
@@ -164,19 +159,19 @@ configure(struct client_config* config,
 
 
 int
-setupSocket(struct client_config* config)
+setupSocket(struct ListenConfig *lconf, const struct client_config* sconfig)
 {
-  for (int i = 0; i < config->jobs; i++)
-  {
-    int sockfd = createLocalSocket(config->remoteAddr.ss_family,
-                                   (struct sockaddr*)&config->localAddr,
+
+
+    int sockfd = createLocalSocket(sconfig->remoteAddr.ss_family,
+                                   (struct sockaddr*)&sconfig->localAddr,
                                    SOCK_DGRAM,
                                    0);
 
-    listenConfig.socketConfig[i].sockfd = sockfd;
-    listenConfig.numSockets++;
-  }
-  return listenConfig.numSockets;
+    lconf->socketConfig[0].sockfd = sockfd;
+    lconf->numSockets++;
+
+  return lconf->numSockets;
 }
 
 
@@ -186,78 +181,69 @@ main(int   argc,
      char* argv[])
 {
 
-  //pthread_t socketListenThread;
 
-  char              addrStr[SOCKADDR_MAX_STRLEN];
+    /* Read cmd line argumens and set it up */
+    configure(&config,argc,argv);
 
-  /* Read cmd line argumens and set it up */
-  configure(&config,argc,argv);
+    /* Setting up UDP socket  */
+    setupSocket(&listenConfig, &config);
 
-  /* Setting up UDP socket  */
-  setupSocket(&config);
+    /* at least close the socket if we get a signal.. */
+    signal(SIGINT, teardown);
 
-  /* at least close the socket if we get a signal.. */
-  signal(SIGINT, teardown);
-
-
-
-  //pthread_create(&socketListenThread,
-  //               NULL,
-  //               socketListenDemux,
-  //               (void*)&listenConfig);
-
-    printf( "Sending binding  %i Req(s) from: '%s'",
-            config.jobs,
-            sockaddr_toString( (struct sockaddr*)&config.localAddr,
-                               addrStr,
-                               sizeof(addrStr),
-                               true ) );
+    char              addrStr[SOCKADDR_MAX_STRLEN];
+    printf( "Sending packets from: '%s'",
+    sockaddr_toString( (struct sockaddr*)&config.localAddr,
+           addrStr,
+           sizeof(addrStr),
+           false ) );
 
     printf( "to: '%s'\n",
-            sockaddr_toString( (struct sockaddr*)&config.remoteAddr,
-                               addrStr,
-                               sizeof(addrStr),
-                               true ) );
-
-  for (int i = 0; i < listenConfig.numSockets; i++)
-  {
-      uint8_t buf[1200];
-      memset(&buf, 43, sizeof(buf));
-      struct TestPacket pkt;
-      struct timespec timer;
-      struct timespec remaining;
-      timer.tv_sec  = 0;
-      timer.tv_nsec = 5000000;
-
-      uint32_t pktCnt = 0;
-      struct timespec begin, end;
-      int sockfd = listenConfig.socketConfig[i].sockfd;
-      for(int i=0;i<config.numPktsToSend;i++){
-          pktCnt++;
-          fillPacket(&pkt, 23, pktCnt);
-          memcpy(buf, &pkt, sizeof(pkt));
-
-          sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&config.remoteAddr, 0, 0 );
-
-          //usleep(2000);
-          nanosleep(&timer, &remaining);
+    sockaddr_toString( (struct sockaddr*)&config.remoteAddr,
+           addrStr,
+           sizeof(addrStr),
+                       true ) );
 
 
-      }
+    uint8_t buf[1200];
+    memset(&buf, 43, sizeof(buf));
+    struct TestPacket pkt;
+    struct timespec timer;
+    struct timespec remaining;
+    timer.tv_sec  = 0;
+    timer.tv_nsec = config.testRunConfig.delayns;
 
-      for(int i=0;i<10;i++){
+    struct TestRun testRun;
+    initTestRun(&testRun, config.testRunConfig.numPktsToSend, config.testRunConfig);
 
-          fillPacket(&pkt, 23, UINT32_MAX);
-          memcpy(buf, &pkt, sizeof(pkt));
+    uint32_t pktCnt = 0;
 
-          sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&config.remoteAddr, 0, 0 );
+    int sockfd = listenConfig.socketConfig[0].sockfd;
 
-          //usleep(2000);
-          nanosleep(&timer, &remaining);
+    for(int j=0;j<testRun.config.numPktsToSend;j++){
+      fillPacket(&pkt, 23, pktCnt);
+      memcpy(buf, &pkt, sizeof(pkt));
+      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&config.remoteAddr, 0, 0 );
+      addTestData(&testRun, &pkt);
+      nanosleep(&timer, &remaining);
+      pktCnt++;
+    }
 
+    //Send End of Test (MAX_INT) a few times...
+    for(int j=0;j<10;j++){
+      fillPacket(&pkt, 23, UINT32_MAX);
+      memcpy(buf, &pkt, sizeof(pkt));
 
-      }
+      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&config.remoteAddr, 0, 0 );
+      //usleep(2000);
+      nanosleep(&timer, &remaining);
+    }
 
-  }
-  return 0;
+    const char* filename = "client_results.txt\0";
+    saveTestDataToFile(&testRun, filename);
+    freeTestRun(&testRun);
+
+    return 0;
 }
+
+

@@ -110,9 +110,7 @@ socketListenDemux(void* ptr)
     /* int                     numbytes; */
     int i;
 
-    /* int  keyLen = 16; */
-    /* char md5[keyLen]; */
-    config->thread_no = 0;
+
     for (i = 0; i < config->numSockets; i++)
     {
         ufds[i].fd     = config->socketConfig[i].sockfd;
@@ -152,7 +150,7 @@ socketListenDemux(void* ptr)
                         perror("recvfrom");
                         exit(1);
                     }
-                    config->pkt_handler(socketConfig,(struct sockaddr*)&their_addr, NULL, (unsigned char*)&buf, numbytes );
+                    config->pkt_handler(config,(struct sockaddr*)&their_addr, NULL, (unsigned char*)&buf, numbytes );
                     //printf("Got som data(%i): %s\n", numbytes, buf);
 
                 }

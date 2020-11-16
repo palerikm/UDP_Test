@@ -16,31 +16,18 @@
 
 struct SocketConfig {
     int   sockfd;
-    uint32_t currentPktNum;
-    struct timespec  currentPktTimeVal;
-
-    struct TestData *testData;
-    uint32_t numTestData;
-
-
 };
-
-
-
-
 
 struct ListenConfig {
     void*               tInst;
     struct SocketConfig socketConfig[MAX_LISTEN_SOCKETS];
     int                 numSockets;
 
-    void (* pkt_handler)(struct SocketConfig*,
+    void (* pkt_handler)(struct ListenConfig*,
                           struct sockaddr*,
                           void*,
                           unsigned char*,
                           int);
-    pthread_t           threads[MAX_THREADS];
-    int                 thread_no;
 };
 
 int
