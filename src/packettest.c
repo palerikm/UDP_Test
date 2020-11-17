@@ -4,7 +4,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 #include <string.h>
 
 #include "packettest.h"
@@ -31,6 +30,9 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct TestR
 }
 
 int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
+    if(testRun->numTestData >= testRun->maxNumTestData){
+        return -2;
+    }
     struct timespec now, timeSinceLastPkt;
 
     if(testRun == NULL){
@@ -68,18 +70,29 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
 
 
 int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen){
-    struct TestPacket pkt;
-    if (buflen<sizeof(pkt)){
+    struct TestPacket *pkt;
+    if (buflen<sizeof(struct TestPacket)){
         return 1;
     }
-    //Note this is not copying the entire buffer, just the few INTS at the beginning.
-    //This breaks endianness etc. Should probably fix that..
-    memcpy(&pkt, buf, sizeof(pkt));
-    if(pkt.pktCookie != TEST_PKT_COOKIE){
+    //memcpy(&pkt, buf, sizeof(pkt));
+    pkt = (struct TestPacket *)buf;
+    if(pkt->pktCookie != TEST_PKT_COOKIE){
         printf("Not a test pkt! Ignoring\n");
         return 1;
     }
-    return addTestData(testRun, &pkt);
+    return addTestData(testRun, pkt);
+}
+
+struct TestPacket getNextTestPacket(const struct TestRun *testRun){
+    struct TestPacket pkt;
+    fillPacket(&pkt, 23, testRun->numTestData);
+    return pkt;
+}
+
+struct TestPacket getEndTestPacket(const struct TestRun *testRun){
+    struct TestPacket pkt;
+    fillPacket(&pkt, 23, UINT32_MAX);
+    return pkt;
 }
 
 int freeTestRun(struct TestRun *testRun){

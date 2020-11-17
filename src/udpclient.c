@@ -2,30 +2,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 #include <inttypes.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <netinet/in.h>
-
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <time.h>
-#include <pthread.h>
 #include <getopt.h>
-
-
-
 #include <string.h>
 #include <ctype.h>
 #include <packettest.h>
 
 #include "iphelper.h"
 #include "sockethelper.h"
-#include "packettest.h"
-static struct ListenConfig listenConfig;
 
+
+static struct ListenConfig listenConfig;
 
 #define max_iface_len 10
 
@@ -39,7 +29,7 @@ struct client_config {
   struct TestRunConfig    testRunConfig;
 
 };
-static struct client_config config;
+
 
 
 static void
@@ -71,34 +61,33 @@ configure(struct client_config* config,
           int                   argc,
           char*                 argv[])
 {
-  int c;
-  /* int                 digit_optind = 0; */
-  /* set config to default values */
-  strncpy(config->interface, "default", 7);
-  config->port  = 3478;
-  config->testRunConfig.numPktsToSend = 3000;
-  config->testRunConfig.delayns = 5000000;
+    int c;
+    /* int                 digit_optind = 0; */
+    /* set config to default values */
+    strncpy(config->interface, "default", 7);
+    config->port  = 3478;
+    config->testRunConfig.numPktsToSend = 3000;
+    config->testRunConfig.delayns = 5000000;
 
 
-  static struct option long_options[] = {
-    {"interface", 1, 0, 'i'},
-    {"port", 1, 0, 'p'},
-    {"pkts", 1, 0, 'n'},
-    {"delay", 1, 0, 'd'},
-    {"csv", 0, 0, '2'},
-    {"help", 0, 0, 'h'},
-    {"version", 0, 0, 'v'},
-    {NULL, 0, NULL, 0}
-  };
-  if (argc < 2)
-  {
-    printUsage();
-    exit(0);
-  }
-  int option_index = 0;
-  while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:",
+    static struct option long_options[] = {
+        {"interface", 1, 0, 'i'},
+        {"port", 1, 0, 'p'},
+        {"pkts", 1, 0, 'n'},
+        {"delay", 1, 0, 'd'},
+        {"csv", 0, 0, '2'},
+        {"help", 0, 0, 'h'},
+        {"version", 0, 0, 'v'},
+        {NULL, 0, NULL, 0}
+    };
+    if (argc < 2){
+        printUsage();
+        exit(0);
+    }
+    int option_index = 0;
+    while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:",
                             long_options, &option_index) ) != -1 )
-  {
+    {
     /* int this_option_optind = optind ? optind : 1; */
     switch (c)
     {
@@ -131,18 +120,16 @@ configure(struct client_config* config,
           break;
         default:
           printf("?? getopt returned character code 0%o ??\n", c);
+        }
     }
-  }
-  if (optind < argc)
-  {
-    if ( !getRemoteIpAddr( (struct sockaddr*)&config->remoteAddr,
-                           argv[optind++],
-                           config->port ) )
-    {
-      printf("Error getting remote IPaddr");
-      exit(1);
+    if (optind < argc){
+        if ( !getRemoteIpAddr( (struct sockaddr*)&config->remoteAddr,
+                               argv[optind++],
+                               config->port ) ){
+          printf("Error getting remote IPaddr");
+          exit(1);
+        }
     }
-  }
 
 
   if ( !getLocalInterFaceAddrs( (struct sockaddr*)&config->localAddr,
@@ -180,26 +167,26 @@ int
 main(int   argc,
      char* argv[])
 {
-
+    struct client_config clientConfig;
 
     /* Read cmd line argumens and set it up */
-    configure(&config,argc,argv);
+    configure(&clientConfig,argc,argv);
 
     /* Setting up UDP socket  */
-    setupSocket(&listenConfig, &config);
+    setupSocket(&listenConfig, &clientConfig);
 
     /* at least close the socket if we get a signal.. */
     signal(SIGINT, teardown);
 
     char              addrStr[SOCKADDR_MAX_STRLEN];
     printf( "Sending packets from: '%s'",
-    sockaddr_toString( (struct sockaddr*)&config.localAddr,
+    sockaddr_toString( (struct sockaddr*)&clientConfig.localAddr,
            addrStr,
            sizeof(addrStr),
            false ) );
 
     printf( "to: '%s'\n",
-    sockaddr_toString( (struct sockaddr*)&config.remoteAddr,
+    sockaddr_toString( (struct sockaddr*)&clientConfig.remoteAddr,
            addrStr,
            sizeof(addrStr),
                        true ) );
@@ -207,35 +194,30 @@ main(int   argc,
 
     uint8_t buf[1200];
     memset(&buf, 43, sizeof(buf));
-    struct TestPacket pkt;
+
     struct timespec timer;
     struct timespec remaining;
     timer.tv_sec  = 0;
-    timer.tv_nsec = config.testRunConfig.delayns;
+    timer.tv_nsec = clientConfig.testRunConfig.delayns;
 
     struct TestRun testRun;
-    initTestRun(&testRun, config.testRunConfig.numPktsToSend, config.testRunConfig);
-
-    uint32_t pktCnt = 0;
+    initTestRun(&testRun, clientConfig.testRunConfig.numPktsToSend, clientConfig.testRunConfig);
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
 
     for(int j=0;j<testRun.config.numPktsToSend;j++){
-      fillPacket(&pkt, 23, pktCnt);
+      struct TestPacket pkt = getNextTestPacket(&testRun);
       memcpy(buf, &pkt, sizeof(pkt));
-      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&config.remoteAddr, 0, 0 );
+      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&clientConfig.remoteAddr, 0, 0 );
       addTestData(&testRun, &pkt);
       nanosleep(&timer, &remaining);
-      pktCnt++;
     }
 
     //Send End of Test (MAX_INT) a few times...
+    struct TestPacket pkt = getEndTestPacket(&testRun);
+    memcpy(buf, &pkt, sizeof(pkt));
     for(int j=0;j<10;j++){
-      fillPacket(&pkt, 23, UINT32_MAX);
-      memcpy(buf, &pkt, sizeof(pkt));
-
-      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&config.remoteAddr, 0, 0 );
-      //usleep(2000);
+      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&clientConfig.remoteAddr, 0, 0 );
       nanosleep(&timer, &remaining);
     }
 

@@ -231,8 +231,6 @@ sendPacket(int                    sockHandle,
         {
             setsockopt(sockHandle, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &old_ttl, optlen);
         }
-
-
     }
     else
     {
@@ -240,7 +238,7 @@ sendPacket(int                    sockHandle,
         if ( ( numbytes =
                        sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) ) == -1 )
         {
-            perror("Stun sendto");
+            perror("sendto");
             exit(1);
         }
     }

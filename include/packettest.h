@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <stdbool.h>
-#include <pthread.h>
+//#include <pthread.h>
 
 struct TestPacket{
     uint32_t pktCookie;
@@ -40,12 +40,14 @@ struct TestRun{
 };
 
 int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
-        const struct TestRunConfig config);
+        struct TestRunConfig config);
 
 int freeTestRun(struct TestRun *testRun);
 
 int addTestData(struct TestRun *testRun, struct TestPacket *testPacket);
 int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen);
+struct TestPacket getNextTestPacket(const struct TestRun *testRun);
+struct TestPacket getEndTestPacket(const struct TestRun *testRun);
 
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq);
 

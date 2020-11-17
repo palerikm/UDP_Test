@@ -7,8 +7,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "packettest.h"
-
 #define MAXBUFLEN 1500
 #define MAX_LISTEN_SOCKETS 1
 #define MAX_THREADS 100000
