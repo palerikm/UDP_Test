@@ -45,10 +45,10 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
         if(testRun->numTestData== 0){
             return 0;
         }
-
         testRun->done = true;
         return 0;
     }
+
     //First packet.
     if(testRun->numTestData == 0){
         timeSinceLastPkt.tv_nsec = 0;
@@ -56,14 +56,34 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
         timespec_diff(&now, &testRun->lastPktTime, &timeSinceLastPkt);
     }
 
+    //Did we loose any packets? Or out of order?
+    int lostPkts = 0;
+    struct TestPacket *lastPkt = &(testRun->testData+testRun->numTestData-1)->pkt;
+    if(testPacket->seq < lastPkt->seq ){
+        printf("Todo: Fix out of order handling\n");
+
+    }
+    if(testPacket->seq > lastPkt->seq+1){
+        lostPkts = (testPacket->seq - lastPkt->seq)-1;
+        printf("Packet loss (%i)\n", lostPkts);
+        for(int i=0; i<lostPkts;i++){
+            struct TestPacket tPkt;
+            memset(&tPkt, 0, sizeof(tPkt));
+            struct TestData d;
+            d.pkt = tPkt;
+            d.timeDiff = 0;
+            memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
+            testRun->numTestData++;
+        }
+        testRun->lostPkts+=lostPkts;
+    }
+
     struct TestData d;
     d.pkt = *testPacket;
-    d.timeDiff = timeSinceLastPkt.tv_nsec;
-    d.lostPkts = 0;
+    d.timeDiff = timeSinceLastPkt.tv_nsec/(lostPkts+1);
 
     memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
     testRun->numTestData++;
-
     testRun->lastPktTime = now;
     return 0;
 }
@@ -105,7 +125,7 @@ int freeTestRun(struct TestRun *testRun){
 }
 
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
-    printf("Saving--- (%i)\n", testRun->numTestData);
+    printf("Saving--- %s (%i)\n", filename, testRun->numTestData);
     FILE *fptr;
     fptr = fopen(filename,"w");
     if(fptr == NULL)
@@ -113,13 +133,19 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
         printf("Error!");
         exit(1);
     }
-    fprintf(fptr, "(Packets:  %i, Delay(ns): %i)\n",
-            testRun->config.numPktsToSend, testRun->config.delayns);
+    //fprintf(fptr, "(Packets:  %i, Delay(ns): %i)\n",
+    //        testRun->config.numPktsToSend, testRun->config.delayns);
 
+    fprintf(fptr, "pkt,timediff\n");
     for(int i=0; i<testRun->numTestData;i++){
         const struct TestData *muh;
         muh = testRun->testData+i;
-        fprintf(fptr, "%i,%ld\n", muh->pkt.seq, muh->timeDiff);
+
+        if(muh->timeDiff == 0){
+            fprintf(fptr, "%i,%s\n", muh->pkt.seq, "NaN");
+        }else {
+            fprintf(fptr, "%i,%ld\n", muh->pkt.seq, muh->timeDiff);
+        }
     }
     fclose(fptr);
     printf("    ----Done saving\n");

@@ -21,12 +21,12 @@ struct TestPacket{
 struct TestData{
     struct TestPacket pkt;
     long timeDiff;
-    uint32_t lostPkts;
 };
 
 struct TestRunConfig{
     int numPktsToSend;
     int delayns;
+    int looseNthPkt;
 };
 
 struct TestRun{
@@ -36,6 +36,7 @@ struct TestRun{
     uint32_t maxNumTestData;
 
     struct timespec lastPktTime;
+    uint32_t lostPkts;
     bool done;
 };
 

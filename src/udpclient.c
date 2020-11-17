@@ -68,14 +68,13 @@ configure(struct client_config* config,
     config->port  = 3478;
     config->testRunConfig.numPktsToSend = 3000;
     config->testRunConfig.delayns = 5000000;
-
+    config->testRunConfig.looseNthPkt = 10;
 
     static struct option long_options[] = {
         {"interface", 1, 0, 'i'},
         {"port", 1, 0, 'p'},
         {"pkts", 1, 0, 'n'},
         {"delay", 1, 0, 'd'},
-        {"csv", 0, 0, '2'},
         {"help", 0, 0, 'h'},
         {"version", 0, 0, 'v'},
         {NULL, 0, NULL, 0}
@@ -205,10 +204,16 @@ main(int   argc,
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
 
-    for(int j=0;j<testRun.config.numPktsToSend;j++){
+    for(int j=0, nth=1;j<testRun.config.numPktsToSend;j++,nth++){
       struct TestPacket pkt = getNextTestPacket(&testRun);
       memcpy(buf, &pkt, sizeof(pkt));
-      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&clientConfig.remoteAddr, 0, 0 );
+      if(nth == testRun.config.looseNthPkt){
+          printf("Simulating pkt loss. Dropping packet (%i)\n", pkt.seq);
+          nth=1;
+      }else {
+          sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
+                     (const struct sockaddr *) &clientConfig.remoteAddr, 0,0);
+      }
       addTestData(&testRun, &pkt);
       nanosleep(&timer, &remaining);
     }
