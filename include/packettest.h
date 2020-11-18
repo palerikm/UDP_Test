@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <stdbool.h>
+#include <sys/socket.h>
 //#include <pthread.h>
 
 struct TestPacket{
@@ -24,13 +25,19 @@ struct TestData{
 };
 
 struct TestRunConfig{
+    char                    interface[10];
+    struct sockaddr_storage localAddr;
+    struct sockaddr_storage remoteAddr;
+    int                     port;
     int numPktsToSend;
     struct timespec delay;
     int looseNthPkt;
+    int dscp;
+    int pkt_size;
 };
 
 struct TestRun{
-    struct TestRunConfig config;
+    struct TestRunConfig *config;
     struct TestData *testData;
     uint32_t numTestData;
     uint32_t maxNumTestData;
@@ -41,7 +48,7 @@ struct TestRun{
 };
 
 int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
-        struct TestRunConfig config);
+                struct TestRunConfig *config);
 
 int freeTestRun(struct TestRun *testRun);
 

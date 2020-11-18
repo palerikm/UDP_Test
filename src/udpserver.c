@@ -157,7 +157,11 @@ main(int   argc,
     testConfig.numPktsToSend = 0;
     testConfig.delay.tv_sec = 0;
     testConfig.delay.tv_nsec = 0;
-    initTestRun(&testRun, MAX_NUM_RCVD_TEST_PACKETS, testConfig);
+    testConfig.pkt_size = 0;
+    testConfig.dscp = 0;
+    strncpy(testConfig.interface, interface, sizeof(interface));
+
+    initTestRun(&testRun, MAX_NUM_RCVD_TEST_PACKETS, &testConfig);
 
     listenConfig.tInst = &testRun;
 

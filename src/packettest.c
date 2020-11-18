@@ -5,8 +5,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sockethelper.h>
 
 #include "packettest.h"
+
 
 
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq){
@@ -16,7 +18,7 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq)
     return 0;
 }
 
-int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct TestRunConfig config){
+int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, struct TestRunConfig *config){
     testRun->testData = malloc(sizeof(struct TestData)*maxNumPkts);
     if(testRun->testData == NULL){
         perror("Error allocating memory for testdata: ");
@@ -127,6 +129,36 @@ int freeTestRun(struct TestRun *testRun){
     return 0;
 }
 
+int configToString(char* configStr, const struct TestRunConfig *config){
+
+    char              addrStr[SOCKADDR_MAX_STRLEN];
+    sockaddr_toString( (struct sockaddr*)&config->localAddr,
+                               addrStr,
+                               sizeof(addrStr),
+                               false );
+    strncpy(configStr, addrStr, sizeof(addrStr));
+    strncat(configStr, " (", 3);
+    strncat(configStr, config->interface, strlen(config->interface));
+    strncat(configStr, ") -> ", 5);
+
+    sockaddr_toString( (struct sockaddr*)&config->remoteAddr,
+                       addrStr,
+                       sizeof(addrStr),
+                       true );
+    strncat(configStr, addrStr, strlen(addrStr));
+    char result[50];
+    sprintf(result, " PktSize: %i", config->pkt_size);
+    strncat(configStr, result, strlen(result));
+
+    sprintf(result, " DSCP: %#x", config->dscp);
+    strncat(configStr, result, strlen(result));
+
+    sprintf(result, " Delay: %ld", config->delay.tv_nsec/1000000L);
+    strncat(configStr, result, strlen(result));
+
+    return 0;
+
+}
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
     printf("Saving--- %s (%i)\n", filename, testRun->numTestData);
     FILE *fptr;
@@ -138,7 +170,10 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
     }
     //fprintf(fptr, "(Packets:  %i, Delay(ns): %i)\n",
     //        testRun->config.numPktsToSend, testRun->config.delayns);
-
+    char configStr[1000];
+    configToString(configStr, testRun->config);
+    printf("     %s\n", configStr);
+    fprintf(fptr, "%s\n", configStr);
     fprintf(fptr, "pkt,timediff\n");
     for(int i=0; i<testRun->numTestData;i++){
         const struct TestData *muh;
