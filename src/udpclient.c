@@ -26,6 +26,7 @@ struct client_config {
   struct sockaddr_storage localAddr;
   struct sockaddr_storage remoteAddr;
   int                     port;
+  int                     dscp;
   struct TestRunConfig    testRunConfig;
 
 };
@@ -50,6 +51,8 @@ printUsage()
   printf("Options: \n");
   printf("  -i, --interface           Interface\n");
   printf("  -p <port>, --port <port>  Destination port\n");
+  printf("  -d <ms>, --delay <ms>     Delay after each sendto\n");
+  printf("  -t <0x00>                 DSCP/Diffserv value\n");
   printf("  -v, --version             Print version number\n");
   printf("  -h, --help                Print help text\n");
   exit(0);
@@ -67,14 +70,17 @@ configure(struct client_config* config,
     strncpy(config->interface, "default", 7);
     config->port  = 3478;
     config->testRunConfig.numPktsToSend = 3000;
-    config->testRunConfig.delayns = 5000000;
-    config->testRunConfig.looseNthPkt = 10;
+    config->testRunConfig.delay.tv_sec = 0;
+    config->testRunConfig.delay.tv_nsec = 20000000L;
+    config->testRunConfig.looseNthPkt = 0;
+    config->dscp = 0;
 
     static struct option long_options[] = {
         {"interface", 1, 0, 'i'},
         {"port", 1, 0, 'p'},
         {"pkts", 1, 0, 'n'},
         {"delay", 1, 0, 'd'},
+        {"dscp", 1, 0, 't'},
         {"help", 0, 0, 'h'},
         {"version", 0, 0, 'v'},
         {NULL, 0, NULL, 0}
@@ -84,7 +90,7 @@ configure(struct client_config* config,
         exit(0);
     }
     int option_index = 0;
-    while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:",
+    while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:t:",
                             long_options, &option_index) ) != -1 )
     {
     /* int this_option_optind = optind ? optind : 1; */
@@ -97,12 +103,10 @@ configure(struct client_config* config,
           config->port = atoi(optarg);
           break;
         case 'd':
-            config->testRunConfig.delayns = atoi(optarg);
-            if (config->testRunConfig.delayns > MAX_DELAY_NS)
-            {
-                config->testRunConfig.delayns = MAX_DELAY_NS;
-            }
+            config->testRunConfig.delay.tv_nsec = atoi(optarg)*1000000L;
           break;
+        case 't':
+            config->dscp = strtoul(optarg, NULL, 16);
         case 'n':
             config->testRunConfig.numPktsToSend = atoi(optarg);
             if (config->testRunConfig.numPktsToSend > MAX_NUM_RCVD_TEST_PACKETS)
@@ -116,9 +120,9 @@ configure(struct client_config* config,
         case 'v':
           printf("Version \n");
           exit(0);
-          break;
         default:
           printf("?? getopt returned character code 0%o ??\n", c);
+          exit(0);
         }
     }
     if (optind < argc){
@@ -194,10 +198,10 @@ main(int   argc,
     uint8_t buf[1200];
     memset(&buf, 43, sizeof(buf));
 
-    struct timespec timer;
+    //struct timespec timer;
     struct timespec remaining;
-    timer.tv_sec  = 0;
-    timer.tv_nsec = clientConfig.testRunConfig.delayns;
+    //timer.tv_sec  = 0;
+    //timer.tv_nsec = clientConfig.testRunConfig.delayns;
 
     struct TestRun testRun;
     initTestRun(&testRun, clientConfig.testRunConfig.numPktsToSend, clientConfig.testRunConfig);
@@ -212,18 +216,24 @@ main(int   argc,
           nth=1;
       }else {
           sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
-                     (const struct sockaddr *) &clientConfig.remoteAddr, 0,0);
+                     (const struct sockaddr *) &clientConfig.remoteAddr,
+                             0,clientConfig.dscp,0);
+      }
+      if(j%100==0){
+          printf("\r%i", j);
+          fflush(stdout);
       }
       addTestData(&testRun, &pkt);
-      nanosleep(&timer, &remaining);
+      nanosleep(&clientConfig.testRunConfig.delay, &remaining);
     }
 
     //Send End of Test (MAX_INT) a few times...
     struct TestPacket pkt = getEndTestPacket(&testRun);
     memcpy(buf, &pkt, sizeof(pkt));
     for(int j=0;j<10;j++){
-      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&clientConfig.remoteAddr, 0, 0 );
-      nanosleep(&timer, &remaining);
+      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&clientConfig.remoteAddr,
+              0, clientConfig.dscp,0 );
+      nanosleep(&clientConfig.testRunConfig.delay, &remaining);
     }
 
     const char* filename = "client_results.txt\0";

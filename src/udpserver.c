@@ -2,14 +2,9 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
-#include <errno.h>
 #include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <inttypes.h>
+
 
 #include <pthread.h>
 #include <getopt.h>
@@ -160,7 +155,8 @@ main(int   argc,
     struct TestRun testRun;
     struct TestRunConfig testConfig;
     testConfig.numPktsToSend = 0;
-    testConfig.delayns = 0;
+    testConfig.delay.tv_sec = 0;
+    testConfig.delay.tv_nsec = 0;
     initTestRun(&testRun, MAX_NUM_RCVD_TEST_PACKETS, testConfig);
 
     listenConfig.tInst = &testRun;

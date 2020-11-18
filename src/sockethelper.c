@@ -94,6 +94,7 @@ createLocalSocket(int                    ai_family,
         }
         break;
     }
+
     return sockfd;
 }
 
@@ -168,6 +169,7 @@ sendPacket(int                    sockHandle,
            int                    bufLen,
            const struct sockaddr* dstAddr,
            int                    proto,
+           int                    dscp,
            uint8_t                ttl)
 {
     int32_t numbytes;
@@ -185,6 +187,8 @@ sendPacket(int                    sockHandle,
     {
         addr_len = sizeof(struct sockaddr_in6);
     }
+
+    setsockopt(sockHandle, IPPROTO_IP, IP_TOS,  &dscp, sizeof(dscp));
 
     if (ttl > 0)
     {

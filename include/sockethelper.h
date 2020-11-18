@@ -44,5 +44,6 @@ sendPacket(int                    sockHandle,
            int                    bufLen,
            const struct sockaddr* dstAddr,
            int                    proto,
+           int                    dscp,
            uint8_t                ttl);
 #endif //UDP_TESTS_SOCKETHELPER_H

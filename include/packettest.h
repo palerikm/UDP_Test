@@ -20,12 +20,12 @@ struct TestPacket{
 
 struct TestData{
     struct TestPacket pkt;
-    long timeDiff;
+    struct timespec timeDiff;
 };
 
 struct TestRunConfig{
     int numPktsToSend;
-    int delayns;
+    struct timespec delay;
     int looseNthPkt;
 };
 

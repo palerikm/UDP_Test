@@ -51,6 +51,7 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
 
     //First packet.
     if(testRun->numTestData == 0){
+        timeSinceLastPkt.tv_sec = 0;
         timeSinceLastPkt.tv_nsec = 0;
     }else {
         timespec_diff(&now, &testRun->lastPktTime, &timeSinceLastPkt);
@@ -71,7 +72,7 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
             memset(&tPkt, 0, sizeof(tPkt));
             struct TestData d;
             d.pkt = tPkt;
-            d.timeDiff = 0;
+            d.timeDiff = timeSinceLastPkt;
             memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
             testRun->numTestData++;
         }
@@ -80,7 +81,9 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
 
     struct TestData d;
     d.pkt = *testPacket;
-    d.timeDiff = timeSinceLastPkt.tv_nsec/(lostPkts+1);
+    //Todo: What if over a second delayed....
+    d.timeDiff.tv_sec = 0;
+    d.timeDiff.tv_nsec = timeSinceLastPkt.tv_nsec;
 
     memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
     testRun->numTestData++;
@@ -141,10 +144,13 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
         const struct TestData *muh;
         muh = testRun->testData+i;
 
-        if(muh->timeDiff == 0){
+        if(muh->timeDiff.tv_nsec == 0){
             fprintf(fptr, "%i,%s\n", muh->pkt.seq, "NaN");
         }else {
-            fprintf(fptr, "%i,%ld\n", muh->pkt.seq, muh->timeDiff);
+            if(muh->timeDiff.tv_sec > 0){
+                printf("Warning warning FIX me.. diff larger than a second\n");
+            }
+            fprintf(fptr, "%i,%ld\n", muh->pkt.seq, muh->timeDiff.tv_nsec);
         }
     }
     fclose(fptr);
