@@ -52,7 +52,7 @@ printUsage()
   printf("  -i, --interface           Interface\n");
   printf("  -p <port>, --port <port>  Destination port\n");
   printf("  -d <ms>, --delay <ms>     Delay after each sendto\n");
-  printf("  -t <0x00>                 DSCP/Diffserv value\n");
+  printf("  -t <0xNN> --dscp <0xNN>   DSCP/Diffserv value\n");
   printf("  -v, --version             Print version number\n");
   printf("  -h, --help                Print help text\n");
   exit(0);
