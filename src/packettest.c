@@ -137,9 +137,9 @@ int configToString(char* configStr, const struct TestRunConfig *config){
                                sizeof(addrStr),
                                false );
     strncpy(configStr, addrStr, sizeof(addrStr));
-    strncat(configStr, " (", 3);
+    strncat(configStr, " (\0", 4);
     strncat(configStr, config->interface, strlen(config->interface));
-    strncat(configStr, ") -> ", 5);
+    strncat(configStr, ") -> \0", 6);
 
     sockaddr_toString( (struct sockaddr*)&config->remoteAddr,
                        addrStr,

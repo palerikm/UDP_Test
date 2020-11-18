@@ -77,11 +77,8 @@ int
 main(int   argc,
      char* argv[])
 {
-    struct sockaddr_storage localAddr;
-    char                    interface[10];
-    int                     port;
-
-
+    struct TestRunConfig testConfig;
+    memset(&testConfig, 0, sizeof(testConfig));
 
     pthread_t socketListenThread;
     pthread_t cleanupThread;
@@ -92,8 +89,8 @@ main(int   argc,
     int c;
     /* int                 digit_optind = 0; */
     /* set config to default values */
-    strncpy(interface, "default", 7);
-    port          = 3478;
+    strncpy(testConfig.interface, "default", 7);
+    testConfig.port          = 3478;
 
 
     static struct option long_options[] = {
@@ -116,10 +113,10 @@ main(int   argc,
         switch (c)
         {
             case 'i':
-                strncpy(interface, optarg, max_iface_len);
+                strncpy(testConfig.interface, optarg, max_iface_len);
                 break;
             case 'p':
-                port = atoi(optarg);
+                testConfig.port = atoi(optarg);
                 break;
             case 'h':
                 printUsage();
@@ -133,33 +130,26 @@ main(int   argc,
         }
     }
 
-    if ( !getLocalInterFaceAddrs( (struct sockaddr*)&localAddr,
-                                  interface,
+    if ( !getLocalInterFaceAddrs( (struct sockaddr*)&testConfig.localAddr,
+                                  testConfig.interface,
                                   AF_INET,
                                   IPv6_ADDR_NORMAL,
                                   false ) )
     {
-        printf("Error getting IPaddr on %s\n", interface);
+        printf("Error getting IPaddr on %s\n", testConfig.interface);
         exit(1);
     }
 
     sockfd = createLocalSocket(AF_INET,
-                               (struct sockaddr*)&localAddr,
+                               (struct sockaddr*)&testConfig.localAddr,
                                SOCK_DGRAM,
-                               port);
+                               testConfig.port);
 
     listenConfig.socketConfig[0].sockfd = sockfd;
     listenConfig.pkt_handler          = packetHandler;
     listenConfig.numSockets             = 1;
 
     struct TestRun testRun;
-    struct TestRunConfig testConfig;
-    testConfig.numPktsToSend = 0;
-    testConfig.delay.tv_sec = 0;
-    testConfig.delay.tv_nsec = 0;
-    testConfig.pkt_size = 0;
-    testConfig.dscp = 0;
-    strncpy(testConfig.interface, interface, sizeof(interface));
 
     initTestRun(&testRun, MAX_NUM_RCVD_TEST_PACKETS, &testConfig);
 
