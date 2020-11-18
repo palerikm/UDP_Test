@@ -27,6 +27,7 @@ struct client_config {
   struct sockaddr_storage remoteAddr;
   int                     port;
   int                     dscp;
+  int                     pkt_size;
   struct TestRunConfig    testRunConfig;
 
 };
@@ -45,14 +46,15 @@ teardown()
 }
 
 void
-printUsage()
+printUsage(char* prgName)
 {
-  printf("Usage: stunclient [options] server\n");
+  printf("Usage: %s [options] <ip/FQDN>\n", prgName);
   printf("Options: \n");
   printf("  -i, --interface           Interface\n");
   printf("  -p <port>, --port <port>  Destination port\n");
   printf("  -d <ms>, --delay <ms>     Delay after each sendto\n");
   printf("  -t <0xNN> --dscp <0xNN>   DSCP/Diffserv value\n");
+  printf("  -s <bytes> --size <bytes> Size of packet payload in bytes\n");
   printf("  -v, --version             Print version number\n");
   printf("  -h, --help                Print help text\n");
   exit(0);
@@ -74,6 +76,7 @@ configure(struct client_config* config,
     config->testRunConfig.delay.tv_nsec = 20000000L;
     config->testRunConfig.looseNthPkt = 0;
     config->dscp = 0;
+    config->pkt_size = 1200;
 
     static struct option long_options[] = {
         {"interface", 1, 0, 'i'},
@@ -81,16 +84,17 @@ configure(struct client_config* config,
         {"pkts", 1, 0, 'n'},
         {"delay", 1, 0, 'd'},
         {"dscp", 1, 0, 't'},
+        {"size", 1, 0, 's'},
         {"help", 0, 0, 'h'},
         {"version", 0, 0, 'v'},
         {NULL, 0, NULL, 0}
     };
     if (argc < 2){
-        printUsage();
+        printUsage(argv[0]);
         exit(0);
     }
     int option_index = 0;
-    while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:t:",
+    while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:t:s:",
                             long_options, &option_index) ) != -1 )
     {
     /* int this_option_optind = optind ? optind : 1; */
@@ -107,6 +111,9 @@ configure(struct client_config* config,
           break;
         case 't':
             config->dscp = strtoul(optarg, NULL, 16);
+        case 's':
+            config->pkt_size = atoi(optarg);
+            break;
         case 'n':
             config->testRunConfig.numPktsToSend = atoi(optarg);
             if (config->testRunConfig.numPktsToSend > MAX_NUM_RCVD_TEST_PACKETS)
@@ -115,7 +122,7 @@ configure(struct client_config* config,
             }
             break;
         case 'h':
-          printUsage();
+          printUsage(argv[0]);
           break;
         case 'v':
           printf("Version \n");
@@ -195,7 +202,7 @@ main(int   argc,
                        true ) );
 
 
-    uint8_t buf[1200];
+    uint8_t buf[clientConfig.pkt_size];
     memset(&buf, 43, sizeof(buf));
 
     //struct timespec timer;
