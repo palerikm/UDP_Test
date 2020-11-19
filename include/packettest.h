@@ -37,6 +37,7 @@ struct TestRunConfig{
     int                     port;
     int numPktsToSend;
     struct timespec delay;
+    int pktsInBurst;
     int looseNthPkt;
     int dscp;
     int pkt_size;

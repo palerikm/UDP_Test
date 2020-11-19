@@ -36,6 +36,7 @@ printUsage(char* prgName)
   printf("  -i, --interface           Interface\n");
   printf("  -p <port>, --port <port>  Destination port\n");
   printf("  -d <ms>, --delay <ms>     Delay after each sendto\n");
+  printf("  -b <num>, --burst <num>   Packets to send in each burst\n");
   printf("  -t <0xNN> --dscp <0xNN>   DSCP/Diffserv value\n");
   printf("  -s <bytes> --size <bytes> Size of packet payload in bytes\n");
   printf("  -v, --version             Print version number\n");
@@ -56,6 +57,7 @@ void configure(struct TestRunConfig* config,
     config->numPktsToSend = 3000;
     config->delay.tv_sec = 0;
     config->delay.tv_nsec = 20000000L;
+    config->pktsInBurst = 1;
     config->looseNthPkt = 0;
     config->dscp = 0;
     config->pkt_size = 1200;
@@ -65,6 +67,7 @@ void configure(struct TestRunConfig* config,
         {"port", 1, 0, 'p'},
         {"pkts", 1, 0, 'n'},
         {"delay", 1, 0, 'd'},
+        {"burst", 1, 0, 'b'},
         {"dscp", 1, 0, 't'},
         {"size", 1, 0, 's'},
         {"help", 0, 0, 'h'},
@@ -76,7 +79,7 @@ void configure(struct TestRunConfig* config,
         exit(0);
     }
     int option_index = 0;
-    while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:t:s:",
+    while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:b:t:s:",
                             long_options, &option_index) ) != -1 )
     {
     /* int this_option_optind = optind ? optind : 1; */
@@ -91,6 +94,9 @@ void configure(struct TestRunConfig* config,
         case 'd':
             config->delay.tv_nsec = atoi(optarg)*1000000L;
           break;
+        case 'b':
+            config->pktsInBurst = atoi(optarg);
+            break;
         case 't':
             config->dscp = strtoul(optarg, NULL, 16);
         case 's':
@@ -207,7 +213,7 @@ main(int   argc,
         nanosleep(&testRunConfig.delay, &remaining);
     }
 
-
+    int currBurstIdx = 0;
     for(int j=0, nth=1;j<testRun.config->numPktsToSend;j++,nth++){
       pkt = getNextTestPacket(&testRun);
       memcpy(buf, &pkt, sizeof(pkt));
@@ -225,7 +231,13 @@ main(int   argc,
       }
       //addTestData(&testRun, &pkt);
       addTestDataFromBuf(&testRun, buf, sizeof(buf));
-      nanosleep(&testRunConfig.delay, &remaining);
+      //Do I sleep or am I bursting..
+      if(currBurstIdx < testRunConfig.pktsInBurst){
+          currBurstIdx++;
+      }else {
+          currBurstIdx = 0;
+          nanosleep(&testRunConfig.delay, &remaining);
+      }
     }
 
     //Send End of Test a few times...

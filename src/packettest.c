@@ -183,6 +183,9 @@ int configToString(char* configStr, const struct TestRunConfig *config){
     sprintf(result, " Delay: %ld", config->delay.tv_nsec/1000000L);
     strncat(configStr, result, strlen(result));
 
+    sprintf(result, " Burst: %i", config->pktsInBurst);
+    strncat(configStr, result, strlen(result));
+
     return 0;
 
 }
