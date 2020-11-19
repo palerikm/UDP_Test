@@ -56,7 +56,7 @@ void configure(struct TestRunConfig* config,
     config->numPktsToSend = 3000;
     config->delay.tv_sec = 0;
     config->delay.tv_nsec = 20000000L;
-    config->looseNthPkt = 10;
+    config->looseNthPkt = 0;
     config->dscp = 0;
     config->pkt_size = 1200;
 
@@ -160,6 +160,7 @@ main(int   argc,
      char* argv[])
 {
     struct TestRunConfig testRunConfig;
+    memset(&testRunConfig, 0, sizeof(testRunConfig));
 
     /* Read cmd line argumens and set it up */
     configure(&testRunConfig, argc, argv);
@@ -201,7 +202,8 @@ main(int   argc,
     for(int j=0;j<3;j++){
         sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&testRunConfig.remoteAddr,
                    0, testRunConfig.dscp, 0 );
-        addTestData(&testRun, &pkt);
+        //addTestData(&testRun, &pkt);
+        addTestDataFromBuf(&testRun, buf, sizeof(buf));
         nanosleep(&testRunConfig.delay, &remaining);
     }
 
@@ -221,7 +223,8 @@ main(int   argc,
           printf("\r%i", j);
           fflush(stdout);
       }
-      addTestData(&testRun, &pkt);
+      //addTestData(&testRun, &pkt);
+      addTestDataFromBuf(&testRun, buf, sizeof(buf));
       nanosleep(&testRunConfig.delay, &remaining);
     }
 
@@ -231,8 +234,9 @@ main(int   argc,
     for(int j=0;j<10;j++){
       sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&testRunConfig.remoteAddr,
                  0, testRunConfig.dscp, 0 );
-        addTestData(&testRun, &pkt);
-      nanosleep(&testRunConfig.delay, &remaining);
+       // addTestData(&testRun, &pkt);
+        addTestDataFromBuf(&testRun, buf, sizeof(buf));
+        nanosleep(&testRunConfig.delay, &remaining);
 
     }
 

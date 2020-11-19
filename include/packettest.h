@@ -42,23 +42,31 @@ struct TestRunConfig{
     int pkt_size;
 };
 
+struct TestRunStatistics{
+    uint32_t lostPkts;
+    struct timespec startTest;
+    struct timespec endTest;
+    uint32_t rcvdPkts;
+    uint32_t rcvdBytes;
+};
+
 struct TestRun{
     struct TestRunConfig *config;
     struct TestData *testData;
     uint32_t numTestData;
     uint32_t maxNumTestData;
-
     struct timespec lastPktTime;
-    uint32_t lostPkts;
+
+    struct TestRunStatistics stats;
     bool done;
 };
 
 int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
                 struct TestRunConfig *config);
-
+int testRunReset(struct TestRun *testRun);
 int freeTestRun(struct TestRun *testRun);
 
-int addTestData(struct TestRun *testRun, struct TestPacket *testPacket);
+int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktSize);
 int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun);
 struct TestPacket getEndTestPacket(const struct TestRun *testRun);
@@ -67,7 +75,7 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 
-static inline void timespec_diff(struct timespec *a, struct timespec *b,
+static inline void timespec_diff(const struct timespec *a, const struct timespec *b,
                                  struct timespec *result) {
     result->tv_sec  = a->tv_sec  - b->tv_sec;
     result->tv_nsec = a->tv_nsec - b->tv_nsec;

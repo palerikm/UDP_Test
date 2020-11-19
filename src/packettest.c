@@ -29,13 +29,25 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, struct TestRunConf
     testRun->maxNumTestData = maxNumPkts;
     testRun->config = config;
     testRun->done = false;
+    testRun->stats.lostPkts = 0;
+    testRun->stats.rcvdPkts = 0;
+    testRun->stats.rcvdBytes =0;
     return 0;
 }
 
-int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
-    if(testRun->numTestData >= testRun->maxNumTestData){
-        return -2;
-    }
+int testRunReset(struct TestRun *testRun){
+    testRun->done = false;
+    testRun->numTestData = 0;
+    testRun->lastPktTime.tv_nsec = 0;
+    testRun->lastPktTime.tv_sec = 0;
+    testRun->stats.rcvdPkts = 0;
+    testRun->stats.rcvdBytes = 0;
+    testRun->stats.lostPkts = 0;
+
+    return 0;
+}
+
+int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktSize){
     struct timespec now, timeSinceLastPkt;
 
     if(testRun == NULL){
@@ -43,9 +55,14 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
     }
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 
+    if(testRun->numTestData >= testRun->maxNumTestData){
+        testRun->stats.endTest = now;
+        return -2;
+    }
     //End of test?
     if(testPacket->cmd == stop_test_cmd){
         testRun->done = true;
+        testRun->stats.endTest = now;
         return 0;
     }
 
@@ -53,11 +70,12 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
     if(testPacket->cmd == start_test_cmd){
         testRun->done = false;
         testRun->lastPktTime = now;
+        testRun->stats.startTest = now;
         return 0;
     }
 
     timespec_diff(&now, &testRun->lastPktTime, &timeSinceLastPkt);
-    
+
     //Did we loose any packets? Or out of order?
     int lostPkts = 0;
     struct TestPacket *lastPkt = &(testRun->testData+testRun->numTestData-1)->pkt;
@@ -79,8 +97,10 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
             memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
             testRun->numTestData++;
         }
-        testRun->lostPkts+=lostPkts;
+        testRun->stats.lostPkts+=lostPkts;
     }
+    testRun->stats.rcvdPkts++;
+    testRun->stats.rcvdBytes+=pktSize;
 
     struct TestData d;
     d.pkt = *testPacket;
@@ -106,7 +126,7 @@ int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int bu
         printf("Not a test pkt! Ignoring\n");
         return 1;
     }
-    return addTestData(testRun, pkt);
+    return addTestData(testRun, pkt, buflen);
 }
 
 struct TestPacket getNextTestPacket(const struct TestRun *testRun){
@@ -166,6 +186,34 @@ int configToString(char* configStr, const struct TestRunConfig *config){
     return 0;
 
 }
+
+int statsToString(char* configStr, const struct TestRunStatistics *stats) {
+    configStr[0] = '\0';
+    char result[50];
+    sprintf(result, "Pkts: %i", stats->rcvdPkts);
+    strncat(configStr, result, strlen(result));
+
+    sprintf(result, " Lost pkts: %i", stats->lostPkts);
+    strncat(configStr, result, strlen(result));
+
+    sprintf(result, " Bytes rcvd: %i", stats->rcvdBytes);
+    strncat(configStr, result, strlen(result));
+
+    struct timespec elapsed;
+    timespec_diff(&stats->endTest, &stats->startTest, &elapsed);
+
+    double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
+
+    sprintf(result, " Time : %f sec", sec);
+    strncat(configStr, result, strlen(result));
+
+    sprintf(result, " (Mbps : %f, p/s: %f) ", (((stats->rcvdBytes*8)/sec)/1000000), stats->rcvdPkts/sec);
+    strncat(configStr, result, strlen(result));
+
+    return 0;
+
+}
+
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
     printf("Saving--- %s (%i)\n", filename, testRun->numTestData);
     FILE *fptr;
@@ -181,6 +229,13 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
     configToString(configStr, testRun->config);
     printf("     %s\n", configStr);
     fprintf(fptr, "%s\n", configStr);
+
+    char statsStr[1000];
+    statsToString(statsStr, &testRun->stats);
+    printf("     %s\n", statsStr);
+    fprintf(fptr, "%s\n", statsStr);
+
+
     fprintf(fptr, "pkt,timediff\n");
     for(int i=0; i<testRun->numTestData;i++){
         const struct TestData *muh;

@@ -45,8 +45,9 @@ saveAndMoveOn(void* ptr)
     {
         if(testRun->done && testRun->numTestData > 4){
             saveTestDataToFile(testRun, filename);
-            testRun->done = false;
-            testRun->numTestData = 0;
+            testRunReset(testRun);
+
+
         }else{
             usleep(10000);
         }
