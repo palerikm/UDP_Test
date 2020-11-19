@@ -56,14 +56,8 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
         return 0;
     }
 
-    //First packet.
-    //if(testRun->numTestData == 0){
-    //    timeSinceLastPkt.tv_sec = 0;
-    //    timeSinceLastPkt.tv_nsec = 0;
-    //}else {
     timespec_diff(&now, &testRun->lastPktTime, &timeSinceLastPkt);
-    //}
-
+    
     //Did we loose any packets? Or out of order?
     int lostPkts = 0;
     struct TestPacket *lastPkt = &(testRun->testData+testRun->numTestData-1)->pkt;
@@ -77,9 +71,11 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
         for(int i=0; i<lostPkts;i++){
             struct TestPacket tPkt;
             memset(&tPkt, 0, sizeof(tPkt));
+            tPkt.seq = lastPkt->seq+1 + i;
             struct TestData d;
             d.pkt = tPkt;
-            d.timeDiff = timeSinceLastPkt;
+            d.timeDiff.tv_sec = 0;
+            d.timeDiff.tv_nsec = 0;
             memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
             testRun->numTestData++;
         }

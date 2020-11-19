@@ -56,7 +56,7 @@ void configure(struct TestRunConfig* config,
     config->numPktsToSend = 3000;
     config->delay.tv_sec = 0;
     config->delay.tv_nsec = 20000000L;
-    config->looseNthPkt = 0;
+    config->looseNthPkt = 10;
     config->dscp = 0;
     config->pkt_size = 1200;
 
