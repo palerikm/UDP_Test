@@ -11,12 +11,18 @@
 #include <time.h>
 #include <stdbool.h>
 #include <sys/socket.h>
-//#include <pthread.h>
+
+static const uint32_t no_op_cmd = 0;
+static const uint32_t start_test_cmd = 1;
+static const uint32_t in_progress_test_cmd = 2;
+static const uint32_t stop_test_cmd = 3;
+static const uint32_t echo_pkt_cmd = 4;
 
 struct TestPacket{
     uint32_t pktCookie;
     uint32_t srcId;
     uint32_t seq;
+    uint32_t cmd;
 };
 
 struct TestData{
@@ -56,8 +62,8 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket);
 int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun);
 struct TestPacket getEndTestPacket(const struct TestRun *testRun);
-
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq);
+struct TestPacket getStartTestPacket(const struct TestRun *testRun);
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd);
 
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 

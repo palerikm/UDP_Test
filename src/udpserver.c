@@ -19,7 +19,7 @@
 #define MAX_LISTEN_SOCKETS 1
 #define MAX_THREADS 100000
 
-#define max_iface_len 10
+
 int             sockfd;
 
 

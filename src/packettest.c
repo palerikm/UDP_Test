@@ -11,10 +11,11 @@
 
 
 
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq){
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd){
     testPacket->pktCookie = TEST_PKT_COOKIE;
     testPacket->srcId = srcId;
     testPacket->seq = seq;
+    testPacket->cmd = cmd;
     return 0;
 }
 
@@ -42,22 +43,26 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket){
     }
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 
-    //Last packet
-    if(testPacket->seq == UINT32_MAX){
-        if(testRun->numTestData== 0){
-            return 0;
-        }
+    //End of test?
+    if(testPacket->cmd == stop_test_cmd){
         testRun->done = true;
         return 0;
     }
 
-    //First packet.
-    if(testRun->numTestData == 0){
-        timeSinceLastPkt.tv_sec = 0;
-        timeSinceLastPkt.tv_nsec = 0;
-    }else {
-        timespec_diff(&now, &testRun->lastPktTime, &timeSinceLastPkt);
+    //Start of test?
+    if(testPacket->cmd == start_test_cmd){
+        testRun->done = false;
+        testRun->lastPktTime = now;
+        return 0;
     }
+
+    //First packet.
+    //if(testRun->numTestData == 0){
+    //    timeSinceLastPkt.tv_sec = 0;
+    //    timeSinceLastPkt.tv_nsec = 0;
+    //}else {
+    timespec_diff(&now, &testRun->lastPktTime, &timeSinceLastPkt);
+    //}
 
     //Did we loose any packets? Or out of order?
     int lostPkts = 0;
@@ -110,13 +115,19 @@ int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int bu
 
 struct TestPacket getNextTestPacket(const struct TestRun *testRun){
     struct TestPacket pkt;
-    fillPacket(&pkt, 23, testRun->numTestData);
+    fillPacket(&pkt, 23, testRun->numTestData, in_progress_test_cmd);
     return pkt;
 }
 
 struct TestPacket getEndTestPacket(const struct TestRun *testRun){
     struct TestPacket pkt;
-    fillPacket(&pkt, 23, UINT32_MAX);
+    fillPacket(&pkt, 23, testRun->numTestData, stop_test_cmd);
+    return pkt;
+}
+
+struct TestPacket getStartTestPacket(const struct TestRun *testRun){
+    struct TestPacket pkt;
+    fillPacket(&pkt, 23, testRun->numTestData, start_test_cmd);
     return pkt;
 }
 

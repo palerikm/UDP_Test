@@ -17,21 +17,6 @@
 
 static struct ListenConfig listenConfig;
 
-#define max_iface_len 10
-
-#define MAX_DELAY_NS 999999999
-
-//struct client_config {
-//  char                    interface[10];
-//  struct sockaddr_storage localAddr;
-//  struct sockaddr_storage remoteAddr;
-//  int                     port;
-//  struct TestRunConfig    testRunConfig;
-
-//};
-
-
-
 static void
 teardown()
 {
@@ -209,8 +194,20 @@ main(int   argc,
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
 
+    //Send End of Test a few times...
+    struct TestPacket pkt = getStartTestPacket(&testRun);
+    memcpy(buf, &pkt, sizeof(pkt));
+
+    for(int j=0;j<3;j++){
+        sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&testRunConfig.remoteAddr,
+                   0, testRunConfig.dscp, 0 );
+        addTestData(&testRun, &pkt);
+        nanosleep(&testRunConfig.delay, &remaining);
+    }
+
+
     for(int j=0, nth=1;j<testRun.config->numPktsToSend;j++,nth++){
-      struct TestPacket pkt = getNextTestPacket(&testRun);
+      pkt = getNextTestPacket(&testRun);
       memcpy(buf, &pkt, sizeof(pkt));
       if(nth == testRun.config->looseNthPkt){
           printf("Simulating pkt loss. Dropping packet (%i)\n", pkt.seq);
@@ -228,13 +225,15 @@ main(int   argc,
       nanosleep(&testRunConfig.delay, &remaining);
     }
 
-    //Send End of Test (MAX_INT) a few times...
-    struct TestPacket pkt = getEndTestPacket(&testRun);
+    //Send End of Test a few times...
+    pkt = getEndTestPacket(&testRun);
     memcpy(buf, &pkt, sizeof(pkt));
     for(int j=0;j<10;j++){
       sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&testRunConfig.remoteAddr,
                  0, testRunConfig.dscp, 0 );
+        addTestData(&testRun, &pkt);
       nanosleep(&testRunConfig.delay, &remaining);
+
     }
 
     const char* filename = "client_results.txt\0";

@@ -12,6 +12,8 @@
 #define MAX_THREADS 100000
 #define MAX_NUM_RCVD_TEST_PACKETS 500000
 
+#define max_iface_len 10
+
 struct SocketConfig {
     int   sockfd;
 };
