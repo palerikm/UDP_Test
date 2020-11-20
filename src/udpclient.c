@@ -18,8 +18,6 @@
 static struct ListenConfig listenConfig;
 
 
-void printStats(int j, const struct timespec *now, struct TestRun *testRun);
-
 struct TestRun sendSomePktTest(struct TestRun *testRun, const struct TestPacket *pkt, struct timespec *now, int sockfd) {
     //Send End of Test a few times...
     struct timespec remaining;
@@ -76,6 +74,15 @@ printUsage(char* prgName)
   exit(0);
 }
 
+void printStats(int j, const struct timespec *now, struct TestRun *testRun) {
+    if(j % 100 == 0){
+        struct timespec elapsed = {0,0};
+        timespec_diff(now, &(*testRun).stats.startTest, &elapsed);
+        double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
+        printf("\r(Mbps : %f, p/s: %f)", ((((*testRun).stats.rcvdBytes * 8) / sec) / 1000000), (*testRun).stats.rcvdPkts / sec);
+        fflush(stdout);
+    }
+}
 
 void configure(struct TestRunConfig* config,
           int                   argc,
@@ -276,14 +283,6 @@ main(int   argc,
     return 0;
 }
 
-void printStats(int j, const struct timespec *now, struct TestRun *testRun) {
-    if(j % 100 == 0){
-      struct timespec elapsed = {0,0};
-      timespec_diff(now, &(*testRun).stats.startTest, &elapsed);
-      double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
-      printf("\r(Mbps : %f, p/s: %f) (%i)", ((((*testRun).stats.rcvdBytes * 8) / sec) / 1000000), (*testRun).stats.rcvdPkts / sec, (*testRun).stats.rcvdPkts);
-      fflush(stdout);
-    }
-}
+
 
 
