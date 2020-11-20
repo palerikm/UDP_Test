@@ -67,8 +67,8 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
 int testRunReset(struct TestRun *testRun);
 int freeTestRun(struct TestRun *testRun);
 
-int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktSize);
-int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen);
+int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktSize, const struct timespec *now);
+int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun);
 struct TestPacket getEndTestPacket(const struct TestRun *testRun);
 struct TestPacket getStartTestPacket(const struct TestRun *testRun);

@@ -47,34 +47,34 @@ int testRunReset(struct TestRun *testRun){
     return 0;
 }
 
-int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktSize){
-    struct timespec now, timeSinceLastPkt;
+int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktSize, const struct timespec *now){
+    struct timespec timeSinceLastPkt;
 
     if(testRun == NULL){
         return -1;
     }
-    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+    //clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 
     if(testRun->numTestData >= testRun->maxNumTestData){
-        testRun->stats.endTest = now;
+        testRun->stats.endTest = *now;
         return -2;
     }
     //End of test?
     if(testPacket->cmd == stop_test_cmd){
         testRun->done = true;
-        testRun->stats.endTest = now;
+        testRun->stats.endTest = *now;
         return 0;
     }
 
     //Start of test?
     if(testPacket->cmd == start_test_cmd){
         testRun->done = false;
-        testRun->lastPktTime = now;
-        testRun->stats.startTest = now;
+        testRun->lastPktTime = *now;
+        testRun->stats.startTest = *now;
         return 0;
     }
 
-    timespec_diff(&now, &testRun->lastPktTime, &timeSinceLastPkt);
+    timespec_diff(now, &testRun->lastPktTime, &timeSinceLastPkt);
 
     //Did we loose any packets? Or out of order?
     int lostPkts = 0;
@@ -110,12 +110,12 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktS
 
     memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
     testRun->numTestData++;
-    testRun->lastPktTime = now;
+    testRun->lastPktTime = *now;
     return 0;
 }
 
 
-int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen){
+int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen, const struct timespec *now){
     struct TestPacket *pkt;
     if (buflen<sizeof(struct TestPacket)){
         return 1;
@@ -126,7 +126,7 @@ int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int bu
         printf("Not a test pkt! Ignoring\n");
         return 1;
     }
-    return addTestData(testRun, pkt, buflen);
+    return addTestData(testRun, pkt, buflen, now);
 }
 
 struct TestPacket getNextTestPacket(const struct TestRun *testRun){
@@ -254,5 +254,5 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
         }
     }
     fclose(fptr);
-    printf("    ----Done saving\n");
+    printf("----Done saving\n");
 }

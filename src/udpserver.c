@@ -33,7 +33,7 @@ packetHandler(struct ListenConfig* config,
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     struct TestRun *testRun = config->tInst;
 
-    addTestDataFromBuf(testRun, buf, buflen);
+    addTestDataFromBuf(testRun, buf, buflen, &now);
 }
 
 _Noreturn static void*

@@ -17,6 +17,38 @@
 
 static struct ListenConfig listenConfig;
 
+
+void printStats(int j, const struct timespec *now, struct TestRun *testRun);
+
+struct TestRun sendSomePktTest(struct TestRun *testRun, const struct TestPacket *pkt, struct timespec *now, int sockfd) {
+    //Send End of Test a few times...
+    struct timespec remaining;
+    uint8_t endBuf[testRun->config->pkt_size];
+    //memset(&endBuf, 43, sizeof(endBuf));
+    memcpy(endBuf, pkt, sizeof(struct TestPacket));
+    for(int j=0;j<10;j++){
+        clock_gettime(CLOCK_MONOTONIC_RAW, now);
+        sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf), (const struct sockaddr*)&testRun->config->remoteAddr,
+                   0, testRun->config->dscp, 0 );
+        // addTestData(&testRun, &pkt);
+        addTestDataFromBuf(testRun, endBuf, sizeof(endBuf), now);
+        nanosleep(&testRun->config->delay, &remaining);
+    }
+
+
+    return (*testRun);
+}
+
+struct TestRun sendEndOfTest(struct TestRun *testRun, struct timespec *now, int sockfd) {
+    struct TestPacket endPkt = getEndTestPacket(testRun);
+    return sendSomePktTest(testRun, &endPkt, now, sockfd);
+}
+
+struct TestRun sendStarOfTest(struct TestRun *testRun, struct timespec *now, int sockfd) {
+    struct TestPacket endPkt = getStartTestPacket(testRun);
+    return sendSomePktTest(testRun, &endPkt, now, sockfd);
+}
+
 static void
 teardown()
 {
@@ -194,7 +226,7 @@ main(int   argc,
     uint8_t buf[testRunConfig.pkt_size];
     memset(&buf, 43, sizeof(buf));
 
-    struct timespec remaining;
+    struct timespec now, remaining;
 
     struct TestRun testRun;
     initTestRun(&testRun, testRunConfig.numPktsToSend, &testRunConfig);
@@ -202,61 +234,56 @@ main(int   argc,
     int sockfd = listenConfig.socketConfig[0].sockfd;
 
     //Send End of Test a few times...
-    struct TestPacket pkt = getStartTestPacket(&testRun);
-    memcpy(buf, &pkt, sizeof(pkt));
+    sendStarOfTest(&testRun,&now, sockfd);
 
-    for(int j=0;j<3;j++){
-        sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&testRunConfig.remoteAddr,
-                   0, testRunConfig.dscp, 0 );
-        //addTestData(&testRun, &pkt);
-        addTestDataFromBuf(&testRun, buf, sizeof(buf));
-        nanosleep(&testRunConfig.delay, &remaining);
-    }
+
+    struct TestPacket pkt;
 
     int currBurstIdx = 0;
     for(int j=0, nth=1;j<testRun.config->numPktsToSend;j++,nth++){
-      pkt = getNextTestPacket(&testRun);
-      memcpy(buf, &pkt, sizeof(pkt));
-      if(nth == testRun.config->looseNthPkt){
-          printf("Simulating pkt loss. Dropping packet (%i)\n", pkt.seq);
-          nth=1;
-      }else {
-          sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
+        clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+        pkt = getNextTestPacket(&testRun);
+        memcpy(buf, &pkt, sizeof(pkt));
+        if(nth == testRun.config->looseNthPkt){
+              printf("Simulating pkt loss. Dropping packet (%i)\n", pkt.seq);
+            nth=1;
+        }else {
+            sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
                      (const struct sockaddr *) &testRunConfig.remoteAddr,
                      0, testRunConfig.dscp, 0);
-      }
-      if(j%100==0){
-          printf("\r%i", j);
-          fflush(stdout);
-      }
-      //addTestData(&testRun, &pkt);
-      addTestDataFromBuf(&testRun, buf, sizeof(buf));
-      //Do I sleep or am I bursting..
-      if(currBurstIdx < testRunConfig.pktsInBurst){
+        }
+
+        addTestDataFromBuf(&testRun, buf, sizeof(buf), &now);
+
+        printStats(j, &now, &testRun);
+
+        //Do I sleep or am I bursting..
+        if(currBurstIdx < testRunConfig.pktsInBurst){
           currBurstIdx++;
-      }else {
+        }else {
           currBurstIdx = 0;
           nanosleep(&testRunConfig.delay, &remaining);
-      }
-    }
+        }
+    }//End of main test run. Just some cleanup remaining.
 
-    //Send End of Test a few times...
-    pkt = getEndTestPacket(&testRun);
-    memcpy(buf, &pkt, sizeof(pkt));
-    for(int j=0;j<10;j++){
-      sendPacket(sockfd, (const uint8_t *)&buf, sizeof(buf), (const struct sockaddr*)&testRunConfig.remoteAddr,
-                 0, testRunConfig.dscp, 0 );
-       // addTestData(&testRun, &pkt);
-        addTestDataFromBuf(&testRun, buf, sizeof(buf));
-        nanosleep(&testRunConfig.delay, &remaining);
+    sendEndOfTest(&testRun, &now, sockfd);
 
-    }
-
+    printf("\n");
     const char* filename = "client_results.txt\0";
     saveTestDataToFile(&testRun, filename);
     freeTestRun(&testRun);
 
     return 0;
+}
+
+void printStats(int j, const struct timespec *now, struct TestRun *testRun) {
+    if(j % 100 == 0){
+      struct timespec elapsed = {0,0};
+      timespec_diff(now, &(*testRun).stats.startTest, &elapsed);
+      double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
+      printf("\r(Mbps : %f, p/s: %f) (%i)", ((((*testRun).stats.rcvdBytes * 8) / sec) / 1000000), (*testRun).stats.rcvdPkts / sec, (*testRun).stats.rcvdPkts);
+      fflush(stdout);
+    }
 }
 
 
