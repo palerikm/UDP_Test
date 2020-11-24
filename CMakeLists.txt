@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13cmake )
+cmake_minimum_required(VERSION 3.15cmake )
 project(UDP_tests C)
 
 set(CMAKE_C_STANDARD 99)

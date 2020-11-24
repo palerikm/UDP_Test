@@ -6,6 +6,7 @@
 #define UDP_TESTS_PACKETTEST_H
 
 #define TEST_PKT_COOKIE 0x0023
+#define MAX_TESTNAME_LEN 33
 
 #include <stdint.h>
 #include <time.h>
@@ -20,7 +21,7 @@ static const uint32_t in_progress_test_cmd = 2;
 static const uint32_t stop_test_cmd = 3;
 static const uint32_t echo_pkt_cmd = 4;
 
-static const uint32_t MAX_TESTNAME_LEN = 33;
+
 
 struct TestPacket{
     uint32_t pktCookie;
