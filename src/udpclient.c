@@ -111,6 +111,7 @@ void configure(struct TestRunConfig* config,
 
     static struct option long_options[] = {
         {"interface", 1, 0, 'i'},
+        {"name", 1, 0, 'w'},
         {"port", 1, 0, 'p'},
         {"pkts", 1, 0, 'n'},
         {"delay", 1, 0, 'd'},
@@ -126,7 +127,7 @@ void configure(struct TestRunConfig* config,
         exit(0);
     }
     int option_index = 0;
-    while ( ( c = getopt_long(argc, argv, "hvi:p:o:n:d:b:t:s:",
+    while ( ( c = getopt_long(argc, argv, "hvi:w:p:o:n:d:b:t:s:",
                             long_options, &option_index) ) != -1 )
     {
     /* int this_option_optind = optind ? optind : 1; */
@@ -135,6 +136,9 @@ void configure(struct TestRunConfig* config,
         case 'i':
           strncpy(config->interface, optarg, max_iface_len);
           break;
+        case 'w':
+            strncpy(config->testName, optarg, MAX_TESTNAME_LEN);
+            break;
         case 'p':
           config->fiveTuple.port = atoi(optarg);
           break;
