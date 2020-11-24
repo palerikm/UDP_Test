@@ -21,15 +21,16 @@ static struct ListenConfig listenConfig;
 struct TestRun sendSomePktTest(struct TestRun *testRun, const struct TestPacket *pkt, int sockfd) {
     //Send End of Test a few times...
     struct timespec now, remaining;
-    uint8_t endBuf[testRun->config->pkt_size];
+    uint8_t endBuf[testRun->config.pkt_size];
     memcpy(endBuf, pkt, sizeof(struct TestPacket));
     for(int j=0;j<10;j++){
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-        sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf), (const struct sockaddr*)&testRun->config->remoteAddr,
-                   0, testRun->config->dscp, 0 );
+        sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
+                   (const struct sockaddr*)&testRun->config.fiveTuple.remoteAddr,
+                   0, testRun->config.dscp, 0 );
         addTestData(testRun, pkt, sizeof(endBuf), &now);
         //addTestDataFromBuf(testRun, endBuf, sizeof(endBuf), &now);
-        nanosleep(&testRun->config->delay, &remaining);
+        nanosleep(&testRun->config.delay, &remaining);
     }
     return (*testRun);
 }
@@ -89,7 +90,7 @@ void configure(struct TestRunConfig* config,
     /* int                 digit_optind = 0; */
     /* set config to default values */
     strncpy(config->interface, "default", 7);
-    config->port  = 3478;
+    config->fiveTuple.port  = 3478;
     config->numPktsToSend = 3000;
     config->delay.tv_sec = 0;
     config->delay.tv_nsec = 20000000L;
@@ -135,7 +136,7 @@ void configure(struct TestRunConfig* config,
           strncpy(config->interface, optarg, max_iface_len);
           break;
         case 'p':
-          config->port = atoi(optarg);
+          config->fiveTuple.port = atoi(optarg);
           break;
         case 'd':
             config->delay.tv_nsec = atoi(optarg)*1000000L;
@@ -167,18 +168,18 @@ void configure(struct TestRunConfig* config,
         }
     }
     if (optind < argc){
-        if ( !getRemoteIpAddr( (struct sockaddr*)&config->remoteAddr,
+        if ( !getRemoteIpAddr( (struct sockaddr*)&config->fiveTuple.remoteAddr,
                                argv[optind++],
-                               config->port ) ){
+                               config->fiveTuple.port ) ){
           printf("Error getting remote IPaddr");
           exit(1);
         }
     }
 
 
-  if ( !getLocalInterFaceAddrs( (struct sockaddr*)&config->localAddr,
+  if ( !getLocalInterFaceAddrs( (struct sockaddr*)&config->fiveTuple.localAddr,
                                 config->interface,
-                                config->remoteAddr.ss_family,
+                                config->fiveTuple.remoteAddr.ss_family,
                                 IPv6_ADDR_NORMAL,
                                 false ) )
   {
@@ -194,8 +195,8 @@ setupSocket(struct ListenConfig *lconf, const struct TestRunConfig* sconfig)
 {
 
 
-    int sockfd = createLocalSocket(sconfig->remoteAddr.ss_family,
-                                   (struct sockaddr*)&sconfig->localAddr,
+    int sockfd = createLocalSocket(sconfig->fiveTuple.remoteAddr.ss_family,
+                                   (struct sockaddr*)&sconfig->fiveTuple.localAddr,
                                    SOCK_DGRAM,
                                    0);
 
@@ -238,13 +239,13 @@ main(int   argc,
 
     char              addrStr[SOCKADDR_MAX_STRLEN];
     printf( "Sending packets from: '%s'",
-    sockaddr_toString( (struct sockaddr*)&testRunConfig.localAddr,
+    sockaddr_toString( (struct sockaddr*)&testRunConfig.fiveTuple.localAddr,
            addrStr,
            sizeof(addrStr),
            false ) );
 
     printf( "to: '%s'\n",
-    sockaddr_toString( (struct sockaddr*)&testRunConfig.remoteAddr,
+    sockaddr_toString( (struct sockaddr*)&testRunConfig.fiveTuple.remoteAddr,
            addrStr,
            sizeof(addrStr),
                        true ) );
@@ -271,15 +272,15 @@ main(int   argc,
 
     int currBurstIdx = 0;
     clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
-    for(int j=0, nth=1;j<testRun.config->numPktsToSend;j++,nth++){
+    for(int j=0, nth=1;j<testRun.config.numPktsToSend;j++,nth++){
         pkt = getNextTestPacket(&testRun);
         memcpy(buf, &pkt, sizeof(pkt));
-        if(nth == testRun.config->looseNthPkt){
+        if(nth == testRun.config.looseNthPkt){
               printf("Simulating pkt loss. Dropping packet (%i)\n", pkt.seq);
             nth=1;
         }else {
             sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
-                     (const struct sockaddr *) &testRunConfig.remoteAddr,
+                     (const struct sockaddr *) &testRunConfig.fiveTuple.remoteAddr,
                      0, testRunConfig.dscp, 0);
             clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
         }
@@ -307,7 +308,10 @@ main(int   argc,
     sendEndOfTest(&testRun, sockfd);
 
     printf("\n");
-    const char* filename = "client_results.txt\0";
+    char filename[100];
+    strncpy(filename, testRunConfig.testName, sizeof(filename));
+    strncat(filename, "_client_results.txt\0", 20);
+    //const char* filename = "client_results.txt\0";
     saveTestDataToFile(&testRun, filename);
     freeTestRun(&testRun);
 

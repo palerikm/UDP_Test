@@ -142,6 +142,7 @@ socketListenDemux(void* ptr)
                     int                     numbytes;
                     socklen_t               addr_len;
                     struct sockaddr_storage their_addr;
+                    addr_len = sizeof(their_addr);
                     struct SocketConfig *socketConfig = &config->socketConfig[i];
                     if ( ( numbytes = recvfrom(socketConfig->sockfd,
                                             buf, MAXBUFLEN, 0,
@@ -151,8 +152,15 @@ socketListenDemux(void* ptr)
                         perror("recvfrom");
                         exit(1);
                     }
+
+                    //printf("Got som data(%i): %s ", numbytes, buf);
+                    //char              addrStr[SOCKADDR_MAX_STRLEN];
+                    //printf( "From '%s' \n",
+                    //        sockaddr_toString( (struct sockaddr*)&their_addr,
+                    //                           addrStr,
+                    //                           sizeof(addrStr),
+                    //                           false ) );
                     config->pkt_handler(config,(struct sockaddr*)&their_addr, NULL, (unsigned char*)&buf, numbytes );
-                    //printf("Got som data(%i): %s\n", numbytes, buf);
 
                 }
             }

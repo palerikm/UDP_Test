@@ -36,7 +36,7 @@ packetHandler(struct ListenConfig* config,
 
     struct TestRunManager *mng = config->tInst;
     //hashmap_scan(map, TestRun_iter, NULL);
-    addTestDataFromBuf(mng, buf, buflen, &now);
+    addTestDataFromBuf(mng, from_addr, buf, buflen, &now);
 }
 
 void
@@ -76,7 +76,7 @@ main(int   argc,
     /* int                 digit_optind = 0; */
     /* set config to default values */
     strncpy(testConfig.interface, "default", 7);
-    testConfig.port          = 3478;
+    testConfig.fiveTuple.port          = 3478;
 
 
     static struct option long_options[] = {
@@ -102,7 +102,7 @@ main(int   argc,
                 strncpy(testConfig.interface, optarg, max_iface_len);
                 break;
             case 'p':
-                testConfig.port = atoi(optarg);
+                testConfig.fiveTuple.port = atoi(optarg);
                 break;
             case 'h':
                 printUsage();
@@ -116,7 +116,7 @@ main(int   argc,
         }
     }
 
-    if ( !getLocalInterFaceAddrs( (struct sockaddr*)&testConfig.localAddr,
+    if ( !getLocalInterFaceAddrs( (struct sockaddr*)&testConfig.fiveTuple.localAddr,
                                   testConfig.interface,
                                   AF_INET,
                                   IPv6_ADDR_NORMAL,
@@ -127,16 +127,16 @@ main(int   argc,
     }
 
     sockfd = createLocalSocket(AF_INET,
-                               (struct sockaddr*)&testConfig.localAddr,
+                               (struct sockaddr*)&testConfig.fiveTuple.localAddr,
                                SOCK_DGRAM,
-                               testConfig.port);
+                               testConfig.fiveTuple.port);
 
     listenConfig.socketConfig[0].sockfd = sockfd;
     listenConfig.pkt_handler          = packetHandler;
     listenConfig.numSockets             = 1;
 
     struct TestRunManager testRunManager;
-    testRunManager.config = &testConfig;
+    testRunManager.defaultConfig = testConfig;
     testRunManager.map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
                                      TestRun_hash, TestRun_compare, NULL);
 

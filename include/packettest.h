@@ -30,17 +30,25 @@ struct TestPacket{
     char testName[MAX_TESTNAME_LEN];
 };
 
+struct FiveTuple{
+    struct sockaddr_storage localAddr;
+    struct sockaddr_storage remoteAddr;
+    int                     port;
+};
+
 struct TestData{
     struct TestPacket pkt;
+    struct FiveTuple fiveTuple;
     struct timespec timeDiff;
 };
 
 struct TestRunConfig{
     char testName[MAX_TESTNAME_LEN];
     char                    interface[10];
-    struct sockaddr_storage localAddr;
-    struct sockaddr_storage remoteAddr;
-    int                     port;
+    struct FiveTuple        fiveTuple;
+    //struct sockaddr_storage localAddr;
+    //struct sockaddr_storage remoteAddr;
+    //int                     port;
     int numPktsToSend;
     struct timespec delay;
     int pktsInBurst;
@@ -58,8 +66,9 @@ struct TestRunStatistics{
 };
 
 struct TestRun{
-    char *name;
-    struct TestRunConfig *config;
+    //char name[MAX_TESTNAME_LEN];
+    //char *name;
+    struct TestRunConfig config;
     struct TestData *testData;
     uint32_t numTestData;
     uint32_t maxNumTestData;
@@ -71,7 +80,8 @@ struct TestRun{
 
 struct TestRunManager{
     struct hashmap *map;
-    struct TestRunConfig *config;
+    //struct sockaddr_storage localAddr;
+    struct TestRunConfig defaultConfig;
 };
 
 
@@ -87,7 +97,7 @@ int testRunReset(struct TestRun *testRun);
 int freeTestRun(struct TestRun *testRun);
 
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
-int addTestDataFromBuf(struct TestRunManager *mng, const unsigned char* buf, int buflen, const struct timespec *now);
+int addTestDataFromBuf(struct TestRunManager *mng, const struct sockaddr* from_addr, const unsigned char* buf, int buflen, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun);
 struct TestPacket getEndTestPacket(const struct TestRun *testRun);
 struct TestPacket getStartTestPacket(const struct TestRun *testRun);
