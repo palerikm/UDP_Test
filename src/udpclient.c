@@ -27,8 +27,8 @@ struct TestRun sendSomePktTest(struct TestRun *testRun, const struct TestPacket 
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf), (const struct sockaddr*)&testRun->config->remoteAddr,
                    0, testRun->config->dscp, 0 );
-        // addTestData(&testRun, &pkt);
-        addTestDataFromBuf(testRun, endBuf, sizeof(endBuf), &now);
+        addTestData(testRun, pkt, sizeof(endBuf), &now);
+        //addTestDataFromBuf(testRun, endBuf, sizeof(endBuf), &now);
         nanosleep(&testRun->config->delay, &remaining);
     }
     return (*testRun);
@@ -97,6 +97,16 @@ void configure(struct TestRunConfig* config,
     config->looseNthPkt = 0;
     config->dscp = 0;
     config->pkt_size = 1200;
+
+
+    int iseed = (unsigned int)time(NULL);
+    srand(iseed);
+
+    static const int a='a', z='z';
+    for(int i=0; i<MAX_TESTNAME_LEN; i++) {
+        config->testName[i] = rand() % (z - a + 1) + a;
+    }
+    config->testName[MAX_TESTNAME_LEN-1] = '\0';
 
     static struct option long_options[] = {
         {"interface", 1, 0, 'i'},
@@ -247,9 +257,9 @@ main(int   argc,
 
 
     nap(&testRunConfig.delay, &overshoot);
-
+    //char *name = "AAHIIIHH654TTYT\0";
     struct TestRun testRun;
-    initTestRun(&testRun, testRunConfig.numPktsToSend, &testRunConfig);
+    initTestRun(&testRun, testRunConfig.testName, testRunConfig.numPktsToSend, &testRunConfig);
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
 
@@ -274,7 +284,7 @@ main(int   argc,
             clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
         }
 
-        addTestDataFromBuf(&testRun, buf, sizeof(buf), &timeAfterSendPacket);
+        addTestData(&testRun, &pkt, sizeof(buf), &timeAfterSendPacket);
 
         printStats(j, &timeAfterSendPacket, &testRun);
 

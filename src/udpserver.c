@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <packettest.h>
 
+#include "hashmap.h"
 #include "../include/iphelper.h"
 #include "../include/sockethelper.h"
 
@@ -31,27 +32,11 @@ packetHandler(struct ListenConfig* config,
             int                  buflen) {
     struct timespec now, result;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-    struct TestRun *testRun = config->tInst;
+    //struct TestRun *testRun = config->tInst;
 
-    addTestDataFromBuf(testRun, buf, buflen, &now);
-}
-
-_Noreturn static void*
-saveAndMoveOn(void* ptr)
-{
-    struct TestRun *testRun = ptr;
-    const char* filename = "server_results.txt\0";
-    for (;; )
-    {
-        if(testRun->done && testRun->numTestData > 4){
-            saveTestDataToFile(testRun, filename);
-            testRunReset(testRun);
-
-
-        }else{
-            usleep(10000);
-        }
-    }
+    struct TestRunManager *mng = config->tInst;
+    //hashmap_scan(map, TestRun_iter, NULL);
+    addTestDataFromBuf(mng, buf, buflen, &now);
 }
 
 void
@@ -150,17 +135,18 @@ main(int   argc,
     listenConfig.pkt_handler          = packetHandler;
     listenConfig.numSockets             = 1;
 
-    struct TestRun testRun;
+    struct TestRunManager testRunManager;
+    testRunManager.config = &testConfig;
+    testRunManager.map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
+                                     TestRun_hash, TestRun_compare, NULL);
 
-    initTestRun(&testRun, MAX_NUM_RCVD_TEST_PACKETS, &testConfig);
 
-    listenConfig.tInst = &testRun;
+    listenConfig.tInst = &testRunManager;
 
     pthread_create(&socketListenThread,
                    NULL,
                    socketListenDemux,
                    (void*)&listenConfig);
-    pthread_create(&cleanupThread, NULL, saveAndMoveOn, (void*)&testRun);
     pause();
 
 }

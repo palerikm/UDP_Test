@@ -12,17 +12,22 @@
 #include <stdbool.h>
 #include <sys/socket.h>
 
+#include <hashmap.h>
+
 static const uint32_t no_op_cmd = 0;
 static const uint32_t start_test_cmd = 1;
 static const uint32_t in_progress_test_cmd = 2;
 static const uint32_t stop_test_cmd = 3;
 static const uint32_t echo_pkt_cmd = 4;
 
+static const uint32_t MAX_TESTNAME_LEN = 33;
+
 struct TestPacket{
     uint32_t pktCookie;
     uint32_t srcId;
     uint32_t seq;
     uint32_t cmd;
+    char testName[MAX_TESTNAME_LEN];
 };
 
 struct TestData{
@@ -31,6 +36,7 @@ struct TestData{
 };
 
 struct TestRunConfig{
+    char testName[MAX_TESTNAME_LEN];
     char                    interface[10];
     struct sockaddr_storage localAddr;
     struct sockaddr_storage remoteAddr;
@@ -52,6 +58,7 @@ struct TestRunStatistics{
 };
 
 struct TestRun{
+    char *name;
     struct TestRunConfig *config;
     struct TestData *testData;
     uint32_t numTestData;
@@ -62,17 +69,29 @@ struct TestRun{
     bool done;
 };
 
-int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
+struct TestRunManager{
+    struct hashmap *map;
+    struct TestRunConfig *config;
+};
+
+
+uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1);
+int TestRun_compare(const void *a, const void *b, void *udata);
+bool TestRun_iter(const void *item, void *udata);
+
+int initTestRun(struct TestRun *testRun,
+                 char *name,
+                 uint32_t maxNumPkts,
                 struct TestRunConfig *config);
 int testRunReset(struct TestRun *testRun);
 int freeTestRun(struct TestRun *testRun);
 
-int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktSize, const struct timespec *now);
-int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen, const struct timespec *now);
+int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
+int addTestDataFromBuf(struct TestRunManager *mng, const unsigned char* buf, int buflen, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun);
 struct TestPacket getEndTestPacket(const struct TestRun *testRun);
 struct TestPacket getStartTestPacket(const struct TestRun *testRun);
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd);
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, char* testName);
 
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 

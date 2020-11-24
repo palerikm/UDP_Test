@@ -7,24 +7,43 @@
 #include <string.h>
 #include <sockethelper.h>
 
+#include <hashmap.h>
 #include "packettest.h"
 
+uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
+    const struct TestRun *run = item;
+    return hashmap_sip(run->name, strlen(run->name), seed0, seed1);
+}
 
+int TestRun_compare(const void *a, const void *b, void *udata) {
+    const struct TestRun *ua = a;
+    const struct TestRun *ub = b;
+    return strcmp(ua->name, ub->name);
+}
 
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd){
+bool TestRun_iter(const void *item, void *udata) {
+    const struct TestRun *run = item;
+    printf("%s (Loss=%i)\n", run->name, run->stats.lostPkts);
+    return true;
+}
+
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
+                   uint32_t cmd, char* testName){
     testPacket->pktCookie = TEST_PKT_COOKIE;
     testPacket->srcId = srcId;
     testPacket->seq = seq;
     testPacket->cmd = cmd;
+    strncpy(testPacket->testName, testName, sizeof(testPacket->testName));
     return 0;
 }
 
-int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, struct TestRunConfig *config){
+int initTestRun(struct TestRun *testRun,  char *name, uint32_t maxNumPkts, struct TestRunConfig *config){
     testRun->testData = malloc(sizeof(struct TestData)*maxNumPkts);
     if(testRun->testData == NULL){
         perror("Error allocating memory for testdata: ");
         return -1;
     }
+    testRun->name = name;
     testRun->numTestData = 0;
     testRun->maxNumTestData = maxNumPkts;
     testRun->config = config;
@@ -47,7 +66,7 @@ int testRunReset(struct TestRun *testRun){
     return 0;
 }
 
-int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktSize, const struct timespec *now){
+int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now){
     struct timespec timeSinceLastPkt;
 
     if(testRun == NULL){
@@ -61,8 +80,10 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktS
     }
     //End of test?
     if(testPacket->cmd == stop_test_cmd){
+        const char* filename = "server_results.txt\0";
         testRun->done = true;
         testRun->stats.endTest = *now;
+        saveTestDataToFile(testRun, filename);
         return 0;
     }
 
@@ -115,7 +136,7 @@ int addTestData(struct TestRun *testRun, struct TestPacket *testPacket, int pktS
 }
 
 
-int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int buflen, const struct timespec *now){
+int addTestDataFromBuf(struct TestRunManager *mng, const unsigned char* buf, int buflen, const struct timespec *now){
     struct TestPacket *pkt;
     if (buflen<sizeof(struct TestPacket)){
         return 1;
@@ -126,24 +147,55 @@ int addTestDataFromBuf(struct TestRun *testRun, const unsigned char* buf, int bu
         printf("Not a test pkt! Ignoring\n");
         return 1;
     }
-    return addTestData(testRun, pkt, buflen, now);
+    hashmap_count(mng->map);
+
+    //printf("AAAA %s   %i\n", pkt->testName,  hashmap_count(mng->map));
+    struct TestRun *run = hashmap_get(mng->map, &(struct TestRun){ .name = pkt->testName });
+
+    //struct TestRun *run = hashmap_get(mng->map, &(struct TestRun){ .name = "jallla" });
+
+    if(run!=NULL){
+        if(pkt->cmd == stop_test_cmd){
+            const char* filename = "server_results.txt\0";
+            run->done = true;
+            run->stats.endTest = *now;
+            saveTestDataToFile(run, filename);
+            hashmap_delete(mng->map, run);
+            return 1;
+        }
+        return addTestData(run, pkt, buflen, now);
+    }
+
+    if(pkt->cmd == start_test_cmd) {
+        printf("Adding test: %s\n", pkt->testName);
+        struct TestRun *testRun = malloc(sizeof(struct TestRun));
+        initTestRun(testRun, pkt->testName, MAX_NUM_RCVD_TEST_PACKETS, mng->config);
+        hashmap_set(mng->map, testRun);
+        //TODO: CReate new testrun..
+        return 1;
+    }
+    return 0;
+    //return addTestData(testRun, pkt, buflen, now);
 }
 
 struct TestPacket getNextTestPacket(const struct TestRun *testRun){
     struct TestPacket pkt;
-    fillPacket(&pkt, 23, testRun->numTestData, in_progress_test_cmd);
+    fillPacket(&pkt, 23, testRun->numTestData, in_progress_test_cmd,
+               testRun->name);
     return pkt;
 }
 
 struct TestPacket getEndTestPacket(const struct TestRun *testRun){
     struct TestPacket pkt;
-    fillPacket(&pkt, 23, testRun->numTestData, stop_test_cmd);
+    fillPacket(&pkt, 23, testRun->numTestData, stop_test_cmd,
+               testRun->name);
     return pkt;
 }
 
 struct TestPacket getStartTestPacket(const struct TestRun *testRun){
     struct TestPacket pkt;
-    fillPacket(&pkt, 23, testRun->numTestData, start_test_cmd);
+    fillPacket(&pkt, 23, testRun->numTestData, start_test_cmd,
+               testRun->name);
     return pkt;
 }
 

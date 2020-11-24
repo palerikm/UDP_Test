@@ -12,6 +12,7 @@ add_executable ( udpserver
 
 target_link_libraries ( udpserver PRIVATE sockaddrutil
         pthread
+        hashmap_c
         ${ADDITIONAL_LIBS})
 
 set_target_properties(udpserver PROPERTIES INSTALL_RPATH "${install_dir}/lib")
@@ -23,11 +24,12 @@ add_executable ( udpclient
 
 target_link_libraries ( udpclient PRIVATE sockaddrutil
         pthread
+        hashmap_c
         ${ADDITIONAL_LIBS})
 set_target_properties(udpclient PROPERTIES INSTALL_RPATH "${install_dir}/lib")
 set_target_properties(udpclient PROPERTIES BUILD_WITH_INSTALL_RPATH ON)
 
 
 
-include_directories ( ../include )
+include_directories ( ../include ${hashmap_c_SOURCE_DIR})
 link_directories ( ${CHECK_LIBRARY_DIRS} )
