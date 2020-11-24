@@ -47,9 +47,6 @@ struct TestRunConfig{
     char testName[MAX_TESTNAME_LEN];
     char                    interface[10];
     struct FiveTuple        fiveTuple;
-    //struct sockaddr_storage localAddr;
-    //struct sockaddr_storage remoteAddr;
-    //int                     port;
     int numPktsToSend;
     struct timespec delay;
     int pktsInBurst;
@@ -67,8 +64,6 @@ struct TestRunStatistics{
 };
 
 struct TestRun{
-    //char name[MAX_TESTNAME_LEN];
-    //char *name;
     struct TestRunConfig config;
     struct TestData *testData;
     uint32_t numTestData;
@@ -76,7 +71,7 @@ struct TestRun{
     struct timespec lastPktTime;
 
     struct TestRunStatistics stats;
-    bool done;
+    //bool done;
 };
 
 struct TestRunManager{

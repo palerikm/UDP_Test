@@ -71,12 +71,11 @@ int initTestRun(struct TestRun *testRun,  char *name, uint32_t maxNumPkts, struc
         perror("Error allocating memory for testdata: ");
         return -1;
     }
-    //testRun->name = name;
+
     testRun->numTestData = 0;
     testRun->maxNumTestData = maxNumPkts;
     memcpy(&testRun->config, config, sizeof(struct TestRunConfig));
-    //testRun->config = config;
-    testRun->done = false;
+
     testRun->stats.lostPkts = 0;
     testRun->stats.rcvdPkts = 0;
     testRun->stats.rcvdBytes =0;
@@ -84,7 +83,6 @@ int initTestRun(struct TestRun *testRun,  char *name, uint32_t maxNumPkts, struc
 }
 
 int testRunReset(struct TestRun *testRun){
-    testRun->done = false;
     testRun->numTestData = 0;
     testRun->lastPktTime.tv_nsec = 0;
     testRun->lastPktTime.tv_sec = 0;
@@ -117,7 +115,8 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
     //Start of test?
     if(testPacket->cmd == start_test_cmd){
-        testRun->done = false;
+        printf("hheeeeyy\n");
+        //testRun->done = false;
         testRun->lastPktTime = *now;
         testRun->stats.startTest = *now;
         return 0;
@@ -193,9 +192,6 @@ int addTestDataFromBuf(struct TestRunManager *mng, const struct sockaddr* from_a
             char filename[100];
             strncpy(filename, run->config.testName, sizeof(filename));
             strncat(filename, "_server_results.txt\0", 20);
-
-            //const char* filename = "server_results.txt\0";
-            run->done = true;
             run->stats.endTest = *now;
             saveTestDataToFile(run, filename);
             hashmap_delete(mng->map, run);
@@ -217,8 +213,11 @@ int addTestDataFromBuf(struct TestRunManager *mng, const struct sockaddr* from_a
         newConf.fiveTuple = fiveTuple;
         strncpy(newConf.testName, pkt->testName, sizeof(pkt->testName));
         initTestRun(testRun, pkt->testName, MAX_NUM_RCVD_TEST_PACKETS, &newConf);
+        testRun->lastPktTime = *now;
+        testRun->stats.startTest = *now;
         hashmap_set(mng->map, testRun);
-        return addTestData(testRun, pkt, buflen, now);
+        return 0;
+        //return addTestData(testRun, pkt, buflen, now);
     }
 
     return 0;
