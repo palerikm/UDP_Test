@@ -115,8 +115,6 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
     //Start of test?
     if(testPacket->cmd == start_test_cmd){
-        printf("hheeeeyy\n");
-        //testRun->done = false;
         testRun->lastPktTime = *now;
         testRun->stats.startTest = *now;
         return 0;
