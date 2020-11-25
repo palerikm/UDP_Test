@@ -71,7 +71,7 @@ struct TestRun{
     struct timespec lastPktTime;
 
     struct TestRunStatistics stats;
-    //bool done;
+    bool done;
 };
 
 struct TestRunManager{

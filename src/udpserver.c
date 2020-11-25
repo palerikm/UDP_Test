@@ -58,6 +58,34 @@ printUsage()
     printf("  -h, --help                    Print help text\n");
     exit(0);
 }
+_Noreturn static void*
+saveAndMoveOn(void* ptr)
+{
+    struct TestRunManager *mngr = ptr;
+
+
+    //const char* filename = "server_results.txt\0";
+    for (;; )
+    {
+        struct TestRun run;
+        bool notEarly = hashmap_scan(mngr->map, TestRun_iter, &run);
+        if(!notEarly) {
+            char filename[100];
+            strncpy(filename, run.config.testName, sizeof(filename));
+            strncat(filename, "_server_results.txt\0", 20);
+            //printf("Hey: %s\n", run.config.testName);
+            saveTestDataToFile(&run, filename);
+            hashmap_delete(mngr->map, &run);
+
+        }else{
+            int numRunning = hashmap_count(mngr->map);
+            printf("\r Running Tests: %i", numRunning);
+        }
+       usleep(10000);
+
+    }
+
+}
 
 int
 main(int   argc,
@@ -147,6 +175,8 @@ main(int   argc,
                    NULL,
                    socketListenDemux,
                    (void*)&listenConfig);
+
+    pthread_create(&cleanupThread, NULL, saveAndMoveOn, (void*)&testRunManager);
     pause();
 
 }

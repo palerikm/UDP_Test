@@ -36,20 +36,15 @@ int TestRun_compare(const void *a, const void *b, void *udata) {
 
 bool TestRun_iter(const void *item, void *udata) {
     const struct TestRun *run = item;
-    char              addrStr[SOCKADDR_MAX_STRLEN];
-    printf( "TestRun '%s'",
-            sockaddr_toString( (struct sockaddr*)&run->config.fiveTuple.localAddr,
-                               addrStr,
-                               sizeof(addrStr),
-                               false ) );
-
-    printf( "to: '%s'\n",
-            sockaddr_toString( (struct sockaddr*)&run->config.fiveTuple.remoteAddr,
-                               addrStr,
-                               sizeof(addrStr),
-                               true ) );
-
-    //printf("%s (Loss=%i)\n", run->name, run->stats.lostPkts);
+    if(run->done){
+        //strncpy(udata, run->config.testName, 7);
+        memcpy(udata, item, sizeof(struct TestRun));
+        //udata = item;
+        return false;
+    }
+    //strncpy(udata, run->config.testName, 7);
+    //*udata = (void *)run->config.testName;
+    //printf("Run %s\n", run->config.testName);
     return true;
 }
 
@@ -71,7 +66,7 @@ int initTestRun(struct TestRun *testRun,  char *name, uint32_t maxNumPkts, struc
         perror("Error allocating memory for testdata: ");
         return -1;
     }
-
+    testRun->done = false;
     testRun->numTestData = 0;
     testRun->maxNumTestData = maxNumPkts;
     memcpy(&testRun->config, config, sizeof(struct TestRunConfig));
@@ -115,6 +110,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
     //Start of test?
     if(testPacket->cmd == start_test_cmd){
+        testRun->done = false;
         testRun->lastPktTime = *now;
         testRun->stats.startTest = *now;
         return 0;
@@ -193,12 +189,8 @@ int addTestDataFromBuf(struct TestRunManager *mng, const struct sockaddr* from_a
 
     if(run!=NULL){
         if(pkt->cmd == stop_test_cmd){
-            char filename[100];
-            strncpy(filename, run->config.testName, sizeof(filename));
-            strncat(filename, "_server_results.txt\0", 20);
             run->stats.endTest = *now;
-            saveTestDataToFile(run, filename);
-            hashmap_delete(mng->map, run);
+            run->done = true;
             return 1;
         }
         if(pkt->cmd == start_test_cmd){
