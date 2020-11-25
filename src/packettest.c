@@ -122,30 +122,30 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
     timespec_diff(now, &testRun->lastPktTime, &timeSinceLastPkt);
     //Did we loose any packets? Or out of order?
-    if(testRun->numTestData != 0) {
-        int lostPkts = 0;
-        struct TestPacket *lastPkt = &(testRun->testData + testRun->numTestData - 1)->pkt;
-        if (testPacket->seq < lastPkt->seq) {
-            printf("Todo: Fix out of order handling\n");
 
-        }
-        if (testPacket->seq > lastPkt->seq + 1) {
-            lostPkts = (testPacket->seq - lastPkt->seq) - 1;
-            printf("Packet loss (%i)\n", lostPkts);
-            for (int i = 0; i < lostPkts; i++) {
-                struct TestPacket tPkt;
-                memset(&tPkt, 0, sizeof(tPkt));
-                tPkt.seq = lastPkt->seq + 1 + i;
-                struct TestData d;
-                d.pkt = tPkt;
-                d.timeDiff.tv_sec = 0;
-                d.timeDiff.tv_nsec = 0;
-                memcpy((testRun->testData + testRun->numTestData), &d, sizeof(struct TestData));
-                testRun->numTestData++;
-            }
-            testRun->stats.lostPkts += lostPkts;
-        }
+    int lostPkts = 0;
+    struct TestPacket *lastPkt = &(testRun->testData + testRun->numTestData - 1)->pkt;
+    if (testPacket->seq < lastPkt->seq) {
+        printf("Todo: Fix out of order handling\n");
+
     }
+    if (testPacket->seq > lastPkt->seq + 1) {
+        lostPkts = (testPacket->seq - lastPkt->seq) - 1;
+        printf("Packet loss (%i)\n", lostPkts);
+        for (int i = 0; i < lostPkts; i++) {
+            struct TestPacket tPkt;
+            memset(&tPkt, 0, sizeof(tPkt));
+            tPkt.seq = lastPkt->seq + 1 + i;
+            struct TestData d;
+            d.pkt = tPkt;
+            d.timeDiff.tv_sec = 0;
+            d.timeDiff.tv_nsec = 0;
+            memcpy((testRun->testData + testRun->numTestData), &d, sizeof(struct TestData));
+            testRun->numTestData++;
+        }
+        testRun->stats.lostPkts += lostPkts;
+    }
+   
     testRun->stats.rcvdPkts++;
     testRun->stats.rcvdBytes+=pktSize;
     struct TestData d;
