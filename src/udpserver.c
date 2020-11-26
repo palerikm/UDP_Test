@@ -79,7 +79,10 @@ saveAndMoveOn(void* ptr)
 
         }else{
             int numRunning = hashmap_count(mngr->map);
-            printf("\r Running Tests: %i", numRunning);
+            printf("\r Running Tests: %i ", numRunning);
+            double mbits = 0;
+            hashmap_scan(mngr->map, TestRun_bw_iter, &mbits);
+            printf(" Mbps : %f ", mbits/1000000);
         }
        usleep(10000);
 

@@ -37,17 +37,23 @@ int TestRun_compare(const void *a, const void *b, void *udata) {
 bool TestRun_iter(const void *item, void *udata) {
     const struct TestRun *run = item;
     if(run->done){
-        //strncpy(udata, run->config.testName, 7);
         memcpy(udata, item, sizeof(struct TestRun));
-        //udata = item;
         return false;
     }
-    //strncpy(udata, run->config.testName, 7);
-    //*udata = (void *)run->config.testName;
-    //printf("Run %s\n", run->config.testName);
     return true;
 }
 
+bool TestRun_bw_iter(const void *item, void *udata) {
+    const struct TestRun *testRun = item;
+    double *mbits = udata;
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+    struct timespec elapsed = {0,0};
+    timespec_diff(&now, &(*testRun).stats.startTest, &elapsed);
+    double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
+    *mbits += (((*testRun).stats.rcvdBytes * 8) / sec);
+    return true;
+}
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
                    uint32_t cmd, char* testName){
     testPacket->pktCookie = TEST_PKT_COOKIE;
@@ -120,7 +126,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         timespec_diff(now, &testRun->lastPktTime, &timeSinceLastPkt);
     //Did we loose any packets? Or out of order?
 
-        int lostPkts = 0;
+        //int lostPkts = 0;
 
         struct TestPacket *lastPkt = &(testRun->testData + testRun->numTestData - 1)->pkt;
         if (testPacket->seq < lastPkt->seq) {
@@ -128,7 +134,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
         }
         if (testPacket->seq > lastPkt->seq + 1) {
-            lostPkts = (testPacket->seq - lastPkt->seq) - 1;
+            int lostPkts = (testPacket->seq - lastPkt->seq) - 1;
             printf("Packet loss (%i)\n", lostPkts);
             for (int i = 0; i < lostPkts; i++) {
                 struct TestPacket tPkt;
