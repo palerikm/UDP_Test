@@ -18,6 +18,7 @@ uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
 int TestRun_compare(const void *a, const void *b, void *udata) {
     const struct TestRun *ua = a;
     const struct TestRun *ub = b;
+
     if( ! sockaddr_alike((const struct sockaddr *)&ua->config.fiveTuple.localAddr,
                    (const struct sockaddr *)&ub->config.fiveTuple.localAddr)){
         return 1;
@@ -32,6 +33,15 @@ int TestRun_compare(const void *a, const void *b, void *udata) {
         return 1;
     }
     return 0;
+}
+
+
+bool TestRun_print_iter(const void *item, void *udata) {
+    const struct TestRun *run = item;
+    printf("Name: %s", run->config.testName);
+    char s[200];
+    printf("5tuple: %s\n", fiveTupleToString(s, &run->config.fiveTuple));
+    return true;
 }
 
 bool TestRun_iter(const void *item, void *udata) {
@@ -55,7 +65,7 @@ bool TestRun_bw_iter(const void *item, void *udata) {
     return true;
 }
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
-                   uint32_t cmd, char* testName){
+                   uint32_t cmd, const char* testName){
     testPacket->pktCookie = TEST_PKT_COOKIE;
     testPacket->srcId = srcId;
     testPacket->seq = seq;
@@ -66,30 +76,23 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
     return 0;
 }
 
-int initTestRun(struct TestRun *testRun,  char *name, uint32_t maxNumPkts, struct TestRunConfig *config){
-    testRun->testData = malloc(sizeof(struct TestData)*maxNumPkts);
-    if(testRun->testData == NULL){
-        perror("Error allocating memory for testdata: ");
-        return -1;
-    }
+int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, struct TestRunConfig *config){
+
+    testRun->maxNumTestData = maxNumPkts;
     testRun->done = false;
     testRun->numTestData = 0;
-    testRun->maxNumTestData = maxNumPkts;
+
     memcpy(&testRun->config, config, sizeof(struct TestRunConfig));
 
     testRun->stats.lostPkts = 0;
     testRun->stats.rcvdPkts = 0;
     testRun->stats.rcvdBytes =0;
-    return 0;
-}
 
-int testRunReset(struct TestRun *testRun){
-    testRun->numTestData = 0;
-    testRun->lastPktTime.tv_nsec = 0;
-    testRun->lastPktTime.tv_sec = 0;
-    testRun->stats.rcvdPkts = 0;
-    testRun->stats.rcvdBytes = 0;
-    testRun->stats.lostPkts = 0;
+    testRun->testData = malloc(sizeof(struct TestData)* testRun->maxNumTestData);
+    if(testRun->testData == NULL){
+        perror("Error allocating memory for testdata: ");
+        return -1;
+    }
 
     return 0;
 }
@@ -105,14 +108,6 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         testRun->stats.endTest = *now;
         return -2;
     }
-    //End of test?
-    //if(testPacket->cmd == stop_test_cmd){
-    //    const char* filename = "server_results.txt\0";
-    //    testRun->done = true;
-    //    testRun->stats.endTest = *now;
-    //    saveTestDataToFile(testRun, filename);
-     //   return 0;
-    //}
 
     //Start of test?
     if(testPacket->cmd == start_test_cmd){
@@ -124,10 +119,8 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
     if(testRun->numTestData > 0) {
         timespec_diff(now, &testRun->lastPktTime, &timeSinceLastPkt);
-    //Did we loose any packets? Or out of order?
 
-        //int lostPkts = 0;
-
+        //Did we loose any packets? Or out of order?
         struct TestPacket *lastPkt = &(testRun->testData + testRun->numTestData - 1)->pkt;
         if (testPacket->seq < lastPkt->seq) {
             printf("Todo: Fix out of order handling\n");
@@ -169,7 +162,48 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 }
 
 
-int addTestDataFromBuf(struct TestRunManager *mng, const struct sockaddr* from_addr, const unsigned char* buf, int buflen, const struct timespec *now){
+
+struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
+                                const struct sockaddr* from_addr,
+                                const struct sockaddr* to_addr,
+                                int port){
+
+    sockaddr_copy((struct sockaddr *)&fiveTuple->remoteAddr, from_addr);
+    sockaddr_copy((struct sockaddr *)&fiveTuple->localAddr, to_addr);
+    fiveTuple->port = port;
+    return fiveTuple;
+}
+
+char  *fiveTupleToString(char *str, const struct FiveTuple *tuple){
+
+    char              addrStr[SOCKADDR_MAX_STRLEN];
+    sockaddr_toString( (struct sockaddr*)&tuple->localAddr,
+                       addrStr,
+                       sizeof(addrStr),
+                       false );
+    strncpy(str, addrStr, sizeof(addrStr));
+    strncat(str, " \0", 0);
+    sockaddr_toString( (struct sockaddr*)&tuple->remoteAddr,
+                       addrStr,
+                       sizeof(addrStr),
+                       false );
+    strncat(str, addrStr, strlen(addrStr));
+    char result[50];
+    sprintf(result, " %i", tuple->port);
+    strncat(str, result, strlen(result));
+    return str;
+}
+
+struct TestRun* findTestRun(struct TestRunManager *mng, const struct FiveTuple *fiveTuple){
+    struct TestRun find;
+    struct TestRunConfig config;
+    memcpy(&config.fiveTuple, fiveTuple, sizeof(struct FiveTuple));
+    memcpy(&find.config, &config, sizeof(struct TestRunConfig));
+    find.config = config;
+    return hashmap_get(mng->map, &find);
+}
+
+int addTestDataFromBuf(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now){
     struct TestPacket *pkt;
     if (buflen<sizeof(struct TestPacket)){
         return 1;
@@ -177,21 +211,10 @@ int addTestDataFromBuf(struct TestRunManager *mng, const struct sockaddr* from_a
 
     pkt = (struct TestPacket *)buf;
     if(pkt->pktCookie != TEST_PKT_COOKIE){
-        printf("Not a test pkt! Ignoring\n");
+        //printf("Not a test pkt! Ignoring\n");
         return 1;
     }
-
-
-    struct FiveTuple fiveTuple;
-    sockaddr_copy((struct sockaddr *)&fiveTuple.remoteAddr, from_addr);
-    sockaddr_copy((struct sockaddr *)&fiveTuple.localAddr, (struct sockaddr *)&mng->defaultConfig.fiveTuple.localAddr);
-    fiveTuple.port = sockaddr_ipPort((struct sockaddr *)&from_addr);
-    struct TestRun find;
-    struct TestRunConfig config;
-    config.fiveTuple = fiveTuple;
-
-    find.config = config;
-    struct TestRun *run = hashmap_get(mng->map, &find);
+    struct TestRun *run = findTestRun(mng, fiveTuple );
 
     if(run!=NULL){
         if(pkt->cmd == stop_test_cmd){
@@ -211,15 +234,15 @@ int addTestDataFromBuf(struct TestRunManager *mng, const struct sockaddr* from_a
 
     if(pkt->cmd == start_test_cmd) {
         struct TestRun *testRun = malloc(sizeof(struct TestRun));
-        struct TestRunConfig newConf = mng->defaultConfig;
-        newConf.fiveTuple = fiveTuple;
+        struct TestRunConfig newConf;
+        memcpy(&newConf, &mng->defaultConfig, sizeof(struct TestRunConfig));
+        memcpy(&newConf.fiveTuple, fiveTuple, sizeof(struct FiveTuple));
         strncpy(newConf.testName, pkt->testName, sizeof(pkt->testName));
-        initTestRun(testRun, pkt->testName, MAX_NUM_RCVD_TEST_PACKETS, &newConf);
+        initTestRun(testRun, MAX_NUM_RCVD_TEST_PACKETS, &newConf);
         testRun->lastPktTime = *now;
         testRun->stats.startTest = *now;
         hashmap_set(mng->map, testRun);
         return 0;
-        //return addTestData(testRun, pkt, buflen, now);
     }
 
     return 0;
@@ -239,10 +262,10 @@ struct TestPacket getEndTestPacket(const struct TestRun *testRun){
     return pkt;
 }
 
-struct TestPacket getStartTestPacket(const struct TestRun *testRun){
+struct TestPacket getStartTestPacket(const char *testName){
     struct TestPacket pkt;
-    fillPacket(&pkt, 23, testRun->numTestData, start_test_cmd,
-               (char *)testRun->config.testName);
+    fillPacket(&pkt, 23, 0, start_test_cmd,
+               testName);
     return pkt;
 }
 
@@ -325,8 +348,7 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
         printf("Error!");
         exit(1);
     }
-    //fprintf(fptr, "(Packets:  %i, Delay(ns): %i)\n",
-    //        testRun->config.numPktsToSend, testRun->config.delayns);
+
     char configStr[1000];
     configToString(configStr, &testRun->config);
     printf("     %s\n", configStr);

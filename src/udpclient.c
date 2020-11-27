@@ -18,31 +18,34 @@
 static struct ListenConfig listenConfig;
 
 
-struct TestRun sendSomePktTest(struct TestRun *testRun, const struct TestPacket *pkt, int sockfd) {
+void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, int sockfd) {
     //Send End of Test a few times...
     struct timespec now, remaining;
-    uint8_t endBuf[testRun->config.pkt_size];
+    uint8_t endBuf[mng->defaultConfig.pkt_size];
     memcpy(endBuf, pkt, sizeof(struct TestPacket));
     for(int j=0;j<10;j++){
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
-                   (const struct sockaddr*)&testRun->config.fiveTuple.remoteAddr,
-                   0, testRun->config.dscp, 0 );
-        addTestData(testRun, pkt, sizeof(endBuf), &now);
-        //addTestDataFromBuf(testRun, endBuf, sizeof(endBuf), &now);
-        nanosleep(&testRun->config.delay, &remaining);
+                   (const struct sockaddr*)&mng->defaultConfig.fiveTuple.remoteAddr,
+                   0, mng->defaultConfig.dscp, 0 );
+
+        addTestDataFromBuf(mng, &mng->defaultConfig.fiveTuple,
+                           endBuf, sizeof(endBuf), &now);
+
+        nanosleep(&mng->defaultConfig.delay, &remaining);
     }
-    return (*testRun);
 }
 
-struct TestRun sendEndOfTest(struct TestRun *testRun, int sockfd) {
-    struct TestPacket endPkt = getEndTestPacket(testRun);
-    return sendSomePktTest(testRun, &endPkt, sockfd);
+void sendEndOfTest(struct TestRunManager *mng, int sockfd) {
+    struct TestRun *run = findTestRun(mng, &mng->defaultConfig.fiveTuple );
+
+    struct TestPacket endPkt = getEndTestPacket(run);
+    sendSomePktTest(mng, &endPkt, sockfd);
 }
 
-struct TestRun sendStarOfTest(struct TestRun *testRun, int sockfd) {
-    struct TestPacket endPkt = getStartTestPacket(testRun);
-    return sendSomePktTest(testRun, &endPkt, sockfd);
+void sendStarOfTest(struct TestRunManager *mng, int sockfd) {
+    struct TestPacket startPkt = getStartTestPacket(mng->defaultConfig.testName);
+    sendSomePktTest(mng, &startPkt, sockfd);
 }
 
 static void
@@ -95,7 +98,6 @@ void configure(struct TestRunConfig* config,
     config->delay.tv_sec = 0;
     config->delay.tv_nsec = 20000000L;
     config->pktsInBurst = 1;
-    config->looseNthPkt = 0;
     config->dscp = 0;
     config->pkt_size = 1200;
 
@@ -216,9 +218,6 @@ int nap(const struct timespec *naptime, struct timespec *overshoot){
     nanosleep(naptime, NULL);
     clock_gettime(CLOCK_MONOTONIC_RAW, &te);
     timespec_diff(&te, &ts, &td);
-    //printf("Sleeping for        (%lu, %lu)\n", naptime->tv_sec, naptime->tv_nsec);
-    //printf("Time spent sleeping (%lu, %lu)\n", td.tv_sec, td.tv_nsec);
-
     timespec_diff(&td, naptime, overshoot);
     return 0;
 }
@@ -232,7 +231,7 @@ main(int   argc,
 
     struct timespec overshoot = {0,0};
 
-    /* Read cmd line argumens and set it up */
+    /* Read cmd line arguments and set it up */
     configure(&testRunConfig, argc, argv);
 
     /* Setting up UDP socket  */
@@ -260,38 +259,49 @@ main(int   argc,
 
     struct timespec startBurst,endBurst, inBurst, timeAfterSendPacket;
 
-
+    //Do a quick test to check how "accurate" nanosleep is on this platform
     nap(&testRunConfig.delay, &overshoot);
+
     //char *name = "AAHIIIHH654TTYT\0";
-    struct TestRun testRun;
-    initTestRun(&testRun, testRunConfig.testName, testRunConfig.numPktsToSend, &testRunConfig);
+    struct TestRunManager testRunManager;
+    memcpy(&testRunManager.defaultConfig, &testRunConfig, sizeof(struct TestRunConfig));
+    //testRunManager.defaultConfig = testRunConfig;
+    testRunManager.map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
+                                     TestRun_hash, TestRun_compare, NULL);
+
+
+    //struct TestRun testRun;
+    //initTestRun(&testRun, testRunConfig.testName, testRunConfig.numPktsToSend, &testRunConfig);
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
-
     //Send End of Test a few times...
-    sendStarOfTest(&testRun, sockfd);
+    sendStarOfTest(&testRunManager, sockfd);
 
+    //We only have one active test, but that might change in the future if we want
+    //to send to multiple destination at the same time
+    struct TestRun *testRun = findTestRun(&testRunManager, &testRunConfig.fiveTuple);
 
     struct TestPacket pkt;
 
     int currBurstIdx = 0;
     clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
-    for(int j=0, nth=1;j<testRun.config.numPktsToSend;j++,nth++){
-        pkt = getNextTestPacket(&testRun);
+
+
+    for(int j=0, nth=1;j<testRunManager.defaultConfig.numPktsToSend;j++,nth++){
+        pkt = getNextTestPacket(testRun);
         memcpy(buf, &pkt, sizeof(pkt));
-        if(nth == testRun.config.looseNthPkt){
-              printf("Simulating pkt loss. Dropping packet (%i)\n", pkt.seq);
-            nth=1;
-        }else {
-            sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
-                     (const struct sockaddr *) &testRunConfig.fiveTuple.remoteAddr,
-                     0, testRunConfig.dscp, 0);
-            clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
-        }
 
-        addTestData(&testRun, &pkt, sizeof(buf), &timeAfterSendPacket);
+        sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
+                 (const struct sockaddr *) &testRun->config.fiveTuple.remoteAddr,
+                 0, testRunConfig.dscp, 0);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
 
-        printStats(j, &timeAfterSendPacket, &testRun);
+        addTestDataFromBuf(&testRunManager, &testRun->config.fiveTuple,
+                           buf, sizeof(buf), &timeAfterSendPacket);
+
+        //addTestData(&testRun, &pkt, sizeof(buf), &timeAfterSendPacket);
+
+        printStats(j, &timeAfterSendPacket, testRun);
 
         //Do I sleep or am I bursting..
         if(currBurstIdx < testRunConfig.pktsInBurst){
@@ -309,15 +319,24 @@ main(int   argc,
         }
     }//End of main test run. Just some cleanup remaining.
 
-    sendEndOfTest(&testRun, sockfd);
+    sendEndOfTest(&testRunManager, sockfd);
 
     printf("\n");
-    char filename[100];
-    strncpy(filename, testRunConfig.testName, sizeof(filename));
-    strncat(filename, "_client_results.txt\0", 20);
-    //const char* filename = "client_results.txt\0";
-    saveTestDataToFile(&testRun, filename);
-    freeTestRun(&testRun);
+
+
+    struct TestRun run;
+    bool notEarly = hashmap_scan(testRunManager.map, TestRun_iter, &run);
+    if(!notEarly) {
+        char filename[100];
+        strncpy(filename, run.config.testName, sizeof(filename));
+        strncat(filename, "_client_results.txt\0", 20);
+        saveTestDataToFile(&run, filename);
+        freeTestRun(&run);
+        hashmap_delete(testRunManager.map, &run);
+
+    }else{
+       printf("Something is rotten in the land of Denmark..\n");
+    }
 
     return 0;
 }

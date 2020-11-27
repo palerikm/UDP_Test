@@ -36,7 +36,13 @@ packetHandler(struct ListenConfig* config,
 
     struct TestRunManager *mng = config->tInst;
     //hashmap_scan(map, TestRun_iter, NULL);
-    addTestDataFromBuf(mng, from_addr, buf, buflen, &now);
+    struct FiveTuple tuple;
+
+    makeFiveTuple(&tuple,
+                  (const struct sockaddr *)&mng->defaultConfig.fiveTuple.localAddr,
+                  from_addr,
+                  sockaddr_ipPort(from_addr));
+    addTestDataFromBuf(mng, &tuple, buf, buflen, &now);
 }
 
 void
@@ -63,8 +69,6 @@ saveAndMoveOn(void* ptr)
 {
     struct TestRunManager *mngr = ptr;
 
-
-    //const char* filename = "server_results.txt\0";
     for (;; )
     {
         struct TestRun run;
@@ -73,8 +77,8 @@ saveAndMoveOn(void* ptr)
             char filename[100];
             strncpy(filename, run.config.testName, sizeof(filename));
             strncat(filename, "_server_results.txt\0", 20);
-            //printf("Hey: %s\n", run.config.testName);
             saveTestDataToFile(&run, filename);
+            freeTestRun(&run);
             hashmap_delete(mngr->map, &run);
 
         }else{
@@ -85,9 +89,7 @@ saveAndMoveOn(void* ptr)
             printf(" Mbps : %f ", mbits/1000000);
         }
        usleep(10000);
-
     }
-
 }
 
 int

@@ -39,7 +39,7 @@ struct FiveTuple{
 
 struct TestData{
     struct TestPacket pkt;
-    struct FiveTuple fiveTuple;
+    //struct FiveTuple fiveTuple;
     struct timespec timeDiff;
 };
 
@@ -50,7 +50,6 @@ struct TestRunConfig{
     int numPktsToSend;
     struct timespec delay;
     int pktsInBurst;
-    int looseNthPkt;
     int dscp;
     int pkt_size;
 };
@@ -87,20 +86,25 @@ bool TestRun_iter(const void *item, void *udata);
 bool TestRun_bw_iter(const void *item, void *udata);
 
 int initTestRun(struct TestRun *testRun,
-                 char *name,
                  uint32_t maxNumPkts,
                 struct TestRunConfig *config);
-int testRunReset(struct TestRun *testRun);
+
 int freeTestRun(struct TestRun *testRun);
 
-int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
-int addTestDataFromBuf(struct TestRunManager *mng, const struct sockaddr* from_addr, const unsigned char* buf, int buflen, const struct timespec *now);
+int addTestDataFromBuf(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun);
 struct TestPacket getEndTestPacket(const struct TestRun *testRun);
-struct TestPacket getStartTestPacket(const struct TestRun *testRun);
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, char* testName);
-
+struct TestPacket getStartTestPacket(const char *testName);
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, const char* testName);
+struct TestRun* findTestRun(struct TestRunManager *mng, const struct FiveTuple *fiveTuple);
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
+
+struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
+              const struct sockaddr* from_addr,
+              const struct sockaddr* to_addr,
+              int port);
+
+char  *fiveTupleToString(char *str, const struct FiveTuple *tuple);
 
 static inline void timespec_diff(const struct timespec *a, const struct timespec *b,
                                  struct timespec *result) {
