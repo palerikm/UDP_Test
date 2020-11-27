@@ -44,9 +44,25 @@ bool TestRun_print_iter(const void *item, void *udata) {
     return true;
 }
 
-bool TestRun_iter(const void *item, void *udata) {
+bool TestRun_complete_iter(const void *item, void *udata) {
     const struct TestRun *run = item;
     if(run->done){
+        memcpy(udata, item, sizeof(struct TestRun));
+        return false;
+    }
+    return true;
+}
+
+bool TestRun_lingering_iter(const void *item, void *udata) {
+    const struct TestRun *testRun = item;
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+    struct timespec elapsed = {0,0};
+    timespec_diff(&now, &(*testRun).lastPktTime, &elapsed);
+    double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
+
+    //No data recieved last 5 sec.
+    if(sec > 5){
         memcpy(udata, item, sizeof(struct TestRun));
         return false;
     }
@@ -97,9 +113,19 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, struct TestRunConf
     return 0;
 }
 
+bool pruneLingeringTestRuns(struct TestRunManager *mngr){
+    struct TestRun run;
+    bool notEarly = hashmap_scan(mngr->map, TestRun_lingering_iter, &run);
+    if(!notEarly) {
+        freeTestRun(&run);
+        hashmap_delete(mngr->map, &run);
+    }
+    return !notEarly;
+}
+
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filenameEnding){
     struct TestRun run;
-    bool notEarly = hashmap_scan(mngr->map, TestRun_iter, &run);
+    bool notEarly = hashmap_scan(mngr->map, TestRun_complete_iter, &run);
     if(!notEarly) {
         char filename[100];
         strncpy(filename, run.config.testName, sizeof(filename));

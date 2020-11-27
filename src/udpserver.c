@@ -78,6 +78,7 @@ saveAndMoveOn(void* ptr)
             hashmap_scan(mngr->map, TestRun_bw_iter, &mbits);
             printf(" Mbps : %f ", mbits/1000000);
         }
+       pruneLingeringTestRuns(mngr);
        usleep(10000);
     }
 }
