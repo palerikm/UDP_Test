@@ -80,7 +80,8 @@ void printStats(int j, const struct timespec *now, struct TestRun *testRun) {
         struct timespec elapsed = {0,0};
         timespec_diff(now, &(*testRun).stats.startTest, &elapsed);
         double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
-        printf("\r(Mbps : %f, p/s: %f)", ((((*testRun).stats.rcvdBytes * 8) / sec) / 1000000), (*testRun).stats.rcvdPkts / sec);
+        int done = ((double)testRun->stats.rcvdPkts / (double)testRun->config.numPktsToSend)*100;
+        printf("\r(Mbps : %f, p/s: %f Progress: %i %%)", ((((*testRun).stats.rcvdBytes * 8) / sec) / 1000000), (*testRun).stats.rcvdPkts / sec, done);
         fflush(stdout);
     }
 }
@@ -323,13 +324,21 @@ main(int   argc,
 
     printf("\n");
     char filenameEnding[] = "_client_results.txt";
-    if(!saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding)){
-        int numRunning = hashmap_count(testRunManager.map);
-        printf("\r Running Tests: %i ", numRunning);
-        double mbits = 0;
-        hashmap_scan(testRunManager.map, TestRun_bw_iter, &mbits);
-        printf(" Mbps : %f ", mbits/1000000);
-    }
+    saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);
+    pruneLingeringTestRuns(&testRunManager);
+
+    //TODO: Free the hashmap!
+
+    //printf("\r Running Tests: %i ", getNumberOfActiveTestRuns(&testRunManager));
+    //printf(" Mbps : %f ", getActiveBwOnAllTestRuns(m)/1000000);
+
+    //if(!saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding)){
+    //    int numRunning = hashmap_count(testRunManager.map);
+    //    printf("\r Running Tests: %i ", numRunning);
+    //    double mbits = 0;
+    //    hashmap_scan(testRunManager.map, TestRun_bw_iter, &mbits);
+    //    printf(" Mbps : %f ", mbits/1000000);
+    //}
 
     return 0;
 }
