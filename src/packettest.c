@@ -69,6 +69,14 @@ bool TestRun_lingering_iter(const void *item, void *udata) {
     return true;
 }
 
+bool TestRun_all_iter(const void *item, void *udata) {
+    //const struct TestRun *testRun = item;
+
+    memcpy(udata, item, sizeof(struct TestRun));
+    return false;
+
+}
+
 bool TestRun_bw_iter(const void *item, void *udata) {
     const struct TestRun *testRun = item;
     double *mbits = udata;
@@ -123,6 +131,16 @@ bool pruneLingeringTestRuns(struct TestRunManager *mngr){
     return !notEarly;
 }
 
+void pruneAllTestRuns(struct TestRunManager *mngr){
+    struct TestRun run;
+    bool notEarly = hashmap_scan(mngr->map, TestRun_all_iter, &run);
+    while(!notEarly) {
+        freeTestRun(&run);
+        hashmap_delete(mngr->map, &run);
+        notEarly = hashmap_scan(mngr->map, TestRun_all_iter, &run);
+    }
+}
+
 double getActiveBwOnAllTestRuns(struct TestRunManager *mngr){
     double mbits = 0;
     hashmap_scan(mngr->map, TestRun_bw_iter, &mbits);
@@ -130,6 +148,10 @@ double getActiveBwOnAllTestRuns(struct TestRunManager *mngr){
 }
 int getNumberOfActiveTestRuns(struct TestRunManager *mngr){
     return hashmap_count(mngr->map);
+}
+
+void freeTestRunManager(struct TestRunManager *mngr){
+  pruneAllTestRuns(mngr);
 }
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filenameEnding){
     struct TestRun run;

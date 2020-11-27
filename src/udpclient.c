@@ -327,18 +327,8 @@ main(int   argc,
     saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);
     pruneLingeringTestRuns(&testRunManager);
 
-    //TODO: Free the hashmap!
-
-    //printf("\r Running Tests: %i ", getNumberOfActiveTestRuns(&testRunManager));
-    //printf(" Mbps : %f ", getActiveBwOnAllTestRuns(m)/1000000);
-
-    //if(!saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding)){
-    //    int numRunning = hashmap_count(testRunManager.map);
-    //    printf("\r Running Tests: %i ", numRunning);
-    //    double mbits = 0;
-    //    hashmap_scan(testRunManager.map, TestRun_bw_iter, &mbits);
-    //    printf(" Mbps : %f ", mbits/1000000);
-    //}
+    freeTestRunManager(&testRunManager);
+   
 
     return 0;
 }

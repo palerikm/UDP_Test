@@ -104,6 +104,7 @@ bool pruneLingeringTestRuns(struct TestRunManager *mngr);
 double getActiveBwOnAllTestRuns(struct TestRunManager *mngr);
 int getNumberOfActiveTestRuns(struct TestRunManager *mngr);
 
+void freeTestRunManager(struct TestRunManager *mngr);
 
 struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
               const struct sockaddr* from_addr,
