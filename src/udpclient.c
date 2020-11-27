@@ -322,20 +322,13 @@ main(int   argc,
     sendEndOfTest(&testRunManager, sockfd);
 
     printf("\n");
-
-
-    struct TestRun run;
-    bool notEarly = hashmap_scan(testRunManager.map, TestRun_iter, &run);
-    if(!notEarly) {
-        char filename[100];
-        strncpy(filename, run.config.testName, sizeof(filename));
-        strncat(filename, "_client_results.txt\0", 20);
-        saveTestDataToFile(&run, filename);
-        freeTestRun(&run);
-        hashmap_delete(testRunManager.map, &run);
-
-    }else{
-       printf("Something is rotten in the land of Denmark..\n");
+    char filenameEnding[] = "_client_results.txt";
+    if(!saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding)){
+        int numRunning = hashmap_count(testRunManager.map);
+        printf("\r Running Tests: %i ", numRunning);
+        double mbits = 0;
+        hashmap_scan(testRunManager.map, TestRun_bw_iter, &mbits);
+        printf(" Mbps : %f ", mbits/1000000);
     }
 
     return 0;

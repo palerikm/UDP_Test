@@ -68,20 +68,10 @@ _Noreturn static void*
 saveAndMoveOn(void* ptr)
 {
     struct TestRunManager *mngr = ptr;
-
+    char filenameEnding[] = "_server_results.txt";
     for (;; )
     {
-        struct TestRun run;
-        bool notEarly = hashmap_scan(mngr->map, TestRun_iter, &run);
-        if(!notEarly) {
-            char filename[100];
-            strncpy(filename, run.config.testName, sizeof(filename));
-            strncat(filename, "_server_results.txt\0", 20);
-            saveTestDataToFile(&run, filename);
-            freeTestRun(&run);
-            hashmap_delete(mngr->map, &run);
-
-        }else{
+        if(!saveAndDeleteFinishedTestRuns(mngr, filenameEnding)){
             int numRunning = hashmap_count(mngr->map);
             printf("\r Running Tests: %i ", numRunning);
             double mbits = 0;

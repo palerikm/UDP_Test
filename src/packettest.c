@@ -97,6 +97,20 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, struct TestRunConf
     return 0;
 }
 
+bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filenameEnding){
+    struct TestRun run;
+    bool notEarly = hashmap_scan(mngr->map, TestRun_iter, &run);
+    if(!notEarly) {
+        char filename[100];
+        strncpy(filename, run.config.testName, sizeof(filename));
+        strncat(filename, filenameEnding, strlen(filenameEnding));
+        saveTestDataToFile(&run, filename);
+        freeTestRun(&run);
+        hashmap_delete(mngr->map, &run);
+    }
+    return !notEarly;
+}
+
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now){
     struct timespec timeSinceLastPkt;
 

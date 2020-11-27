@@ -99,6 +99,8 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 struct TestRun* findTestRun(struct TestRunManager *mng, const struct FiveTuple *fiveTuple);
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 
+bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filename);
+
 struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
               const struct sockaddr* from_addr,
               const struct sockaddr* to_addr,
