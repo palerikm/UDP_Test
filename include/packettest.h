@@ -101,6 +101,9 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filename);
 bool pruneLingeringTestRuns(struct TestRunManager *mngr);
+double getActiveBwOnAllTestRuns(struct TestRunManager *mngr);
+int getNumberOfActiveTestRuns(struct TestRunManager *mngr);
+
 
 struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
               const struct sockaddr* from_addr,

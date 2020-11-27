@@ -123,6 +123,14 @@ bool pruneLingeringTestRuns(struct TestRunManager *mngr){
     return !notEarly;
 }
 
+double getActiveBwOnAllTestRuns(struct TestRunManager *mngr){
+    double mbits = 0;
+    hashmap_scan(mngr->map, TestRun_bw_iter, &mbits);
+    return mbits;
+}
+int getNumberOfActiveTestRuns(struct TestRunManager *mngr){
+    return hashmap_count(mngr->map);
+}
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filenameEnding){
     struct TestRun run;
     bool notEarly = hashmap_scan(mngr->map, TestRun_complete_iter, &run);

@@ -71,15 +71,12 @@ saveAndMoveOn(void* ptr)
     char filenameEnding[] = "_server_results.txt";
     for (;; )
     {
-        if(!saveAndDeleteFinishedTestRuns(mngr, filenameEnding)){
-            int numRunning = hashmap_count(mngr->map);
-            printf("\r Running Tests: %i ", numRunning);
-            double mbits = 0;
-            hashmap_scan(mngr->map, TestRun_bw_iter, &mbits);
-            printf(" Mbps : %f ", mbits/1000000);
-        }
-       pruneLingeringTestRuns(mngr);
-       usleep(10000);
+        saveAndDeleteFinishedTestRuns(mngr, filenameEnding);
+        pruneLingeringTestRuns(mngr);
+
+        printf("\r Running Tests: %i ", getNumberOfActiveTestRuns(mngr));
+        printf(" Mbps : %f ", getActiveBwOnAllTestRuns(mngr)/1000000);
+        usleep(10000);
     }
 }
 
