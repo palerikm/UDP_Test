@@ -11,25 +11,25 @@
 #include "packettest.h"
 
 uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
-    const struct TestRun *run = item;
-    return hashmap_sip(run->fiveTuple, sizeof(struct FiveTuple), seed0, seed1);
+    //const struct TestRun *run = item;
+    return hashmap_sip(item, sizeof(struct FiveTuple), seed0, seed1);
 }
 
 int TestRun_compare(const void *a, const void *b, void *udata) {
     const struct TestRun *ua = a;
     const struct TestRun *ub = b;
 
-    if( ! sockaddr_alike((const struct sockaddr *)&ua->fiveTuple->src,
-                   (const struct sockaddr *)&ub->fiveTuple->src)){
+    if( ! sockaddr_alike((const struct sockaddr *)&ua->fiveTuple.src,
+                   (const struct sockaddr *)&ub->fiveTuple.src)){
         return 1;
     }
 
-    if( ! sockaddr_alike((const struct sockaddr *)&ua->fiveTuple->dst,
-                         (const struct sockaddr *)&ub->fiveTuple->dst)){
+    if( ! sockaddr_alike((const struct sockaddr *)&ua->fiveTuple.dst,
+                         (const struct sockaddr *)&ub->fiveTuple.dst)){
         return 1;
     }
 
-    if( ua->fiveTuple->port !=  ub->fiveTuple->port){
+    if( ua->fiveTuple.port !=  ub->fiveTuple.port){
         return 1;
     }
     return 0;
@@ -40,7 +40,7 @@ bool TestRun_print_iter(const void *item, void *udata) {
     const struct TestRun *run = item;
     printf("Name: %s", run->config.testName);
     char s[200];
-    printf("5tuple: %s\n", fiveTupleToString(s, run->fiveTuple));
+    printf("5tuple: %s\n", fiveTupleToString(s, &run->fiveTuple));
     return true;
 }
 
@@ -125,10 +125,8 @@ bool pruneLingeringTestRuns(struct TestRunManager *mngr){
     struct TestRun run;
     bool notEarly = hashmap_scan(mngr->map, TestRun_lingering_iter, &run);
     if(!notEarly) {
-        struct TestRun *runToDelete = findTestRun(mngr, run.fiveTuple);
-        hashmap_delete(mngr->map, runToDelete);
-        freeTestRun(runToDelete);
-        notEarly = hashmap_scan(mngr->map, TestRun_all_iter, &run);
+        freeTestRun(&run);
+        hashmap_delete(mngr->map, &run);
     }
     return !notEarly;
 }
@@ -137,9 +135,8 @@ void pruneAllTestRuns(struct TestRunManager *mngr){
     struct TestRun run;
     bool notEarly = hashmap_scan(mngr->map, TestRun_all_iter, &run);
     while(!notEarly) {
-        struct TestRun *runToDelete = findTestRun(mngr, run.fiveTuple);
-        hashmap_delete(mngr->map, runToDelete);
-        freeTestRun(runToDelete);
+        freeTestRun(&run);
+        hashmap_delete(mngr->map, &run);
         notEarly = hashmap_scan(mngr->map, TestRun_all_iter, &run);
     }
 }
@@ -157,16 +154,15 @@ void freeTestRunManager(struct TestRunManager *mngr){
   pruneAllTestRuns(mngr);
 }
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filenameEnding){
-    struct TestRun completedRun;
-    bool notEarly = hashmap_scan(mngr->map, TestRun_complete_iter, &completedRun);
+    struct TestRun run;
+    bool notEarly = hashmap_scan(mngr->map, TestRun_complete_iter, &run);
     if(!notEarly) {
-        struct TestRun *run = findTestRun(mngr, completedRun.fiveTuple);
         char filename[100];
-        strncpy(filename, run->config.testName, sizeof(filename));
+        strncpy(filename, run.config.testName, sizeof(filename));
         strncat(filename, filenameEnding, strlen(filenameEnding));
-        saveTestDataToFile(run, filename);
-        hashmap_delete(mngr->map, run);
-        freeTestRun(run);
+        saveTestDataToFile(&run, filename);
+        freeTestRun(&run);
+        hashmap_delete(mngr->map, &run);
     }
     return !notEarly;
 }
@@ -237,10 +233,11 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
 
 
-struct FiveTuple* makeFiveTuple(const struct sockaddr* src,
+struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
+                                const struct sockaddr* src,
                                 const struct sockaddr* dst,
                                 int port){
-    struct FiveTuple *fiveTuple = malloc(sizeof(struct FiveTuple));
+
     sockaddr_copy((struct sockaddr *)&fiveTuple->src, src);
     sockaddr_copy((struct sockaddr *)&fiveTuple->dst, dst);
     fiveTuple->port = port;
@@ -267,11 +264,11 @@ char  *fiveTupleToString(char *str, const struct FiveTuple *tuple){
     return str;
 }
 
-struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple){
-    return hashmap_get(mng->map, &(struct TestRun){ .fiveTuple=fiveTuple });
+struct TestRun* findTestRun(struct TestRunManager *mng, const struct FiveTuple *fiveTuple){
+    return hashmap_get(mng->map, &(struct TestRun){ .fiveTuple=*fiveTuple });
 }
 
-int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now){
+int addTestDataFromBuf(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now){
     struct TestPacket *pkt;
     if (buflen<sizeof(struct TestPacket)){
         return 1;
@@ -302,7 +299,7 @@ int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, 
 
     if(pkt->cmd == start_test_cmd) {
         struct TestRun *testRun = malloc(sizeof(struct TestRun));
-        testRun->fiveTuple = makeFiveTuple((struct sockaddr*)&fiveTuple->src, (struct sockaddr*)&fiveTuple->dst, fiveTuple->port);
+        testRun->fiveTuple = *fiveTuple;
         struct TestRunConfig newConf;
         memcpy(&newConf, &mng->defaultConfig, sizeof(struct TestRunConfig));
         //memcpy(&newConf.fiveTuple, fiveTuple, sizeof(struct FiveTuple));
@@ -342,9 +339,6 @@ int freeTestRun(struct TestRun *testRun){
     if(testRun != NULL){
         if(testRun->testData != NULL) {
             free(testRun->testData);
-        }
-        if(testRun->fiveTuple != NULL){
-            free(testRun->fiveTuple);
         }
     }
     return 0;
@@ -412,7 +406,7 @@ int statsToString(char* configStr, const struct TestRunStatistics *stats) {
 }
 
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
-    printf("\nSaving --> %s (%i)\n", filename, testRun->numTestData);
+    printf("Saving--- %s (%i)\n", filename, testRun->numTestData);
     FILE *fptr;
     fptr = fopen(filename,"w");
     if(fptr == NULL)

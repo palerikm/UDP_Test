@@ -65,7 +65,7 @@ struct TestRunStatistics{
 };
 
 struct TestRun{
-    struct FiveTuple *fiveTuple;
+    struct FiveTuple fiveTuple;
     struct TestRunConfig config;
     struct TestData *testData;
     uint32_t numTestData;
@@ -94,12 +94,12 @@ int initTestRun(struct TestRun *testRun,
 
 int freeTestRun(struct TestRun *testRun);
 
-int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
+int addTestDataFromBuf(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun);
 struct TestPacket getEndTestPacket(const struct TestRun *testRun);
 struct TestPacket getStartTestPacket(const char *testName);
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, const char* testName);
-struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
+struct TestRun* findTestRun(struct TestRunManager *mng, const struct FiveTuple *fiveTuple);
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filename);
@@ -109,7 +109,7 @@ int getNumberOfActiveTestRuns(struct TestRunManager *mngr);
 
 void freeTestRunManager(struct TestRunManager *mngr);
 
-struct FiveTuple* makeFiveTuple(
+struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
               const struct sockaddr* from_addr,
               const struct sockaddr* to_addr,
               int port);
