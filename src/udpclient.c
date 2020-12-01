@@ -18,7 +18,7 @@
 static struct ListenConfig listenConfig;
 
 
-void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, int sockfd) {
+void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, const struct FiveTuple *fiveTuple, int sockfd) {
     //Send End of Test a few times...
     struct timespec now, remaining;
     uint8_t endBuf[mng->defaultConfig.pkt_size];
@@ -26,26 +26,27 @@ void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, i
     for(int j=0;j<10;j++){
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
-                   (const struct sockaddr*)&mng->defaultConfig.fiveTuple.remoteAddr,
+                   (const struct sockaddr*)&fiveTuple->dst,
                    0, mng->defaultConfig.dscp, 0 );
 
-        addTestDataFromBuf(mng, &mng->defaultConfig.fiveTuple,
+
+        addTestDataFromBuf(mng, fiveTuple,
                            endBuf, sizeof(endBuf), &now);
 
         nanosleep(&mng->defaultConfig.delay, &remaining);
     }
 }
 
-void sendEndOfTest(struct TestRunManager *mng, int sockfd) {
-    struct TestRun *run = findTestRun(mng, &mng->defaultConfig.fiveTuple );
+void sendEndOfTest(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, int sockfd) {
+    struct TestRun *run = findTestRun(mng, fiveTuple );
 
     struct TestPacket endPkt = getEndTestPacket(run);
-    sendSomePktTest(mng, &endPkt, sockfd);
+    sendSomePktTest(mng, &endPkt, fiveTuple, sockfd);
 }
 
-void sendStarOfTest(struct TestRunManager *mng, int sockfd) {
+void sendStarOfTest(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, int sockfd) {
     struct TestPacket startPkt = getStartTestPacket(mng->defaultConfig.testName);
-    sendSomePktTest(mng, &startPkt, sockfd);
+    sendSomePktTest(mng, &startPkt, fiveTuple, sockfd);
 }
 
 static void
@@ -94,7 +95,7 @@ void configure(struct TestRunConfig* config,
     /* int                 digit_optind = 0; */
     /* set config to default values */
     strncpy(config->interface, "default", 7);
-    config->fiveTuple.port  = 3478;
+    config->port  = 3478;
     config->numPktsToSend = 3000;
     config->delay.tv_sec = 0;
     config->delay.tv_nsec = 20000000L;
@@ -143,7 +144,7 @@ void configure(struct TestRunConfig* config,
             strncpy(config->testName, optarg, MAX_TESTNAME_LEN);
             break;
         case 'p':
-          config->fiveTuple.port = atoi(optarg);
+          config->port = atoi(optarg);
           break;
         case 'd':
             config->delay.tv_nsec = atoi(optarg)*1000000L;
@@ -175,18 +176,18 @@ void configure(struct TestRunConfig* config,
         }
     }
     if (optind < argc){
-        if ( !getRemoteIpAddr( (struct sockaddr*)&config->fiveTuple.remoteAddr,
+        if ( !getRemoteIpAddr( (struct sockaddr*)&config->remoteAddr,
                                argv[optind++],
-                               config->fiveTuple.port ) ){
+                               config->port ) ){
           printf("Error getting remote IPaddr");
           exit(1);
         }
     }
 
 
-  if ( !getLocalInterFaceAddrs( (struct sockaddr*)&config->fiveTuple.localAddr,
+  if ( !getLocalInterFaceAddrs( (struct sockaddr*)&config->localAddr,
                                 config->interface,
-                                config->fiveTuple.remoteAddr.ss_family,
+                                config->remoteAddr.ss_family,
                                 IPv6_ADDR_NORMAL,
                                 false ) )
   {
@@ -202,8 +203,8 @@ setupSocket(struct ListenConfig *lconf, const struct TestRunConfig* sconfig)
 {
 
 
-    int sockfd = createLocalSocket(sconfig->fiveTuple.remoteAddr.ss_family,
-                                   (struct sockaddr*)&sconfig->fiveTuple.localAddr,
+    int sockfd = createLocalSocket(sconfig->remoteAddr.ss_family,
+                                   (struct sockaddr*)&sconfig->localAddr,
                                    SOCK_DGRAM,
                                    0);
 
@@ -243,13 +244,13 @@ main(int   argc,
 
     char              addrStr[SOCKADDR_MAX_STRLEN];
     printf( "Sending packets from: '%s'",
-    sockaddr_toString( (struct sockaddr*)&testRunConfig.fiveTuple.localAddr,
+    sockaddr_toString( (struct sockaddr*)&testRunConfig.localAddr,
            addrStr,
            sizeof(addrStr),
            false ) );
 
     printf( "to: '%s'\n",
-    sockaddr_toString( (struct sockaddr*)&testRunConfig.fiveTuple.remoteAddr,
+    sockaddr_toString( (struct sockaddr*)&testRunConfig.remoteAddr,
            addrStr,
            sizeof(addrStr),
                        true ) );
@@ -276,11 +277,15 @@ main(int   argc,
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
     //Send End of Test a few times...
-    sendStarOfTest(&testRunManager, sockfd);
+    struct FiveTuple fiveTuple;
+    makeFiveTuple(&fiveTuple, (struct sockaddr *)&testRunConfig.localAddr,
+                  (struct sockaddr *)&testRunConfig.remoteAddr, testRunConfig.port);
+
+    sendStarOfTest(&testRunManager, &fiveTuple, sockfd);
 
     //We only have one active test, but that might change in the future if we want
     //to send to multiple destination at the same time
-    struct TestRun *testRun = findTestRun(&testRunManager, &testRunConfig.fiveTuple);
+    struct TestRun *testRun = findTestRun(&testRunManager, &fiveTuple);
 
     struct TestPacket pkt;
 
@@ -293,11 +298,11 @@ main(int   argc,
         memcpy(buf, &pkt, sizeof(pkt));
 
         sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
-                 (const struct sockaddr *) &testRun->config.fiveTuple.remoteAddr,
+                 (const struct sockaddr *) &testRun->config.remoteAddr,
                  0, testRunConfig.dscp, 0);
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
 
-        addTestDataFromBuf(&testRunManager, &testRun->config.fiveTuple,
+        addTestDataFromBuf(&testRunManager, &testRun->fiveTuple,
                            buf, sizeof(buf), &timeAfterSendPacket);
 
         //addTestData(&testRun, &pkt, sizeof(buf), &timeAfterSendPacket);
@@ -320,7 +325,7 @@ main(int   argc,
         }
     }//End of main test run. Just some cleanup remaining.
 
-    sendEndOfTest(&testRunManager, sockfd);
+    sendEndOfTest(&testRunManager, &fiveTuple, sockfd);
 
     printf("\n");
     char filenameEnding[] = "_client_results.txt";

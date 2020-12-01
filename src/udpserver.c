@@ -39,7 +39,7 @@ packetHandler(struct ListenConfig* config,
     struct FiveTuple tuple;
 
     makeFiveTuple(&tuple,
-                  (const struct sockaddr *)&mng->defaultConfig.fiveTuple.localAddr,
+                  (const struct sockaddr *)&mng->defaultConfig.localAddr,
                   from_addr,
                   sockaddr_ipPort(from_addr));
     addTestDataFromBuf(mng, &tuple, buf, buflen, &now);
@@ -97,7 +97,7 @@ main(int   argc,
     /* int                 digit_optind = 0; */
     /* set config to default values */
     strncpy(testConfig.interface, "default", 7);
-    testConfig.fiveTuple.port          = 3478;
+    testConfig.port          = 3478;
 
 
     static struct option long_options[] = {
@@ -123,7 +123,7 @@ main(int   argc,
                 strncpy(testConfig.interface, optarg, max_iface_len);
                 break;
             case 'p':
-                testConfig.fiveTuple.port = atoi(optarg);
+                testConfig.port = atoi(optarg);
                 break;
             case 'h':
                 printUsage();
@@ -137,7 +137,7 @@ main(int   argc,
         }
     }
 
-    if ( !getLocalInterFaceAddrs( (struct sockaddr*)&testConfig.fiveTuple.localAddr,
+    if ( !getLocalInterFaceAddrs( (struct sockaddr*)&testConfig.localAddr,
                                   testConfig.interface,
                                   AF_INET,
                                   IPv6_ADDR_NORMAL,
@@ -148,9 +148,9 @@ main(int   argc,
     }
 
     sockfd = createLocalSocket(AF_INET,
-                               (struct sockaddr*)&testConfig.fiveTuple.localAddr,
+                               (struct sockaddr*)&testConfig.localAddr,
                                SOCK_DGRAM,
-                               testConfig.fiveTuple.port);
+                               testConfig.port);
 
     listenConfig.socketConfig[0].sockfd = sockfd;
     listenConfig.pkt_handler          = packetHandler;

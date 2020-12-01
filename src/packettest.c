@@ -11,25 +11,25 @@
 #include "packettest.h"
 
 uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
-    const struct TestRun *run = item;
-    return hashmap_sip(&run->config.fiveTuple, sizeof(struct FiveTuple), seed0, seed1);
+    //const struct TestRun *run = item;
+    return hashmap_sip(item, sizeof(struct FiveTuple), seed0, seed1);
 }
 
 int TestRun_compare(const void *a, const void *b, void *udata) {
     const struct TestRun *ua = a;
     const struct TestRun *ub = b;
 
-    if( ! sockaddr_alike((const struct sockaddr *)&ua->config.fiveTuple.localAddr,
-                   (const struct sockaddr *)&ub->config.fiveTuple.localAddr)){
+    if( ! sockaddr_alike((const struct sockaddr *)&ua->fiveTuple.src,
+                   (const struct sockaddr *)&ub->fiveTuple.src)){
         return 1;
     }
 
-    if( ! sockaddr_alike((const struct sockaddr *)&ua->config.fiveTuple.remoteAddr,
-                         (const struct sockaddr *)&ub->config.fiveTuple.remoteAddr)){
+    if( ! sockaddr_alike((const struct sockaddr *)&ua->fiveTuple.dst,
+                         (const struct sockaddr *)&ub->fiveTuple.dst)){
         return 1;
     }
 
-    if( ua->config.fiveTuple.port !=  ub->config.fiveTuple.port){
+    if( ua->fiveTuple.port !=  ub->fiveTuple.port){
         return 1;
     }
     return 0;
@@ -40,7 +40,7 @@ bool TestRun_print_iter(const void *item, void *udata) {
     const struct TestRun *run = item;
     printf("Name: %s", run->config.testName);
     char s[200];
-    printf("5tuple: %s\n", fiveTupleToString(s, &run->config.fiveTuple));
+    printf("5tuple: %s\n", fiveTupleToString(s, &run->fiveTuple));
     return true;
 }
 
@@ -234,12 +234,12 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
 
 struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
-                                const struct sockaddr* from_addr,
-                                const struct sockaddr* to_addr,
+                                const struct sockaddr* src,
+                                const struct sockaddr* dst,
                                 int port){
 
-    sockaddr_copy((struct sockaddr *)&fiveTuple->remoteAddr, from_addr);
-    sockaddr_copy((struct sockaddr *)&fiveTuple->localAddr, to_addr);
+    sockaddr_copy((struct sockaddr *)&fiveTuple->src, src);
+    sockaddr_copy((struct sockaddr *)&fiveTuple->dst, dst);
     fiveTuple->port = port;
     return fiveTuple;
 }
@@ -247,13 +247,13 @@ struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
 char  *fiveTupleToString(char *str, const struct FiveTuple *tuple){
 
     char              addrStr[SOCKADDR_MAX_STRLEN];
-    sockaddr_toString( (struct sockaddr*)&tuple->localAddr,
+    sockaddr_toString( (struct sockaddr*)&tuple->src,
                        addrStr,
                        sizeof(addrStr),
                        false );
     strncpy(str, addrStr, sizeof(addrStr));
     strncat(str, " \0", 0);
-    sockaddr_toString( (struct sockaddr*)&tuple->remoteAddr,
+    sockaddr_toString( (struct sockaddr*)&tuple->dst,
                        addrStr,
                        sizeof(addrStr),
                        false );
@@ -265,12 +265,7 @@ char  *fiveTupleToString(char *str, const struct FiveTuple *tuple){
 }
 
 struct TestRun* findTestRun(struct TestRunManager *mng, const struct FiveTuple *fiveTuple){
-    struct TestRun find;
-    struct TestRunConfig config;
-    memcpy(&config.fiveTuple, fiveTuple, sizeof(struct FiveTuple));
-    memcpy(&find.config, &config, sizeof(struct TestRunConfig));
-    find.config = config;
-    return hashmap_get(mng->map, &find);
+    return hashmap_get(mng->map, &(struct TestRun){ .fiveTuple=*fiveTuple });
 }
 
 int addTestDataFromBuf(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now){
@@ -304,9 +299,10 @@ int addTestDataFromBuf(struct TestRunManager *mng, const struct FiveTuple *fiveT
 
     if(pkt->cmd == start_test_cmd) {
         struct TestRun *testRun = malloc(sizeof(struct TestRun));
+        testRun->fiveTuple = *fiveTuple;
         struct TestRunConfig newConf;
         memcpy(&newConf, &mng->defaultConfig, sizeof(struct TestRunConfig));
-        memcpy(&newConf.fiveTuple, fiveTuple, sizeof(struct FiveTuple));
+        //memcpy(&newConf.fiveTuple, fiveTuple, sizeof(struct FiveTuple));
         strncpy(newConf.testName, pkt->testName, sizeof(pkt->testName));
         initTestRun(testRun, MAX_NUM_RCVD_TEST_PACKETS, &newConf);
         testRun->lastPktTime = *now;
@@ -351,7 +347,7 @@ int freeTestRun(struct TestRun *testRun){
 int configToString(char* configStr, const struct TestRunConfig *config){
 
     char              addrStr[SOCKADDR_MAX_STRLEN];
-    sockaddr_toString( (struct sockaddr*)&config->fiveTuple.localAddr,
+    sockaddr_toString( (struct sockaddr*)&config->localAddr,
                                addrStr,
                                sizeof(addrStr),
                                false );
@@ -360,7 +356,7 @@ int configToString(char* configStr, const struct TestRunConfig *config){
     strncat(configStr, config->interface, strlen(config->interface));
     strncat(configStr, ") -> \0", 6);
 
-    sockaddr_toString( (struct sockaddr*)&config->fiveTuple.remoteAddr,
+    sockaddr_toString( (struct sockaddr*)&config->remoteAddr,
                        addrStr,
                        sizeof(addrStr),
                        true );

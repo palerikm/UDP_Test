@@ -32,9 +32,9 @@ struct TestPacket{
 };
 
 struct FiveTuple{
-    struct sockaddr_storage localAddr;
-    struct sockaddr_storage remoteAddr;
-    int                     port;
+    struct sockaddr_storage src;
+    struct sockaddr_storage dst;
+    uint16_t                port;
 };
 
 struct TestData{
@@ -46,7 +46,9 @@ struct TestData{
 struct TestRunConfig{
     char testName[MAX_TESTNAME_LEN];
     char                    interface[10];
-    struct FiveTuple        fiveTuple;
+    struct sockaddr_storage localAddr;
+    struct sockaddr_storage remoteAddr;
+    int                     port;
     int numPktsToSend;
     struct timespec delay;
     int pktsInBurst;
@@ -63,6 +65,7 @@ struct TestRunStatistics{
 };
 
 struct TestRun{
+    struct FiveTuple fiveTuple;
     struct TestRunConfig config;
     struct TestData *testData;
     uint32_t numTestData;
