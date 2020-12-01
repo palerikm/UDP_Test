@@ -36,13 +36,11 @@ packetHandler(struct ListenConfig* config,
 
     struct TestRunManager *mng = config->tInst;
     //hashmap_scan(map, TestRun_iter, NULL);
-    struct FiveTuple tuple;
-
-    makeFiveTuple(&tuple,
+    struct FiveTuple *tuple = makeFiveTuple(
                   (const struct sockaddr *)&mng->defaultConfig.localAddr,
                   from_addr,
                   sockaddr_ipPort(from_addr));
-    addTestDataFromBuf(mng, &tuple, buf, buflen, &now);
+    addTestDataFromBuf(mng, tuple, buf, buflen, &now);
 }
 
 void

@@ -18,7 +18,7 @@
 static struct ListenConfig listenConfig;
 
 
-void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, const struct FiveTuple *fiveTuple, int sockfd) {
+void sendSomePktTest(struct TestRunManager *mng, struct TestPacket *pkt, struct FiveTuple *fiveTuple, int sockfd) {
     //Send End of Test a few times...
     struct timespec now, remaining;
     uint8_t endBuf[mng->defaultConfig.pkt_size];
@@ -37,14 +37,14 @@ void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, c
     }
 }
 
-void sendEndOfTest(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, int sockfd) {
+void sendEndOfTest(struct TestRunManager *mng, struct FiveTuple *fiveTuple, int sockfd) {
     struct TestRun *run = findTestRun(mng, fiveTuple );
 
     struct TestPacket endPkt = getEndTestPacket(run);
     sendSomePktTest(mng, &endPkt, fiveTuple, sockfd);
 }
 
-void sendStarOfTest(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, int sockfd) {
+void sendStarOfTest(struct TestRunManager *mng, struct FiveTuple *fiveTuple, int sockfd) {
     struct TestPacket startPkt = getStartTestPacket(mng->defaultConfig.testName);
     sendSomePktTest(mng, &startPkt, fiveTuple, sockfd);
 }
@@ -277,15 +277,14 @@ main(int   argc,
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
     //Send End of Test a few times...
-    struct FiveTuple fiveTuple;
-    makeFiveTuple(&fiveTuple, (struct sockaddr *)&testRunConfig.localAddr,
+    struct FiveTuple * fiveTuple = makeFiveTuple((struct sockaddr *)&testRunConfig.localAddr,
                   (struct sockaddr *)&testRunConfig.remoteAddr, testRunConfig.port);
 
-    sendStarOfTest(&testRunManager, &fiveTuple, sockfd);
+    sendStarOfTest(&testRunManager, fiveTuple, sockfd);
 
     //We only have one active test, but that might change in the future if we want
     //to send to multiple destination at the same time
-    struct TestRun *testRun = findTestRun(&testRunManager, &fiveTuple);
+    struct TestRun *testRun = findTestRun(&testRunManager, fiveTuple);
 
     struct TestPacket pkt;
 
@@ -302,7 +301,7 @@ main(int   argc,
                  0, testRunConfig.dscp, 0);
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
 
-        addTestDataFromBuf(&testRunManager, &testRun->fiveTuple,
+        addTestDataFromBuf(&testRunManager, testRun->fiveTuple,
                            buf, sizeof(buf), &timeAfterSendPacket);
 
         //addTestData(&testRun, &pkt, sizeof(buf), &timeAfterSendPacket);
@@ -325,7 +324,7 @@ main(int   argc,
         }
     }//End of main test run. Just some cleanup remaining.
 
-    sendEndOfTest(&testRunManager, &fiveTuple, sockfd);
+    sendEndOfTest(&testRunManager, fiveTuple, sockfd);
 
     printf("\n");
     char filenameEnding[] = "_client_results.txt";
