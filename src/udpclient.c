@@ -325,7 +325,7 @@ main(int   argc,
     }//End of main test run. Just some cleanup remaining.
 
     sendEndOfTest(&testRunManager, fiveTuple, sockfd);
-    free(fiveTuple);
+
     printf("\n");
     char filenameEnding[] = "_client_results.txt";
     saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);
