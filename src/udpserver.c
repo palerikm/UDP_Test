@@ -41,6 +41,7 @@ packetHandler(struct ListenConfig* config,
                   from_addr,
                   sockaddr_ipPort(from_addr));
     addTestDataFromBuf(mng, tuple, buf, buflen, &now);
+    free(tuple);
 }
 
 void
