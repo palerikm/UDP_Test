@@ -277,15 +277,15 @@ main(int   argc,
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
     //Send End of Test a few times...
-    struct FiveTuple fiveTuple;
-    makeFiveTuple(&fiveTuple, (struct sockaddr *)&testRunConfig.localAddr,
+    struct FiveTuple *fiveTuple;
+    fiveTuple = makeFiveTuple((struct sockaddr *)&testRunConfig.localAddr,
                   (struct sockaddr *)&testRunConfig.remoteAddr, testRunConfig.port);
 
-    sendStarOfTest(&testRunManager, &fiveTuple, sockfd);
+    sendStarOfTest(&testRunManager, fiveTuple, sockfd);
 
     //We only have one active test, but that might change in the future if we want
     //to send to multiple destination at the same time
-    struct TestRun *testRun = findTestRun(&testRunManager, &fiveTuple);
+    struct TestRun *testRun = findTestRun(&testRunManager, fiveTuple);
 
     struct TestPacket pkt;
 
@@ -325,8 +325,8 @@ main(int   argc,
         }
     }//End of main test run. Just some cleanup remaining.
 
-    sendEndOfTest(&testRunManager, &fiveTuple, sockfd);
-
+    sendEndOfTest(&testRunManager, fiveTuple, sockfd);
+    free(fiveTuple);
     printf("\n");
     char filenameEnding[] = "_client_results.txt";
     saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);

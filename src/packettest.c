@@ -233,11 +233,12 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
 
 
-struct FiveTuple* makeFiveTuple(struct FiveTuple *fiveTuple,
-                                const struct sockaddr* src,
+struct FiveTuple* makeFiveTuple(const struct sockaddr* src,
                                 const struct sockaddr* dst,
                                 int port){
-
+    struct FiveTuple *fiveTuple;
+    fiveTuple = (struct FiveTuple*)malloc(sizeof(struct FiveTuple));
+    memset(fiveTuple, 0, sizeof(struct FiveTuple));
     sockaddr_copy((struct sockaddr *)&fiveTuple->src, src);
     sockaddr_copy((struct sockaddr *)&fiveTuple->dst, dst);
     fiveTuple->port = port;

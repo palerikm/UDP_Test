@@ -32,10 +32,21 @@ packetHandler(struct ListenConfig* config,
             int                  buflen) {
     struct timespec now, result;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-    //struct TestRun *testRun = config->tInst;
 
     struct TestRunManager *mng = config->tInst;
-    //hashmap_scan(map, TestRun_iter, NULL);
+
+    struct FiveTuple *tuple;
+    //tuple = (struct FiveTuple*)malloc(sizeof(struct FiveTuple));
+    //memset(tuple, 0, sizeof(struct FiveTuple));
+
+    tuple = makeFiveTuple((const struct sockaddr *)&mng->defaultConfig.localAddr,
+                  from_addr,
+                  sockaddr_ipPort(from_addr));
+    addTestDataFromBuf(mng, tuple, buf, buflen, &now);
+
+    free(tuple);
+/*
+
     struct FiveTuple tuple;
 
     makeFiveTuple(&tuple,
@@ -43,6 +54,7 @@ packetHandler(struct ListenConfig* config,
                   from_addr,
                   sockaddr_ipPort(from_addr));
     addTestDataFromBuf(mng, &tuple, buf, buflen, &now);
+    */
 }
 
 void
