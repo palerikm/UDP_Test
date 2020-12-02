@@ -88,9 +88,7 @@ int TestRun_compare(const void *a, const void *b, void *udata);
 bool TestRun_iter(const void *item, void *udata);
 bool TestRun_bw_iter(const void *item, void *udata);
 
-int initTestRun(struct TestRun *testRun,
-                 uint32_t maxNumPkts,
-                struct TestRunConfig *config);
+
 
 int freeTestRun(struct TestRun *testRun);
 

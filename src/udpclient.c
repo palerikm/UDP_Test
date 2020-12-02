@@ -264,16 +264,13 @@ main(int   argc,
     //Do a quick test to check how "accurate" nanosleep is on this platform
     nap(&testRunConfig.delay, &overshoot);
 
-    //char *name = "AAHIIIHH654TTYT\0";
+
     struct TestRunManager testRunManager;
     memcpy(&testRunManager.defaultConfig, &testRunConfig, sizeof(struct TestRunConfig));
-    //testRunManager.defaultConfig = testRunConfig;
+
     testRunManager.map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
                                      TestRun_hash, TestRun_compare, NULL);
 
-
-    //struct TestRun testRun;
-    //initTestRun(&testRun, testRunConfig.testName, testRunConfig.numPktsToSend, &testRunConfig);
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
     //Send End of Test a few times...
@@ -305,8 +302,6 @@ main(int   argc,
         addTestDataFromBuf(&testRunManager, testRun->fiveTuple,
                            buf, sizeof(buf), &timeAfterSendPacket);
 
-        //addTestData(&testRun, &pkt, sizeof(buf), &timeAfterSendPacket);
-
         printStats(j, &timeAfterSendPacket, testRun);
 
         //Do I sleep or am I bursting..
@@ -331,9 +326,7 @@ main(int   argc,
     char filenameEnding[] = "_client_results.txt";
     saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);
     pruneLingeringTestRuns(&testRunManager);
-
     freeTestRunManager(&testRunManager);
-   
 
     return 0;
 }

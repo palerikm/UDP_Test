@@ -47,9 +47,7 @@ bool TestRun_print_iter(const void *item, void *udata) {
 bool TestRun_complete_iter(const void *item, void *udata) {
     const struct TestRun *run = item;
     if(run->done){
-        //memcpy(udata, item, sizeof(struct TestRun));
         memcpy(udata, &item, sizeof(struct TestRun*));
-        //udata = item;
         return false;
     }
     return true;
@@ -107,9 +105,10 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
     return 0;
 }
 
-int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, struct TestRunConfig *config){
+int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config){
 
-    testRun->fiveTuple = NULL;
+
+    testRun->fiveTuple = makeFiveTuple((struct sockaddr*)&fiveTuple->src, (struct sockaddr*)&fiveTuple->dst, fiveTuple->port);
     testRun->maxNumTestData = maxNumPkts;
     testRun->done = false;
     testRun->numTestData = 0;
@@ -133,9 +132,6 @@ bool pruneLingeringTestRuns(struct TestRunManager *mngr){
     struct TestRun *run;
     bool notEarly = hashmap_scan(mngr->map, TestRun_lingering_iter, &run);
     if(!notEarly) {
-        //freeTestRun(run);
-        //run = hashmap_delete(mngr->map, run);
-        //freeTestRun(run);
         freeTestRun(hashmap_delete(mngr->map, run));
     }
     return !notEarly;
@@ -145,9 +141,6 @@ void pruneAllTestRuns(struct TestRunManager *mngr){
     struct TestRun *run;
     bool notEarly = hashmap_scan(mngr->map, TestRun_all_iter, &run);
     while(!notEarly) {
-        //freeTestRun(run);
-        //run = hashmap_delete(mngr->map, run);
-        //freeTestRun(run);
         freeTestRun(hashmap_delete(mngr->map, run));
         notEarly = hashmap_scan(mngr->map, TestRun_all_iter, &run);
     }
@@ -173,8 +166,6 @@ bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *file
         strncpy(filename, run->config.testName, sizeof(filename));
         strncat(filename, filenameEnding, strlen(filenameEnding));
         saveTestDataToFile(run, filename);
-        //hashmap_delete(mngr->map, run);
-        //freeTestRun(run);
         freeTestRun(hashmap_delete(mngr->map, run));
     }
     return !notEarly;
@@ -312,20 +303,17 @@ int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, 
     }
 
     if(pkt->cmd == start_test_cmd) {
-        struct TestRun *testRun = malloc(sizeof(struct TestRun));
-        //
-        // memcpy(testRun->fiveTuple, fiveTuple, sizeof(struct FiveTuple));
+        struct TestRun testRun;
 
-        //testRun->fiveTuple = fiveTuple;
         struct TestRunConfig newConf;
         memcpy(&newConf, &mng->defaultConfig, sizeof(struct TestRunConfig));
-        //memcpy(&newConf.fiveTuple, fiveTuple, sizeof(struct FiveTuple));
         strncpy(newConf.testName, pkt->testName, sizeof(pkt->testName));
-        initTestRun(testRun, MAX_NUM_RCVD_TEST_PACKETS, &newConf);
-        testRun->fiveTuple = makeFiveTuple((struct sockaddr*)&fiveTuple->src, (struct sockaddr*)&fiveTuple->dst, fiveTuple->port);
-        testRun->lastPktTime = *now;
-        testRun->stats.startTest = *now;
-        hashmap_set(mng->map, testRun);
+
+        initTestRun(&testRun, MAX_NUM_RCVD_TEST_PACKETS, fiveTuple, &newConf);
+
+        testRun.lastPktTime = *now;
+        testRun.stats.startTest = *now;
+        hashmap_set(mng->map, &testRun);
         return 0;
     }
 
