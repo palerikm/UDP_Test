@@ -18,7 +18,7 @@
 static struct ListenConfig listenConfig;
 
 
-void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, const struct FiveTuple *fiveTuple, int sockfd) {
+void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, struct FiveTuple *fiveTuple, int sockfd) {
     //Send End of Test a few times...
     struct timespec now, remaining;
     uint8_t endBuf[mng->defaultConfig.pkt_size];
@@ -37,14 +37,14 @@ void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, c
     }
 }
 
-void sendEndOfTest(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, int sockfd) {
+void sendEndOfTest(struct TestRunManager *mng, struct FiveTuple *fiveTuple, int sockfd) {
     struct TestRun *run = findTestRun(mng, fiveTuple );
 
     struct TestPacket endPkt = getEndTestPacket(run);
     sendSomePktTest(mng, &endPkt, fiveTuple, sockfd);
 }
 
-void sendStarOfTest(struct TestRunManager *mng, const struct FiveTuple *fiveTuple, int sockfd) {
+void sendStarOfTest(struct TestRunManager *mng, struct FiveTuple *fiveTuple, int sockfd) {
     struct TestPacket startPkt = getStartTestPacket(mng->defaultConfig.testName);
     sendSomePktTest(mng, &startPkt, fiveTuple, sockfd);
 }
@@ -302,7 +302,7 @@ main(int   argc,
                  0, testRunConfig.dscp, 0);
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
 
-        addTestDataFromBuf(&testRunManager, &testRun->fiveTuple,
+        addTestDataFromBuf(&testRunManager, testRun->fiveTuple,
                            buf, sizeof(buf), &timeAfterSendPacket);
 
         //addTestData(&testRun, &pkt, sizeof(buf), &timeAfterSendPacket);
