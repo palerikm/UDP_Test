@@ -36,9 +36,6 @@ packetHandler(struct ListenConfig* config,
     struct TestRunManager *mng = config->tInst;
 
     struct FiveTuple *tuple;
-    //tuple = (struct FiveTuple*)malloc(sizeof(struct FiveTuple));
-    //memset(tuple, 0, sizeof(struct FiveTuple));
-
     tuple = makeFiveTuple((const struct sockaddr *)&mng->defaultConfig.localAddr,
                   from_addr,
                   sockaddr_ipPort(from_addr));
@@ -78,6 +75,7 @@ saveAndMoveOn(void* ptr)
 
         printf("\r Running Tests: %i ", getNumberOfActiveTestRuns(mngr));
         printf(" Mbps : %f ", getActiveBwOnAllTestRuns(mngr)/1000000);
+        printf(" Loss : %i ", getPktLossOnAllTestRuns(mngr));
         usleep(10000);
     }
 }

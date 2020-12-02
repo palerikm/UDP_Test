@@ -67,7 +67,6 @@ bool TestRun_lingering_iter(const void *item, void *udata) {
 
     //No data recieved last 5 sec.
     if(sec > 5){
-        //memcpy(udata, item, sizeof(struct TestRun));
         memcpy(udata, &item, sizeof(struct TestRun*));
         return false;
     }
@@ -75,11 +74,8 @@ bool TestRun_lingering_iter(const void *item, void *udata) {
 }
 
 bool TestRun_all_iter(const void *item, void *udata) {
-    //const struct TestRun *testRun = item;
     memcpy(udata, &item, sizeof(struct TestRun*));
-    //memcpy(udata, item, sizeof(struct TestRun));
     return false;
-
 }
 
 bool TestRun_bw_iter(const void *item, void *udata) {
@@ -93,6 +89,14 @@ bool TestRun_bw_iter(const void *item, void *udata) {
     *mbits += (((*testRun).stats.rcvdBytes * 8) / sec);
     return true;
 }
+
+bool TestRun_loss_iter(const void *item, void *udata) {
+    const struct TestRun *testRun = item;
+    uint32_t *loss = udata;
+    *loss += testRun->stats.lostPkts;
+    return true;
+}
+
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
                    uint32_t cmd, const char* testName){
     testPacket->pktCookie = TEST_PKT_COOKIE;
@@ -145,7 +149,12 @@ void pruneAllTestRuns(struct TestRunManager *mngr){
         notEarly = hashmap_scan(mngr->map, TestRun_all_iter, &run);
     }
 }
-
+uint32_t getPktLossOnAllTestRuns(struct TestRunManager *mngr){
+    //struct TestRun *run;
+    uint32_t loss = 0;
+    bool notEarly = hashmap_scan(mngr->map, TestRun_loss_iter, &loss);
+    return loss;
+}
 double getActiveBwOnAllTestRuns(struct TestRunManager *mngr){
     double mbits = 0;
     hashmap_scan(mngr->map, TestRun_bw_iter, &mbits);
@@ -202,7 +211,6 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         }
         if (testPacket->seq > lastPkt->seq + 1) {
             int lostPkts = (testPacket->seq - lastPkt->seq) - 1;
-            printf("Packet loss (%i)\n", lostPkts);
             for (int i = 0; i < lostPkts; i++) {
                 struct TestPacket tPkt;
                 memset(&tPkt, 0, sizeof(tPkt));
