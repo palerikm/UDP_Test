@@ -45,16 +45,6 @@ packetHandler(struct ListenConfig* config,
     addTestDataFromBuf(mng, tuple, buf, buflen, &now);
 
     free(tuple);
-/*
-
-    struct FiveTuple tuple;
-
-    makeFiveTuple(&tuple,
-                  (const struct sockaddr *)&mng->defaultConfig.localAddr,
-                  from_addr,
-                  sockaddr_ipPort(from_addr));
-    addTestDataFromBuf(mng, &tuple, buf, buflen, &now);
-    */
 }
 
 void
