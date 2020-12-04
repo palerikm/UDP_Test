@@ -76,6 +76,7 @@ saveAndMoveOn(void* ptr)
         printf("\r Running Tests: %i ", getNumberOfActiveTestRuns(mngr));
         printf(" Mbps : %f ", getActiveBwOnAllTestRuns(mngr)/1000000);
         printf(" Loss : %i ", getPktLossOnAllTestRuns(mngr));
+        printf(" Max Jitter %f ", (double)getMaxJitterTestRuns(mngr)/NSEC_PER_SEC);
         usleep(10000);
     }
 }

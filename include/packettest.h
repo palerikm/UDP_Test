@@ -21,13 +21,14 @@ static const uint32_t in_progress_test_cmd = 2;
 static const uint32_t stop_test_cmd = 3;
 static const uint32_t echo_pkt_cmd = 4;
 
-
+#define NSEC_PER_SEC 1000000000
 
 struct TestPacket{
     uint32_t pktCookie;
     uint32_t srcId;
     uint32_t seq;
     uint32_t cmd;
+    struct timespec tDiff;
     char testName[MAX_TESTNAME_LEN];
 };
 
@@ -39,8 +40,8 @@ struct FiveTuple{
 
 struct TestData{
     struct TestPacket pkt;
-    //struct FiveTuple fiveTuple;
     struct timespec timeDiff;
+    int64_t jitter_ns;
 };
 
 struct TestRunConfig{
@@ -56,12 +57,19 @@ struct TestRunConfig{
     int pkt_size;
 };
 
+struct JitterInfo{
+    int32_t avgJitter;
+    int32_t maxJitter;
+};
+
+
 struct TestRunStatistics{
     uint32_t lostPkts;
     struct timespec startTest;
     struct timespec endTest;
     uint32_t rcvdPkts;
     uint32_t rcvdBytes;
+    struct JitterInfo jitterInfo;
 };
 
 struct TestRun{
@@ -93,10 +101,10 @@ bool TestRun_bw_iter(const void *item, void *udata);
 int freeTestRun(struct TestRun *testRun);
 
 int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
-struct TestPacket getNextTestPacket(const struct TestRun *testRun);
+struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);
 struct TestPacket getEndTestPacket(const struct TestRun *testRun);
 struct TestPacket getStartTestPacket(const char *testName);
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, const char* testName);
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, struct timespec *tDiff, const char* testName);
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 
@@ -104,7 +112,7 @@ bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *file
 bool pruneLingeringTestRuns(struct TestRunManager *mngr);
 double getActiveBwOnAllTestRuns(struct TestRunManager *mngr);
 int getNumberOfActiveTestRuns(struct TestRunManager *mngr);
-
+int64_t getMaxJitterTestRuns(struct TestRunManager *mngr);
 uint32_t getPktLossOnAllTestRuns(struct TestRunManager *mngr);
 void freeTestRunManager(struct TestRunManager *mngr);
 
@@ -114,13 +122,26 @@ struct FiveTuple* makeFiveTuple(const struct sockaddr* from_addr,
 
 char  *fiveTupleToString(char *str, const struct FiveTuple *tuple);
 
-static inline void timespec_diff(const struct timespec *a, const struct timespec *b,
-                                 struct timespec *result) {
+static inline void timespec_sub(struct timespec *result, const struct timespec *a, const struct timespec *b) {
     result->tv_sec  = a->tv_sec  - b->tv_sec;
     result->tv_nsec = a->tv_nsec - b->tv_nsec;
     if (result->tv_nsec < 0) {
         --result->tv_sec;
-        result->tv_nsec += 1000000000L;
+        result->tv_nsec += NSEC_PER_SEC;
     }
 }
+
+static inline int64_t
+timespec_to_msec(const struct timespec *a)
+{
+    return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
+}
+
+static inline int64_t
+timespec_to_nsec(const struct timespec *a)
+{
+    return (int64_t)a->tv_sec * NSEC_PER_SEC + a->tv_nsec;
+}
+
+
 #endif //UDP_TESTS_PACKETTEST_H

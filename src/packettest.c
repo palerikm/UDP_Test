@@ -47,7 +47,7 @@ bool TestRun_print_iter(const void *item, void *udata) {
 bool TestRun_complete_iter(const void *item, void *udata) {
     const struct TestRun *run = item;
     if(run->done){
-        memcpy(udata, &item, sizeof(struct TestRun*));
+        memcpy(udata, &item, sizeof(void *));
         return false;
     }
     return true;
@@ -62,19 +62,19 @@ bool TestRun_lingering_iter(const void *item, void *udata) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     struct timespec elapsed = {0,0};
-    timespec_diff(&now, &(*testRun).lastPktTime, &elapsed);
+    timespec_sub(&elapsed, &now, &(*testRun).lastPktTime);
     double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
 
     //No data recieved last 5 sec.
     if(sec > 5){
-        memcpy(udata, &item, sizeof(struct TestRun*));
+        memcpy(udata, &item, sizeof(void *));
         return false;
     }
     return true;
 }
 
 bool TestRun_all_iter(const void *item, void *udata) {
-    memcpy(udata, &item, sizeof(struct TestRun*));
+    memcpy(udata, &item, sizeof(void *));
     return false;
 }
 
@@ -84,7 +84,7 @@ bool TestRun_bw_iter(const void *item, void *udata) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     struct timespec elapsed = {0,0};
-    timespec_diff(&now, &(*testRun).stats.startTest, &elapsed);
+    timespec_sub(&elapsed, &now, &(*testRun).stats.startTest);
     double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
     *mbits += (((*testRun).stats.rcvdBytes * 8) / sec);
     return true;
@@ -97,13 +97,26 @@ bool TestRun_loss_iter(const void *item, void *udata) {
     return true;
 }
 
+bool TestRun_max_jitter_iter(const void *item, void *udata) {
+    const struct TestRun *testRun = item;
+    int64_t *max_jitter = udata;
+    if( llabs(*max_jitter) < llabs(testRun->stats.jitterInfo.maxJitter)) {
+        *max_jitter = testRun->stats.jitterInfo.maxJitter;
+    }
+    return true;
+}
+
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
-                   uint32_t cmd, const char* testName){
+                   uint32_t cmd, struct timespec *tDiff, const char* testName){
     testPacket->pktCookie = TEST_PKT_COOKIE;
     testPacket->srcId = srcId;
     testPacket->seq = seq;
     testPacket->cmd = cmd;
+    if(tDiff != NULL){
+        testPacket->tDiff = *tDiff;
+    }
     if(testName != NULL) {
+        //testPacket->testName = testName;
         strncpy(testPacket->testName, testName, sizeof(testPacket->testName));
     }
     return 0;
@@ -155,11 +168,19 @@ uint32_t getPktLossOnAllTestRuns(struct TestRunManager *mngr){
     bool notEarly = hashmap_scan(mngr->map, TestRun_loss_iter, &loss);
     return loss;
 }
+
 double getActiveBwOnAllTestRuns(struct TestRunManager *mngr){
     double mbits = 0;
     hashmap_scan(mngr->map, TestRun_bw_iter, &mbits);
     return mbits;
 }
+int64_t getMaxJitterTestRuns(struct TestRunManager *mngr){
+    int64_t maxJitter = 0;
+    hashmap_scan(mngr->map, TestRun_max_jitter_iter, &maxJitter);
+    return maxJitter;
+}
+
+
 int getNumberOfActiveTestRuns(struct TestRunManager *mngr){
     return hashmap_count(mngr->map);
 }
@@ -201,7 +222,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     }
 
     if(testRun->numTestData > 0) {
-        timespec_diff(now, &testRun->lastPktTime, &timeSinceLastPkt);
+        timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
 
         //Did we loose any packets? Or out of order?
         struct TestPacket *lastPkt = &(testRun->testData + testRun->numTestData - 1)->pkt;
@@ -224,6 +245,8 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
             }
             testRun->stats.lostPkts += lostPkts;
         }
+
+
     }else{
         timeSinceLastPkt.tv_sec = 0;
         timeSinceLastPkt.tv_nsec = 0;
@@ -233,13 +256,32 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     testRun->stats.rcvdBytes+=pktSize;
     struct TestData d;
     d.pkt = *testPacket;
-    //Todo: What if over a second delayed....
-    d.timeDiff.tv_sec = 0;
-    d.timeDiff.tv_nsec = timeSinceLastPkt.tv_nsec;
+
+    struct timespec jitter = {0,0};
+    timespec_sub(&jitter, &timeSinceLastPkt, &testPacket->tDiff);
+    d.jitter_ns = timespec_to_nsec(&jitter);
+
+
+
+
+
+    d.timeDiff = timeSinceLastPkt;
+
 
     memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
     testRun->numTestData++;
     testRun->lastPktTime = *now;
+
+    if(llabs(d.jitter_ns) > llabs(testRun->stats.jitterInfo.maxJitter)){
+        testRun->stats.jitterInfo.maxJitter = d.jitter_ns;
+    }
+
+    int64_t a = 0;
+    for(int i=0;i < testRun->numTestData;i++){
+        a += ((testRun->testData)+1)->jitter_ns;
+    }
+    testRun->stats.jitterInfo.avgJitter = a/testRun->numTestData;
+
     return 0;
 }
 
@@ -281,7 +323,12 @@ struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTu
     return hashmap_get(mng->map, &(struct TestRun){ .fiveTuple=fiveTuple });
 }
 
-int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now){
+int addTestDataFromBuf(struct TestRunManager *mng,
+                       struct FiveTuple *fiveTuple,
+                       const unsigned char* buf,
+                       int buflen,
+                       const struct timespec *now){
+
     struct TestPacket *pkt;
     if (buflen<sizeof(struct TestPacket)){
         return 1;
@@ -328,24 +375,26 @@ int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, 
     return 0;
 }
 
-struct TestPacket getNextTestPacket(const struct TestRun *testRun){
+struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now){
     struct TestPacket pkt;
+    struct timespec timeSinceLastPkt;
+    timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
     fillPacket(&pkt, 23, testRun->numTestData, in_progress_test_cmd,
-               NULL);
+               &timeSinceLastPkt,NULL);
     return pkt;
 }
 
 struct TestPacket getEndTestPacket(const struct TestRun *testRun){
     struct TestPacket pkt;
     fillPacket(&pkt, 23, testRun->numTestData, stop_test_cmd,
-               (char *)testRun->config.testName);
+               NULL, (char *)testRun->config.testName);
     return pkt;
 }
 
 struct TestPacket getStartTestPacket(const char *testName){
     struct TestPacket pkt;
     fillPacket(&pkt, 23, 0, start_test_cmd,
-               testName);
+               NULL, testName);
     return pkt;
 }
 
@@ -408,14 +457,17 @@ int statsToString(char* configStr, const struct TestRunStatistics *stats) {
     strncat(configStr, result, strlen(result));
 
     struct timespec elapsed;
-    timespec_diff(&stats->endTest, &stats->startTest, &elapsed);
+    timespec_sub(&elapsed, &stats->endTest, &stats->startTest);
 
-    double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
+    double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / NSEC_PER_SEC;
 
     sprintf(result, " Time : %f sec", sec);
     strncat(configStr, result, strlen(result));
 
     sprintf(result, " (Mbps : %f, p/s: %f) ", (((stats->rcvdBytes*8)/sec)/1000000), stats->rcvdPkts/sec);
+    strncat(configStr, result, strlen(result));
+
+    sprintf(result, " (Max Jitter : %f, Avg Jitter: %i) ", (double)stats->jitterInfo.maxJitter/NSEC_PER_SEC, stats->jitterInfo.avgJitter);
     strncat(configStr, result, strlen(result));
 
     return 0;
@@ -443,7 +495,7 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
     fprintf(fptr, "%s\n", statsStr);
 
 
-    fprintf(fptr, "pkt,timediff\n");
+    fprintf(fptr, "pkt,timediff,jitter\n");
     for(int i=0; i<testRun->numTestData;i++){
         const struct TestData *muh;
         muh = testRun->testData+i;
@@ -454,7 +506,7 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
             if(muh->timeDiff.tv_sec > 0){
                 printf("Warning warning FIX me.. diff larger than a second\n");
             }
-            fprintf(fptr, "%i,%ld\n", muh->pkt.seq, muh->timeDiff.tv_nsec);
+            fprintf(fptr, "%i,%ld,%lld\n", muh->pkt.seq, muh->timeDiff.tv_nsec, muh->jitter_ns);
         }
     }
     fclose(fptr);

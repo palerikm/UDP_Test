@@ -79,7 +79,7 @@ printUsage(char* prgName)
 void printStats(int j, const struct timespec *now, struct TestRun *testRun) {
     if(j % 100 == 0){
         struct timespec elapsed = {0,0};
-        timespec_diff(now, &(*testRun).stats.startTest, &elapsed);
+        timespec_sub(&elapsed, now, &(*testRun).stats.startTest);
         double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
         int done = ((double)testRun->stats.rcvdPkts / (double)testRun->config.numPktsToSend)*100;
         printf("\r(Mbps : %f, p/s: %f Progress: %i %%)", ((((*testRun).stats.rcvdBytes * 8) / sec) / 1000000), (*testRun).stats.rcvdPkts / sec, done);
@@ -219,8 +219,8 @@ int nap(const struct timespec *naptime, struct timespec *overshoot){
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     nanosleep(naptime, NULL);
     clock_gettime(CLOCK_MONOTONIC_RAW, &te);
-    timespec_diff(&te, &ts, &td);
-    timespec_diff(&td, naptime, overshoot);
+    timespec_sub(&td, &te, &ts);
+    timespec_sub(overshoot, &td, naptime);
     return 0;
 }
 
@@ -291,14 +291,21 @@ main(int   argc,
 
 
     for(int j=0, nth=1;j<testRunManager.defaultConfig.numPktsToSend;j++,nth++){
-        pkt = getNextTestPacket(testRun);
+
+        clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
+        //Get next test packet to send.
+        pkt = getNextTestPacket(testRun, &timeAfterSendPacket);
         memcpy(buf, &pkt, sizeof(pkt));
+
+
 
         sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
                  (const struct sockaddr *) &testRun->config.remoteAddr,
                  0, testRunConfig.dscp, 0);
-        clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
 
+
+        //struct timespec jalla;
+        //timespec_sub(&jalla, pkt.)
         addTestDataFromBuf(&testRunManager, testRun->fiveTuple,
                            buf, sizeof(buf), &timeAfterSendPacket);
 
@@ -311,7 +318,7 @@ main(int   argc,
           currBurstIdx = 0;
           struct timespec delay = {0,0};
           clock_gettime(CLOCK_MONOTONIC_RAW, &endBurst);
-          timespec_diff(&endBurst, &startBurst, &inBurst);
+            timespec_sub(&inBurst, &endBurst, &startBurst);
           delay.tv_sec = testRunConfig.delay.tv_sec - inBurst.tv_sec - overshoot.tv_sec;
           delay.tv_nsec = testRunConfig.delay.tv_nsec - inBurst.tv_nsec - overshoot.tv_nsec;
           nap(&delay, &overshoot);
