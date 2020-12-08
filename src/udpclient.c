@@ -330,8 +330,8 @@ main(int   argc,
     sendEndOfTest(&testRunManager, fiveTuple, sockfd);
     free(fiveTuple);
     printf("\n");
-    char filenameEnding[] = "_client_results.txt";
-    saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);
+    //char filenameEnding[] = "_client_results.txt";
+    //saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);
     pruneLingeringTestRuns(&testRunManager);
     freeTestRunManager(&testRunManager);
 

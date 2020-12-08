@@ -467,9 +467,6 @@ int statsToString(char* configStr, const struct TestRunStatistics *stats) {
     sprintf(result, " (Mbps : %f, p/s: %f) ", (((stats->rcvdBytes*8)/sec)/1000000), stats->rcvdPkts/sec);
     strncat(configStr, result, strlen(result));
 
-    sprintf(result, " (Max Jitter : %f, Avg Jitter: %i) ", (double)stats->jitterInfo.maxJitter/NSEC_PER_SEC, stats->jitterInfo.avgJitter);
-    strncat(configStr, result, strlen(result));
-
     return 0;
 
 }
