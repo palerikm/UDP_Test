@@ -28,7 +28,7 @@ struct TestPacket{
     uint32_t srcId;
     uint32_t seq;
     uint32_t cmd;
-    struct timespec tDiff;
+    struct timespec txDiff;
     char testName[MAX_TESTNAME_LEN];
 };
 
@@ -40,7 +40,7 @@ struct FiveTuple{
 
 struct TestData{
     struct TestPacket pkt;
-    struct timespec timeDiff;
+    struct timespec rxDiff;
     int64_t jitter_ns;
 };
 

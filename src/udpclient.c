@@ -303,9 +303,6 @@ main(int   argc,
                  (const struct sockaddr *) &testRun->config.remoteAddr,
                  0, testRunConfig.dscp, 0);
 
-
-        //struct timespec jalla;
-        //timespec_sub(&jalla, pkt.)
         addTestDataFromBuf(&testRunManager, testRun->fiveTuple,
                            buf, sizeof(buf), &timeAfterSendPacket);
 

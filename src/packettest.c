@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 #include <sockethelper.h>
 
 #include <hashmap.h>
@@ -113,7 +114,7 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
     testPacket->seq = seq;
     testPacket->cmd = cmd;
     if(tDiff != NULL){
-        testPacket->tDiff = *tDiff;
+        testPacket->txDiff = *tDiff;
     }
     if(testName != NULL) {
         //testPacket->testName = testName;
@@ -238,8 +239,8 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
                 tPkt.seq = lastPkt->seq + 1 + i;
                 struct TestData d;
                 d.pkt = tPkt;
-                d.timeDiff.tv_sec = 0;
-                d.timeDiff.tv_nsec = 0;
+                d.rxDiff.tv_sec = 0;
+                d.rxDiff.tv_nsec = 0;
                 memcpy((testRun->testData + testRun->numTestData), &d, sizeof(struct TestData));
                 testRun->numTestData++;
             }
@@ -254,18 +255,18 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
     testRun->stats.rcvdPkts++;
     testRun->stats.rcvdBytes+=pktSize;
+
     struct TestData d;
     d.pkt = *testPacket;
 
+
+    // Calculate jitter based on time since last received packet and the
+    // sending variation happening on the client(txDiff)
     struct timespec jitter = {0,0};
-    timespec_sub(&jitter, &timeSinceLastPkt, &testPacket->tDiff);
+    timespec_sub(&jitter, &timeSinceLastPkt, &testPacket->txDiff);
     d.jitter_ns = timespec_to_nsec(&jitter);
 
-
-
-
-
-    d.timeDiff = timeSinceLastPkt;
+    d.rxDiff = timeSinceLastPkt;
 
 
     memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
@@ -492,19 +493,26 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
     fprintf(fptr, "%s\n", statsStr);
 
 
-    fprintf(fptr, "pkt,timediff,jitter\n");
+    fprintf(fptr, "seq,txDiff,rxDiff,jitter\n");
     for(int i=0; i<testRun->numTestData;i++){
         const struct TestData *muh;
         muh = testRun->testData+i;
-
-        if(muh->timeDiff.tv_nsec == 0){
-            fprintf(fptr, "%i,%s\n", muh->pkt.seq, "NaN");
-        }else {
-            if(muh->timeDiff.tv_sec > 0){
-                printf("Warning warning FIX me.. diff larger than a second\n");
-            }
-            fprintf(fptr, "%i,%ld,%lld\n", muh->pkt.seq, muh->timeDiff.tv_nsec, muh->jitter_ns);
+        int64_t rxDiff = timespec_to_nsec(&muh->rxDiff);
+        int64_t txDiff = timespec_to_nsec(&muh->pkt.txDiff);
+        fprintf(fptr, "%i,", muh->pkt.seq);
+        if(rxDiff == 0){
+            fprintf(fptr, "%s,","NaN");
+        }else{
+            fprintf(fptr, "%" PRId64 ",", rxDiff);
         }
+        if(txDiff == 0){
+            fprintf(fptr, "%s,","NaN");
+        }else{
+            fprintf(fptr, "%" PRId64 ",", txDiff);
+        }
+
+        fprintf(fptr, "%" PRId64, muh->jitter_ns);
+        fprintf(fptr, "\n");
     }
     fclose(fptr);
     printf("----Done saving\n");
