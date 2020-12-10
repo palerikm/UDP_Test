@@ -10,6 +10,7 @@
 
 #include <hashmap.h>
 #include "packettest.h"
+#include "udptestcommon.h"
 
 uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     const struct TestRun *run = item;
@@ -39,9 +40,9 @@ int TestRun_compare(const void *a, const void *b, void *udata) {
 
 bool TestRun_print_iter(const void *item, void *udata) {
     const struct TestRun *run = item;
-    printf("Name: %s", run->config.testName);
+    printf("Name: %s ", run->config.testName);
     char s[200];
-    printf("5tuple: %s\n", fiveTupleToString(s, run->fiveTuple));
+    printf("5tuple: %s  ", fiveTupleToString(s, run->fiveTuple));
     return true;
 }
 
@@ -132,7 +133,7 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveT
     testRun->numTestData = 0;
 
     memcpy(&testRun->config, config, sizeof(struct TestRunConfig));
-
+    sockaddr_copy((struct sockaddr*)&testRun->config.remoteAddr, (struct sockaddr*)&fiveTuple->dst);
     testRun->stats.lostPkts = 0;
     testRun->stats.rcvdPkts = 0;
     testRun->stats.rcvdBytes =0;
@@ -219,7 +220,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         testRun->done = false;
         testRun->lastPktTime = *now;
         testRun->stats.startTest = *now;
-        return 0;
+        return 1;
     }
 
     if(testRun->numTestData > 0) {
@@ -308,7 +309,7 @@ char  *fiveTupleToString(char *str, const struct FiveTuple *tuple){
                        sizeof(addrStr),
                        false );
     strncpy(str, addrStr, sizeof(addrStr));
-    strncat(str, " \0", 0);
+    strncat(str, " \0", 1);
     sockaddr_toString( (struct sockaddr*)&tuple->dst,
                        addrStr,
                        sizeof(addrStr),
@@ -332,13 +333,13 @@ int addTestDataFromBuf(struct TestRunManager *mng,
 
     struct TestPacket *pkt;
     if (buflen<sizeof(struct TestPacket)){
-        return 1;
+        return -1;
     }
 
     pkt = (struct TestPacket *)buf;
     if(pkt->pktCookie != TEST_PKT_COOKIE){
         //printf("Not a test pkt! Ignoring\n");
-        return 1;
+        return -2;
     }
     struct TestRun *run = findTestRun(mng, fiveTuple );
 
@@ -346,10 +347,10 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         if(pkt->cmd == stop_test_cmd){
             run->stats.endTest = *now;
             run->done = true;
-            return 1;
+            return 0;
         }
         if(pkt->cmd == start_test_cmd){
-            return 1;
+            return 0;
         }
         return addTestData(run, pkt, buflen, now);
     }
@@ -362,15 +363,20 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         struct TestRun testRun;
 
         struct TestRunConfig newConf;
+
         memcpy(&newConf, &mng->defaultConfig, sizeof(struct TestRunConfig));
         strncpy(newConf.testName, pkt->testName, sizeof(pkt->testName));
+
+        struct TestRunPktConfig pktConfig;
+        memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
+        newConf.pktConfig = pktConfig;
 
         initTestRun(&testRun, MAX_NUM_RCVD_TEST_PACKETS, fiveTuple, &newConf);
 
         testRun.lastPktTime = *now;
         testRun.stats.startTest = *now;
         hashmap_set(mng->map, &testRun);
-        return 0;
+        return 1;
     }
 
     return 0;
@@ -380,6 +386,7 @@ struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timesp
     struct TestPacket pkt;
     struct timespec timeSinceLastPkt;
     timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
+    printf("%s, %i\n", testRun->config.testName, testRun->numTestData);
     fillPacket(&pkt, 23, testRun->numTestData, in_progress_test_cmd,
                &timeSinceLastPkt,NULL);
     return pkt;
@@ -429,16 +436,16 @@ int configToString(char* configStr, const struct TestRunConfig *config){
                        true );
     strncat(configStr, addrStr, strlen(addrStr));
     char result[50];
-    sprintf(result, " PktSize: %i", config->pkt_size);
+    sprintf(result, " PktSize: %i", config->pktConfig.pkt_size);
     strncat(configStr, result, strlen(result));
 
-    sprintf(result, " DSCP: %#x", config->dscp);
+    sprintf(result, " DSCP: %#x", config->pktConfig.dscp);
     strncat(configStr, result, strlen(result));
 
-    sprintf(result, " Delay: %ld", config->delay.tv_nsec/1000000L);
+    sprintf(result, " Delay: %ld", config->pktConfig.delay.tv_nsec/1000000L);
     strncat(configStr, result, strlen(result));
 
-    sprintf(result, " Burst: %i", config->pktsInBurst);
+    sprintf(result, " Burst: %i", config->pktConfig.pktsInBurst);
     strncat(configStr, result, strlen(result));
 
     return 0;

@@ -21,7 +21,16 @@ static const uint32_t in_progress_test_cmd = 2;
 static const uint32_t stop_test_cmd = 3;
 static const uint32_t echo_pkt_cmd = 4;
 
-#define NSEC_PER_SEC 1000000000
+
+
+
+struct TestRunPktConfig{
+    int numPktsToSend;
+    struct timespec delay;
+    int pktsInBurst;
+    int dscp;
+    int pkt_size;
+};
 
 struct TestPacket{
     uint32_t pktCookie;
@@ -50,11 +59,7 @@ struct TestRunConfig{
     struct sockaddr_storage localAddr;
     struct sockaddr_storage remoteAddr;
     int                     port;
-    int numPktsToSend;
-    struct timespec delay;
-    int pktsInBurst;
-    int dscp;
-    int pkt_size;
+    struct TestRunPktConfig pktConfig;
 };
 
 struct JitterInfo{
@@ -108,6 +113,8 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 
+int configToString(char* configStr, const struct TestRunConfig *config);
+
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filename);
 bool pruneLingeringTestRuns(struct TestRunManager *mngr);
 double getActiveBwOnAllTestRuns(struct TestRunManager *mngr);
@@ -122,26 +129,6 @@ struct FiveTuple* makeFiveTuple(const struct sockaddr* from_addr,
 
 char  *fiveTupleToString(char *str, const struct FiveTuple *tuple);
 
-static inline void timespec_sub(struct timespec *result, const struct timespec *a, const struct timespec *b) {
-    result->tv_sec  = a->tv_sec  - b->tv_sec;
-    result->tv_nsec = a->tv_nsec - b->tv_nsec;
-    if (result->tv_nsec < 0) {
-        --result->tv_sec;
-        result->tv_nsec += NSEC_PER_SEC;
-    }
-}
-
-static inline int64_t
-timespec_to_msec(const struct timespec *a)
-{
-    return (int64_t)a->tv_sec * 1000 + a->tv_nsec / 1000000;
-}
-
-static inline int64_t
-timespec_to_nsec(const struct timespec *a)
-{
-    return (int64_t)a->tv_sec * NSEC_PER_SEC + a->tv_nsec;
-}
-
+bool TestRun_print_iter(const void *item, void *udata);
 
 #endif //UDP_TESTS_PACKETTEST_H

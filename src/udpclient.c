@@ -8,32 +8,59 @@
 #include <time.h>
 #include <getopt.h>
 #include <string.h>
-#include <ctype.h>
+#include <pthread.h>
 #include <packettest.h>
 
 #include "iphelper.h"
 #include "sockethelper.h"
+#include "udptestcommon.h"
 
 
 static struct ListenConfig listenConfig;
 
 
+void
+packetHandler(struct ListenConfig* config,
+              struct sockaddr*     from_addr,
+              void*                cb,
+              unsigned char*       buf,
+              int                  buflen) {
+    struct timespec now, result;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+
+    struct TestRunManager *mng = config->tInst;
+
+    struct FiveTuple *tuple;
+    tuple = makeFiveTuple(from_addr,
+                            (const struct sockaddr *)&mng->defaultConfig.localAddr,
+
+                          sockaddr_ipPort(from_addr));
+    int res = addTestDataFromBuf(mng, tuple, buf, buflen, &now);
+
+    if(res<0){
+        printf("Encountered error while processing incoming UDP packet\n");
+    }
+
+    free(tuple);
+
+}
+
 void sendSomePktTest(struct TestRunManager *mng, const struct TestPacket *pkt, struct FiveTuple *fiveTuple, int sockfd) {
     //Send End of Test a few times...
     struct timespec now, remaining;
-    uint8_t endBuf[mng->defaultConfig.pkt_size];
+    uint8_t endBuf[mng->defaultConfig.pktConfig.pkt_size];
     memcpy(endBuf, pkt, sizeof(struct TestPacket));
     for(int j=0;j<10;j++){
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
                    (const struct sockaddr*)&fiveTuple->dst,
-                   0, mng->defaultConfig.dscp, 0 );
+                   0, mng->defaultConfig.pktConfig.dscp, 0 );
 
 
         addTestDataFromBuf(mng, fiveTuple,
                            endBuf, sizeof(endBuf), &now);
 
-        nanosleep(&mng->defaultConfig.delay, &remaining);
+        nanosleep(&mng->defaultConfig.pktConfig.delay, &remaining);
     }
 }
 
@@ -45,8 +72,26 @@ void sendEndOfTest(struct TestRunManager *mng, struct FiveTuple *fiveTuple, int 
 }
 
 void sendStarOfTest(struct TestRunManager *mng, struct FiveTuple *fiveTuple, int sockfd) {
+    //Send End of Test a few times...
+
     struct TestPacket startPkt = getStartTestPacket(mng->defaultConfig.testName);
-    sendSomePktTest(mng, &startPkt, fiveTuple, sockfd);
+
+    struct timespec now, remaining;
+    uint8_t endBuf[mng->defaultConfig.pktConfig.pkt_size];
+    memcpy(endBuf, &startPkt, sizeof(struct TestPacket));
+    memcpy(endBuf+sizeof(startPkt), &mng->defaultConfig.pktConfig, sizeof(struct TestRunPktConfig));
+    for(int j=0;j<10;j++){
+        clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+        sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
+                   (const struct sockaddr*)&fiveTuple->dst,
+                   0, mng->defaultConfig.pktConfig.dscp, 0 );
+
+
+       addTestDataFromBuf(mng, fiveTuple,
+                           endBuf, sizeof(endBuf), &now);
+
+        nanosleep(&mng->defaultConfig.pktConfig.delay, &remaining);
+    }
 }
 
 static void
@@ -81,7 +126,7 @@ void printStats(int j, const struct timespec *now, struct TestRun *testRun) {
         struct timespec elapsed = {0,0};
         timespec_sub(&elapsed, now, &(*testRun).stats.startTest);
         double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
-        int done = ((double)testRun->stats.rcvdPkts / (double)testRun->config.numPktsToSend)*100;
+        int done = ((double)testRun->stats.rcvdPkts / (double)testRun->config.pktConfig.numPktsToSend)*100;
         printf("\r(Mbps : %f, p/s: %f Progress: %i %%)", ((((*testRun).stats.rcvdBytes * 8) / sec) / 1000000), (*testRun).stats.rcvdPkts / sec, done);
         fflush(stdout);
     }
@@ -96,12 +141,12 @@ void configure(struct TestRunConfig* config,
     /* set config to default values */
     strncpy(config->interface, "default", 7);
     config->port  = 3478;
-    config->numPktsToSend = 3000;
-    config->delay.tv_sec = 0;
-    config->delay.tv_nsec = 20000000L;
-    config->pktsInBurst = 1;
-    config->dscp = 0;
-    config->pkt_size = 1200;
+    config->pktConfig.numPktsToSend = 3000;
+    config->pktConfig.delay.tv_sec = 0;
+    config->pktConfig.delay.tv_nsec = 20000000L;
+    config->pktConfig.pktsInBurst = 1;
+    config->pktConfig.dscp = 0;
+    config->pktConfig.pkt_size = 1200;
 
 
     int iseed = (unsigned int)time(NULL);
@@ -147,21 +192,21 @@ void configure(struct TestRunConfig* config,
           config->port = atoi(optarg);
           break;
         case 'd':
-            config->delay.tv_nsec = atoi(optarg)*1000000L;
+            config->pktConfig.delay.tv_nsec = atoi(optarg)*1000000L;
           break;
         case 'b':
-            config->pktsInBurst = atoi(optarg);
+            config->pktConfig.pktsInBurst = atoi(optarg);
             break;
         case 't':
-            config->dscp = strtoul(optarg, NULL, 16);
+            config->pktConfig.dscp = strtoul(optarg, NULL, 16);
         case 's':
-            config->pkt_size = atoi(optarg);
+            config->pktConfig.pkt_size = atoi(optarg);
             break;
         case 'n':
-            config->numPktsToSend = atoi(optarg);
-            if (config->numPktsToSend > MAX_NUM_RCVD_TEST_PACKETS)
+            config->pktConfig.numPktsToSend = atoi(optarg);
+            if (config->pktConfig.numPktsToSend > MAX_NUM_RCVD_TEST_PACKETS)
             {
-                config->numPktsToSend = MAX_NUM_RCVD_TEST_PACKETS;
+                config->pktConfig.numPktsToSend = MAX_NUM_RCVD_TEST_PACKETS;
             }
             break;
         case 'h':
@@ -214,15 +259,6 @@ setupSocket(struct ListenConfig *lconf, const struct TestRunConfig* sconfig)
   return lconf->numSockets;
 }
 
-int nap(const struct timespec *naptime, struct timespec *overshoot){
-    struct timespec ts, te, td, over = {0,0};
-    clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    nanosleep(naptime, NULL);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &te);
-    timespec_sub(&td, &te, &ts);
-    timespec_sub(overshoot, &td, naptime);
-    return 0;
-}
 
 int
 main(int   argc,
@@ -256,13 +292,17 @@ main(int   argc,
                        true ) );
 
 
-    uint8_t buf[testRunConfig.pkt_size];
+
+
+
+
+    uint8_t buf[testRunConfig.pktConfig.pkt_size];
     memset(&buf, 43, sizeof(buf));
 
     struct timespec startBurst,endBurst, inBurst, timeAfterSendPacket;
 
     //Do a quick test to check how "accurate" nanosleep is on this platform
-    nap(&testRunConfig.delay, &overshoot);
+    nap(&testRunConfig.pktConfig.delay, &overshoot);
 
 
     struct TestRunManager testRunManager;
@@ -273,6 +313,16 @@ main(int   argc,
 
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
+
+
+    pthread_t socketListenThread;
+    listenConfig.pkt_handler          = packetHandler;
+    listenConfig.tInst = &testRunManager;
+    pthread_create(&socketListenThread,
+                   NULL,
+                   socketListenDemux,
+                   (void*)&listenConfig);
+
     //Send End of Test a few times...
     struct FiveTuple *fiveTuple;
     fiveTuple = makeFiveTuple((struct sockaddr *)&testRunConfig.localAddr,
@@ -283,14 +333,13 @@ main(int   argc,
     //We only have one active test, but that might change in the future if we want
     //to send to multiple destination at the same time
     struct TestRun *testRun = findTestRun(&testRunManager, fiveTuple);
-
     struct TestPacket pkt;
 
     int currBurstIdx = 0;
     clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
 
 
-    for(int j=0, nth=1;j<testRunManager.defaultConfig.numPktsToSend;j++,nth++){
+    for(int j=0 ;j<testRunManager.defaultConfig.pktConfig.numPktsToSend;j++){
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
         //Get next test packet to send.
@@ -301,7 +350,7 @@ main(int   argc,
 
         sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
                  (const struct sockaddr *) &testRun->config.remoteAddr,
-                 0, testRunConfig.dscp, 0);
+                 0, testRunConfig.pktConfig.dscp, 0);
 
         addTestDataFromBuf(&testRunManager, testRun->fiveTuple,
                            buf, sizeof(buf), &timeAfterSendPacket);
@@ -309,15 +358,15 @@ main(int   argc,
         printStats(j, &timeAfterSendPacket, testRun);
 
         //Do I sleep or am I bursting..
-        if(currBurstIdx < testRunConfig.pktsInBurst){
+        if(currBurstIdx < testRunConfig.pktConfig.pktsInBurst){
           currBurstIdx++;
         }else {
           currBurstIdx = 0;
           struct timespec delay = {0,0};
           clock_gettime(CLOCK_MONOTONIC_RAW, &endBurst);
             timespec_sub(&inBurst, &endBurst, &startBurst);
-          delay.tv_sec = testRunConfig.delay.tv_sec - inBurst.tv_sec - overshoot.tv_sec;
-          delay.tv_nsec = testRunConfig.delay.tv_nsec - inBurst.tv_nsec - overshoot.tv_nsec;
+          delay.tv_sec = testRunConfig.pktConfig.delay.tv_sec - inBurst.tv_sec - overshoot.tv_sec;
+          delay.tv_nsec = testRunConfig.pktConfig.delay.tv_nsec - inBurst.tv_nsec - overshoot.tv_nsec;
           nap(&delay, &overshoot);
           //Staring a new burst when we start at top of for loop.
           clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
@@ -327,8 +376,25 @@ main(int   argc,
     sendEndOfTest(&testRunManager, fiveTuple, sockfd);
     free(fiveTuple);
     printf("\n");
-    //char filenameEnding[] = "_client_results.txt";
-    //saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);
+
+
+    //Any lingering test results?
+    bool done = false;
+    char filenameEnding[] = "_client_results.txt";
+    while(!done){
+        int num = getNumberOfActiveTestRuns(&testRunManager);
+        printf("Num: %i\n", num);
+        if(  num > 0 ){
+            saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);
+            nap(&testRunConfig.pktConfig.delay, &overshoot);
+
+        }else{
+            done = true;
+        }
+
+    }
+    //
+    //
     pruneLingeringTestRuns(&testRunManager);
     freeTestRunManager(&testRunManager);
 

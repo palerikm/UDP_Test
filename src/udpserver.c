@@ -15,6 +15,7 @@
 #include "hashmap.h"
 #include "../include/iphelper.h"
 #include "../include/sockethelper.h"
+#include "../include/udptestcommon.h"
 
 #define MAXBUFLEN 1500
 #define MAX_LISTEN_SOCKETS 1
@@ -23,6 +24,110 @@
 
 int             sockfd;
 
+
+void sendStarOfTest(struct TestRun *run, int sockfd) {
+    //Send End of Test a few times...
+
+    char newName[MAX_TESTNAME_LEN];
+    strncpy(newName, run->config.testName, strlen(run->config.testName));
+    strncat(newName, "_resp\0", 7);
+
+    struct TestPacket startPkt = getStartTestPacket(newName);
+
+    struct timespec now, remaining;
+    uint8_t endBuf[run->config.pktConfig.pkt_size];
+    memcpy(endBuf, &startPkt, sizeof(struct TestPacket));
+    memcpy(endBuf+sizeof(startPkt), &run->config.pktConfig, sizeof(struct TestRunPktConfig));
+    for(int j=0;j<10;j++){
+        clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+        sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
+                   (const struct sockaddr*)&run->fiveTuple->dst,
+                   0, run->config.pktConfig.dscp, 0 );
+
+
+        //addTestDataFromBuf(mng, fiveTuple,
+        //                   endBuf, sizeof(endBuf), &now);
+
+        nanosleep(&run->config.pktConfig.delay, &remaining);
+    }
+}
+void sendEndOfTest(struct TestRun *run, int sockfd) {
+    //Send End of Test a few times...
+
+    struct TestPacket startPkt = getEndTestPacket(run);
+
+    struct timespec now, remaining;
+    uint8_t endBuf[run->config.pktConfig.pkt_size];
+    memcpy(endBuf, &startPkt, sizeof(struct TestPacket));
+    memcpy(endBuf+sizeof(startPkt), &run->config.pktConfig, sizeof(struct TestRunPktConfig));
+    for(int j=0;j<10;j++){
+        clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+        sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
+                   (const struct sockaddr*)&run->fiveTuple->dst,
+                   0, run->config.pktConfig.dscp, 0 );
+
+
+        //addTestDataFromBuf(mng, fiveTuple,
+        //                   endBuf, sizeof(endBuf), &now);
+
+        nanosleep(&run->config.pktConfig.delay, &remaining);
+    }
+}
+
+static void*
+responseHandler(void* ptr){
+  struct TestRun *run = ptr;
+
+  printf("Juhu starting respons thread for: %s \n", run->config.testName);
+  char configStr[200];
+  configToString(configStr, &run->config);
+  printf("%s\n", configStr);
+    struct timespec startBurst,endBurst, inBurst, timeAfterSendPacket;
+    struct TestPacket pkt;
+
+    int currBurstIdx = 0;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
+
+    struct timespec overshoot = {0,0};
+    nap(&run->config.pktConfig.delay, &overshoot);
+
+    uint8_t buf[run->config.pktConfig.pkt_size];
+    memset(&buf, 67, sizeof(buf));
+
+    sendStarOfTest(run, sockfd);
+
+    for(int j=0 ;j<run->config.pktConfig.numPktsToSend;j++){
+
+        clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
+        //Get next test packet to send.
+        pkt = getNextTestPacket(run, &timeAfterSendPacket);
+        memcpy(buf, &pkt, sizeof(pkt));
+
+
+
+        sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
+                   (const struct sockaddr *) &run->fiveTuple->dst,
+                   0, run->config.pktConfig.dscp, 0);
+
+
+        //Do I sleep or am I bursting..
+        if(currBurstIdx < run->config.pktConfig.pktsInBurst){
+            currBurstIdx++;
+        }else {
+            currBurstIdx = 0;
+            struct timespec delay = {0,0};
+            clock_gettime(CLOCK_MONOTONIC_RAW, &endBurst);
+            timespec_sub(&inBurst, &endBurst, &startBurst);
+            delay.tv_sec = run->config.pktConfig.delay.tv_sec - inBurst.tv_sec - overshoot.tv_sec;
+            delay.tv_nsec = run->config.pktConfig.delay.tv_nsec - inBurst.tv_nsec - overshoot.tv_nsec;
+            nap(&delay, &overshoot);
+            //Staring a new burst when we start at top of for loop.
+            clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
+        }
+    }//End of main test run. Just some cleanup remaining.
+    sendEndOfTest(run, sockfd);
+    return NULL;
+}
 
 void
 packetHandler(struct ListenConfig* config,
@@ -39,7 +144,16 @@ packetHandler(struct ListenConfig* config,
     tuple = makeFiveTuple((const struct sockaddr *)&mng->defaultConfig.localAddr,
                   from_addr,
                   sockaddr_ipPort(from_addr));
-    addTestDataFromBuf(mng, tuple, buf, buflen, &now);
+    int res = addTestDataFromBuf(mng, tuple, buf, buflen, &now);
+
+    if(res<0){
+        printf("Encountered error while processing incoming UDP packet\n");
+    }
+    if(res == 1){
+        pthread_t responseThread;
+        struct TestRun *run = findTestRun(mng, tuple);
+        pthread_create(&responseThread, NULL, responseHandler, (void*)run);
+    }
 
     free(tuple);
 }
