@@ -82,7 +82,7 @@ responseHandler(void* ptr){
   char configStr[200];
   configToString(configStr, &run->config);
   printf("%s\n", configStr);
-    struct timespec startBurst,endBurst, inBurst, timeAfterSendPacket;
+    struct timespec startBurst,endBurst, inBurst, timeBeforeSendPacket, timeLastPacket;
     struct TestPacket pkt;
 
     int currBurstIdx = 0;
@@ -96,11 +96,16 @@ responseHandler(void* ptr){
 
     sendStarOfTest(run, sockfd);
 
+    clock_gettime(CLOCK_MONOTONIC_RAW, &timeLastPacket);
     for(int j=0 ;j<run->config.pktConfig.numPktsToSend;j++){
 
-        clock_gettime(CLOCK_MONOTONIC_RAW, &timeAfterSendPacket);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
+        struct timespec timeSinceLastPkt;
+        timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
         //Get next test packet to send.
-        pkt = getNextTestPacket(run, &timeAfterSendPacket);
+        //pkt = getNextTestPacket(run, &timeBeforeSendPacket);
+        fillPacket(&pkt, 23, j+1, in_progress_test_cmd,
+                   &timeSinceLastPkt,NULL);
         memcpy(buf, &pkt, sizeof(pkt));
 
 
@@ -124,6 +129,7 @@ responseHandler(void* ptr){
             //Staring a new burst when we start at top of for loop.
             clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
         }
+        timeLastPacket = timeBeforeSendPacket;
     }//End of main test run. Just some cleanup remaining.
     sendEndOfTest(run, sockfd);
     return NULL;

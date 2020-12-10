@@ -386,7 +386,7 @@ struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timesp
     struct TestPacket pkt;
     struct timespec timeSinceLastPkt;
     timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
-    printf("%s, %i\n", testRun->config.testName, testRun->numTestData);
+  //  printf("%s, %i\n", testRun->config.testName, testRun->numTestData);
     fillPacket(&pkt, 23, testRun->numTestData, in_progress_test_cmd,
                &timeSinceLastPkt,NULL);
     return pkt;
