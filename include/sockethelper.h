@@ -22,6 +22,10 @@ struct ListenConfig {
     void*               tInst;
     struct SocketConfig socketConfig[MAX_LISTEN_SOCKETS];
     int                 numSockets;
+    struct sockaddr_storage localAddr;
+    struct sockaddr_storage remoteAddr;
+    int                      port;
+    char                    interface[10];
 
     void (* pkt_handler)(struct ListenConfig*,
                           struct sockaddr*,

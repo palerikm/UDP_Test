@@ -26,11 +26,10 @@ int             sockfd;
 
 
 void sendStarOfTest(struct TestRun *run, int sockfd) {
-    //Send End of Test a few times...
 
     char newName[MAX_TESTNAME_LEN];
     strncpy(newName, run->config.testName, strlen(run->config.testName));
-    strncat(newName, "_resp\0", 7);
+   // strncat(newName, "_resp\0", 7);
 
     struct TestPacket startPkt = getStartTestPacket(newName);
 
@@ -44,17 +43,13 @@ void sendStarOfTest(struct TestRun *run, int sockfd) {
                    (const struct sockaddr*)&run->fiveTuple->dst,
                    0, run->config.pktConfig.dscp, 0 );
 
-
-        //addTestDataFromBuf(mng, fiveTuple,
-        //                   endBuf, sizeof(endBuf), &now);
-
         nanosleep(&run->config.pktConfig.delay, &remaining);
     }
 }
-void sendEndOfTest(struct TestRun *run, int sockfd) {
+void sendEndOfTest(struct TestRun *run, int num, int sockfd) {
     //Send End of Test a few times...
 
-    struct TestPacket startPkt = getEndTestPacket(run);
+    struct TestPacket startPkt = getEndTestPacket(run->config.testName, num);
 
     struct timespec now, remaining;
     uint8_t endBuf[run->config.pktConfig.pkt_size];
@@ -66,10 +61,6 @@ void sendEndOfTest(struct TestRun *run, int sockfd) {
                    (const struct sockaddr*)&run->fiveTuple->dst,
                    0, run->config.pktConfig.dscp, 0 );
 
-
-        //addTestDataFromBuf(mng, fiveTuple,
-        //                   endBuf, sizeof(endBuf), &now);
-
         nanosleep(&run->config.pktConfig.delay, &remaining);
     }
 }
@@ -78,10 +69,6 @@ static void*
 responseHandler(void* ptr){
   struct TestRun *run = ptr;
 
-  printf("Juhu starting respons thread for: %s \n", run->config.testName);
-  char configStr[200];
-  configToString(configStr, &run->config);
-  printf("%s\n", configStr);
     struct timespec startBurst,endBurst, inBurst, timeBeforeSendPacket, timeLastPacket;
     struct TestPacket pkt;
 
@@ -91,29 +78,31 @@ responseHandler(void* ptr){
     struct timespec overshoot = {0,0};
     nap(&run->config.pktConfig.delay, &overshoot);
 
-    uint8_t buf[run->config.pktConfig.pkt_size];
-    memset(&buf, 67, sizeof(buf));
+
 
     sendStarOfTest(run, sockfd);
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &timeLastPacket);
-    for(int j=0 ;j<run->config.pktConfig.numPktsToSend;j++){
+    int numPkt = 0;
+    uint8_t buf[run->config.pktConfig.pkt_size];
+    //uint8_t buf[1400];
+
+    memset(buf, 67, sizeof(buf));
+
+    for(numPkt=0 ;numPkt<run->config.pktConfig.numPktsToSend;numPkt++){
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
         struct timespec timeSinceLastPkt;
         timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
         //Get next test packet to send.
         //pkt = getNextTestPacket(run, &timeBeforeSendPacket);
-        fillPacket(&pkt, 23, j+1, in_progress_test_cmd,
-                   &timeSinceLastPkt,NULL);
-        memcpy(buf, &pkt, sizeof(pkt));
-
-
+        fillPacket(&pkt, 0, numPkt+1, in_progress_test_cmd,
+                   &timeSinceLastPkt,NULL,NULL);
+        memcpy(&buf, &pkt, sizeof(pkt));
 
         sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
                    (const struct sockaddr *) &run->fiveTuple->dst,
                    0, run->config.pktConfig.dscp, 0);
-
 
         //Do I sleep or am I bursting..
         if(currBurstIdx < run->config.pktConfig.pktsInBurst){
@@ -130,8 +119,28 @@ responseHandler(void* ptr){
             clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
         }
         timeLastPacket = timeBeforeSendPacket;
+
+        //Lets prepare fill the next packet buffer with some usefull data.
+        int32_t sendSize = run->numTestData - run->resp.lastIdxConfirmed;
+       // printf("Num TestData: %i, Last confirmed: %i\n", run->numTestData, run->resp.lastIdxConfirmed);
+       int32_t sendSizePos = sizeof(pkt);
+       int32_t dataPos = sendSizePos + sizeof(int32_t);
+       int32_t max_num_to_send = (sizeof(buf) - dataPos)/sizeof(struct TestData);
+       int32_t sendActual = sendSize<max_num_to_send ? sendSize : max_num_to_send;
+
+        if(sendActual > 0){
+            memcpy(buf+sendSizePos, &sendActual, sizeof(int32_t));
+
+
+            memcpy(buf+dataPos,
+                   run->testData + run->resp.lastIdxConfirmed,
+                   sizeof(struct TestData)*sendActual);
+        }else{
+            memset(buf+sizeof(pkt), 0, sizeof(buf)-sizeof(pkt));
+        }
+
     }//End of main test run. Just some cleanup remaining.
-    sendEndOfTest(run, sockfd);
+    sendEndOfTest(run, numPkt, sockfd);
     return NULL;
 }
 
@@ -147,9 +156,11 @@ packetHandler(struct ListenConfig* config,
     struct TestRunManager *mng = config->tInst;
 
     struct FiveTuple *tuple;
-    tuple = makeFiveTuple((const struct sockaddr *)&mng->defaultConfig.localAddr,
+    tuple = makeFiveTuple((const struct sockaddr *)&config->localAddr,
                   from_addr,
                   sockaddr_ipPort(from_addr));
+
+
     int res = addTestDataFromBuf(mng, tuple, buf, buflen, &now);
 
     if(res<0){
@@ -190,7 +201,7 @@ saveAndMoveOn(void* ptr)
     char filenameEnding[] = "_server_results.txt";
     for (;; )
     {
-        saveAndDeleteFinishedTestRuns(mngr, filenameEnding);
+        //saveAndDeleteFinishedTestRuns(mngr, filenameEnding);
         pruneLingeringTestRuns(mngr);
 
         printf("\r Running Tests: %i ", getNumberOfActiveTestRuns(mngr));
@@ -217,8 +228,8 @@ main(int   argc,
     int c;
     /* int                 digit_optind = 0; */
     /* set config to default values */
-    strncpy(testConfig.interface, "default", 7);
-    testConfig.port          = 3478;
+    strncpy(listenConfig.interface, "default", 7);
+    listenConfig.port          = 3478;
 
 
     static struct option long_options[] = {
@@ -241,10 +252,10 @@ main(int   argc,
         switch (c)
         {
             case 'i':
-                strncpy(testConfig.interface, optarg, max_iface_len);
+                strncpy(listenConfig.interface, optarg, max_iface_len);
                 break;
             case 'p':
-                testConfig.port = atoi(optarg);
+                listenConfig.port = atoi(optarg);
                 break;
             case 'h':
                 printUsage();
@@ -258,27 +269,27 @@ main(int   argc,
         }
     }
 
-    if ( !getLocalInterFaceAddrs( (struct sockaddr*)&testConfig.localAddr,
-                                  testConfig.interface,
+    if ( !getLocalInterFaceAddrs( (struct sockaddr*)&listenConfig.localAddr,
+                                  listenConfig.interface,
                                   AF_INET,
                                   IPv6_ADDR_NORMAL,
                                   false ) )
     {
-        printf("Error getting IPaddr on %s\n", testConfig.interface);
+        printf("Error getting IPaddr on %s\n", listenConfig.interface);
         exit(1);
     }
 
     sockfd = createLocalSocket(AF_INET,
-                               (struct sockaddr*)&testConfig.localAddr,
+                               (struct sockaddr*)&listenConfig.localAddr,
                                SOCK_DGRAM,
-                               testConfig.port);
+                               listenConfig.port);
 
     listenConfig.socketConfig[0].sockfd = sockfd;
     listenConfig.pkt_handler          = packetHandler;
     listenConfig.numSockets             = 1;
 
     struct TestRunManager testRunManager;
-    testRunManager.defaultConfig = testConfig;
+    //testRunManager.defaultConfig = testConfig;
     testRunManager.map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
                                      TestRun_hash, TestRun_compare, NULL);
 

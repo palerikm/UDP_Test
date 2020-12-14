@@ -58,9 +58,9 @@ bool TestRun_complete_iter(const void *item, void *udata) {
 bool TestRun_lingering_iter(const void *item, void *udata) {
     const struct TestRun *testRun = item;
 
-    if(testRun->done){
-        return true;
-    }
+    //if(testRun->done){
+    //    return true;
+   // }
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     struct timespec elapsed = {0,0};
@@ -68,6 +68,7 @@ bool TestRun_lingering_iter(const void *item, void *udata) {
     double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
 
     //No data recieved last 5 sec.
+   // printf(" %f, ", sec);
     if(sec > 5){
         memcpy(udata, &item, sizeof(void *));
         return false;
@@ -109,13 +110,18 @@ bool TestRun_max_jitter_iter(const void *item, void *udata) {
 }
 
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
-                   uint32_t cmd, struct timespec *tDiff, const char* testName){
+                   uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp, const char* testName){
     testPacket->pktCookie = TEST_PKT_COOKIE;
     testPacket->srcId = srcId;
     testPacket->seq = seq;
     testPacket->cmd = cmd;
     if(tDiff != NULL){
         testPacket->txDiff = *tDiff;
+    }
+    if(resp != NULL) {
+        testPacket->resp = *resp;
+    }else{
+        testPacket->resp.lastIdxConfirmed = -1;
     }
     if(testName != NULL) {
         //testPacket->testName = testName;
@@ -125,15 +131,13 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 }
 
 int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config){
-
-
     testRun->fiveTuple = makeFiveTuple((struct sockaddr*)&fiveTuple->src, (struct sockaddr*)&fiveTuple->dst, fiveTuple->port);
     testRun->maxNumTestData = maxNumPkts;
     testRun->done = false;
     testRun->numTestData = 0;
 
     memcpy(&testRun->config, config, sizeof(struct TestRunConfig));
-    sockaddr_copy((struct sockaddr*)&testRun->config.remoteAddr, (struct sockaddr*)&fiveTuple->dst);
+//    sockaddr_copy((struct sockaddr*)&testRun->config.remoteAddr, (struct sockaddr*)&fiveTuple->dst);
     testRun->stats.lostPkts = 0;
     testRun->stats.rcvdPkts = 0;
     testRun->stats.rcvdBytes =0;
@@ -144,6 +148,7 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveT
         return -1;
     }
 
+    testRun->resp.lastIdxConfirmed = 0;
     return 0;
 }
 
@@ -225,7 +230,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
     if(testRun->numTestData > 0) {
         timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
-
+        testRun->resp = testPacket->resp;
         //Did we loose any packets? Or out of order?
         struct TestPacket *lastPkt = &(testRun->testData + testRun->numTestData - 1)->pkt;
         if (testPacket->seq < lastPkt->seq) {
@@ -364,7 +369,7 @@ int addTestDataFromBuf(struct TestRunManager *mng,
 
         struct TestRunConfig newConf;
 
-        memcpy(&newConf, &mng->defaultConfig, sizeof(struct TestRunConfig));
+        //memcpy(&newConf, &mng->defaultConfig, sizeof(struct TestRunConfig));
         strncpy(newConf.testName, pkt->testName, sizeof(pkt->testName));
 
         struct TestRunPktConfig pktConfig;
@@ -382,27 +387,27 @@ int addTestDataFromBuf(struct TestRunManager *mng,
     return 0;
 }
 
-struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now){
-    struct TestPacket pkt;
-    struct timespec timeSinceLastPkt;
-    timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
+//struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now){
+//    struct TestPacket pkt;
+//    struct timespec timeSinceLastPkt;
+//    timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
   //  printf("%s, %i\n", testRun->config.testName, testRun->numTestData);
-    fillPacket(&pkt, 23, testRun->numTestData, in_progress_test_cmd,
-               &timeSinceLastPkt,NULL);
-    return pkt;
-}
+//    fillPacket(&pkt, 23, testRun->numTestData, in_progress_test_cmd,
+//               &timeSinceLastPkt,NULL);
+//    return pkt;
+//}
 
-struct TestPacket getEndTestPacket(const struct TestRun *testRun){
+struct TestPacket getEndTestPacket(const char *testName, int num){
     struct TestPacket pkt;
-    fillPacket(&pkt, 23, testRun->numTestData, stop_test_cmd,
-               NULL, (char *)testRun->config.testName);
+    fillPacket(&pkt, 23, num, stop_test_cmd,
+               NULL, NULL, testName);
     return pkt;
 }
 
 struct TestPacket getStartTestPacket(const char *testName){
     struct TestPacket pkt;
     fillPacket(&pkt, 23, 0, start_test_cmd,
-               NULL, testName);
+               NULL, NULL, testName);
     return pkt;
 }
 
@@ -420,24 +425,25 @@ int freeTestRun(struct TestRun *testRun){
 
 int configToString(char* configStr, const struct TestRunConfig *config){
 
-    char              addrStr[SOCKADDR_MAX_STRLEN];
-    sockaddr_toString( (struct sockaddr*)&config->localAddr,
-                               addrStr,
-                               sizeof(addrStr),
-                               false );
-    strncpy(configStr, addrStr, sizeof(addrStr));
-    strncat(configStr, " (\0", 4);
-    strncat(configStr, config->interface, strlen(config->interface));
-    strncat(configStr, ") -> \0", 6);
-
-    sockaddr_toString( (struct sockaddr*)&config->remoteAddr,
-                       addrStr,
-                       sizeof(addrStr),
-                       true );
-    strncat(configStr, addrStr, strlen(addrStr));
-    char result[50];
+//    char              addrStr[SOCKADDR_MAX_STRLEN];
+//    sockaddr_toString( (struct sockaddr*)&config->localAddr,
+//                               addrStr,
+//                               sizeof(addrStr),
+//                               false );
+//    strncpy(configStr, addrStr, sizeof(addrStr));
+//    strncat(configStr, " (\0", 4);
+//    strncat(configStr, config->interface, strlen(config->interface));
+//    strncat(configStr, ") -> \0", 6);
+//
+//    sockaddr_toString( (struct sockaddr*)&config->remoteAddr,
+//                       addrStr,
+//                       sizeof(addrStr),
+//                       true );
+//    strncat(configStr, addrStr, strlen(addrStr));
+    char result[100];
+    memset(result, 0, sizeof(result));
     sprintf(result, " PktSize: %i", config->pktConfig.pkt_size);
-    strncat(configStr, result, strlen(result));
+    strncpy(configStr, result, strlen(result)+1);
 
     sprintf(result, " DSCP: %#x", config->pktConfig.dscp);
     strncat(configStr, result, strlen(result));
@@ -489,6 +495,10 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
         exit(1);
     }
 
+    char fiveTplStr[200];
+    fiveTupleToString(fiveTplStr,testRun->fiveTuple );
+    printf("    %s  ", fiveTplStr);
+    fprintf(fptr,"    %s  ", fiveTplStr);
     char configStr[1000];
     configToString(configStr, &testRun->config);
     printf("     %s\n", configStr);

@@ -32,12 +32,17 @@ struct TestRunPktConfig{
     int pkt_size;
 };
 
+struct TestRunResponse{
+    int32_t lastIdxConfirmed;
+};
+
 struct TestPacket{
     uint32_t pktCookie;
     uint32_t srcId;
     uint32_t seq;
     uint32_t cmd;
     struct timespec txDiff;
+    struct TestRunResponse resp;
     char testName[MAX_TESTNAME_LEN];
 };
 
@@ -55,10 +60,10 @@ struct TestData{
 
 struct TestRunConfig{
     char testName[MAX_TESTNAME_LEN];
-    char                    interface[10];
-    struct sockaddr_storage localAddr;
-    struct sockaddr_storage remoteAddr;
-    int                     port;
+    //char                    interface[10];
+    //struct sockaddr_storage localAddr;
+    //struct sockaddr_storage remoteAddr;
+    //int                     port;
     struct TestRunPktConfig pktConfig;
 };
 
@@ -77,6 +82,7 @@ struct TestRunStatistics{
     struct JitterInfo jitterInfo;
 };
 
+
 struct TestRun{
     struct FiveTuple *fiveTuple;
     struct TestRunConfig config;
@@ -85,14 +91,16 @@ struct TestRun{
     uint32_t maxNumTestData;
     struct timespec lastPktTime;
 
+
     struct TestRunStatistics stats;
+    struct TestRunResponse resp;
     bool done;
 };
 
 struct TestRunManager{
     struct hashmap *map;
     //struct sockaddr_storage localAddr;
-    struct TestRunConfig defaultConfig;
+    //struct TestRunConfig defaultConfig;
 };
 
 
@@ -104,12 +112,12 @@ bool TestRun_bw_iter(const void *item, void *udata);
 
 
 int freeTestRun(struct TestRun *testRun);
-
+int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config);
 int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);
-struct TestPacket getEndTestPacket(const struct TestRun *testRun);
+struct TestPacket getEndTestPacket(const char *testName, int num);
 struct TestPacket getStartTestPacket(const char *testName);
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, struct timespec *tDiff, const char* testName);
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp, const char* testName);
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 
