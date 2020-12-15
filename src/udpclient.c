@@ -21,7 +21,7 @@ static struct ListenConfig listenConfig;
 
 struct Results{
     struct TestRunManager *mng;
-    struct TestRun txTestRun;
+    //struct TestRun txTestRun;
     //struct TestRun rxTestRun;
 };
 
@@ -32,7 +32,7 @@ void extractRespTestData(const unsigned char *buf, struct TestRun *run) {
     if(numTestData > 0){
 
 
-       // printf(" tx Run (%s) contains %i (%i)\n ", run->config.testName, run->numTestData, run->maxNumTestData);
+       printf(" tx Run (%s) contains %i (%i)\n ", run->config.testName, run->numTestData, run->maxNumTestData);
        // run->numTestData++;
         currPosition+= sizeof(int32_t);
         //if(run != NULL){
@@ -84,7 +84,12 @@ packetHandler(struct ListenConfig* config,
         printf("Encountered error while processing incoming UDP packet\n");
     }
     //lets check if there is more stuff in the packet..
-    extractRespTestData(buf,  &results->txTestRun);
+
+    struct FiveTuple *txtuple = makeFiveTuple((const struct sockaddr *)&config->localAddr,
+                          (const struct sockaddr *)&config->remoteAddr,
+                          config->port);
+    struct TestRun *run = findTestRun(results->mng, txtuple);
+    extractRespTestData(buf,  run);
 
 
 }
@@ -373,13 +378,18 @@ main(int   argc,
     txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig.localAddr,
                               (struct sockaddr *)&listenConfig.remoteAddr, listenConfig.port);
     struct Results results;
-    initTestRun(&results.txTestRun, testRunConfig.pktConfig.numPktsToSend, txFiveTuple, &testRunConfig);
-
+    struct TestRun txTestRun;
+    //initTestRun(&results.txTestRun, testRunConfig.pktConfig.numPktsToSend, txFiveTuple, &testRunConfig);
+    initTestRun(&txTestRun, testRunConfig.pktConfig.numPktsToSend, txFiveTuple, &testRunConfig);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
+    txTestRun.lastPktTime = startBurst;
+    txTestRun.stats.startTest = startBurst;
+    hashmap_set(testRunManager.map, &txTestRun);
 
     struct FiveTuple *rxFiveTuple;
     rxFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig.remoteAddr,
                                 (struct sockaddr *)&listenConfig.localAddr, listenConfig.port);
-    struct TestRunConfig rxConfig = testRunConfig;
+    //struct TestRunConfig rxConfig = testRunConfig;
 
     results.mng = &testRunManager;
     int sockfd = listenConfig.socketConfig[0].sockfd;
@@ -398,9 +408,7 @@ main(int   argc,
 
     sendStarOfTest(&testRunConfig, txFiveTuple, sockfd);
 
-    //We only have one active test, but that might change in the future if we want
-    //to send to multiple destination at the same time
-    //struct TestRun *testRun = findTestRun(&testRunManager, fiveTuple);
+    
     struct TestPacket pkt;
 
     int currBurstIdx = 0;
@@ -410,8 +418,9 @@ main(int   argc,
     int numPkt  = 0;
     struct TestRunResponse r;
     for(numPkt=0 ;numPkt<testRunConfig.pktConfig.numPktsToSend;numPkt++){
-      
-        r.lastIdxConfirmed = results.txTestRun.numTestData;
+
+        struct TestRun *run = findTestRun(&testRunManager, txFiveTuple);
+        r.lastIdxConfirmed = run->numTestData;
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
         struct timespec timeSinceLastPkt;
@@ -452,35 +461,38 @@ main(int   argc,
     }//End of main test run. Just some cleanup remaining.
 
     sendEndOfTest(&testRunConfig, txFiveTuple, numPkt, sockfd);
-    free(rxFiveTuple);
-    free(txFiveTuple);
+
     printf("\n");
 
-   // results.rxTestRun.done = true;
-    //Any lingering test results?
-  //  bool done = false;
-    char filename[100];
-    char fileEnding[] = "_tx_testrun.txt\0";
-    strncpy(filename, results.txTestRun.config.testName, sizeof(filename));
-    strncat(filename, fileEnding, strlen(fileEnding));
-    saveTestDataToFile(&results.txTestRun, filename);
-//    saveTestDataToFile(&results.rxTestRun, "rx_testrun.txt");
-    saveAndDeleteFinishedTestRuns(&testRunManager, "_rx_testrun.txt");
-   //char filenameEnding[] = "_client_results.txt";
-    //while(!done){
-    //    int num = getNumberOfActiveTestRuns(&testRunManager);
-    //    printf("Num: %i\n", num);
-    //    if(  num > 0 ){
-    //        saveAndDeleteFinishedTestRuns(&testRunManager, filenameEnding);
-    //        nap(&testRunConfig.pktConfig.delay, &overshoot);
-    //
-    //    }else{
-    //        done = true;
-    //    }
 
-    //}
-    //
-    //
+    bool done = false;
+    char fileEnding[] = "_testrun.txt\0";
+
+    //Ish, A bit hacky to get different names when saving.. (TODO:Fixit?)
+    struct TestRun *txrun = findTestRun(&testRunManager, txFiveTuple);
+    strncat(txrun->config.testName, "_tx\0", 5);
+    txrun->done = true;
+
+    struct TestRun *rxrun = findTestRun(&testRunManager, rxFiveTuple);
+    strncat(rxrun->config.testName, "_rx\0", 5);
+
+
+   while(!done){
+        int num = getNumberOfActiveTestRuns(&testRunManager);
+        printf("Num: %i\n", num);
+        if(  num > 0 ){
+            saveAndDeleteFinishedTestRuns(&testRunManager, fileEnding);
+            nap(&testRunConfig.pktConfig.delay, &overshoot);
+
+
+        }else{
+            done = true;
+        }
+
+    }
+
+    free(rxFiveTuple);
+    free(txFiveTuple);
     pruneLingeringTestRuns(&testRunManager);
     freeTestRunManager(&testRunManager);
 
