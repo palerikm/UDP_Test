@@ -19,12 +19,6 @@
 static struct ListenConfig listenConfig;
 
 
-struct Results{
-    struct TestRunManager *mng;
-    //struct TestRun txTestRun;
-    //struct TestRun rxTestRun;
-};
-
 void extractRespTestData(const unsigned char *buf, struct TestRun *run) {
     int32_t numTestData = 0;
     uint32_t currPosition = sizeof(struct TestPacket);
@@ -72,13 +66,13 @@ packetHandler(struct ListenConfig* config,
               int                  buflen) {
     struct timespec now, result;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-    struct Results *results = config->tInst;
+    struct TestRunManager *mngr = config->tInst;
     struct FiveTuple *tuple;
     tuple = makeFiveTuple((const struct sockaddr *)&config->remoteAddr,
                           (const struct sockaddr *)&config->localAddr,
                           config->port);
 
-    int res = addTestDataFromBuf(results->mng, tuple, buf, buflen, &now);
+    int res = addTestDataFromBuf(mngr, tuple, buf, buflen, &now);
 
     if(res<0){
         printf("Encountered error while processing incoming UDP packet\n");
@@ -88,7 +82,7 @@ packetHandler(struct ListenConfig* config,
     struct FiveTuple *txtuple = makeFiveTuple((const struct sockaddr *)&config->localAddr,
                           (const struct sockaddr *)&config->remoteAddr,
                           config->port);
-    struct TestRun *run = findTestRun(results->mng, txtuple);
+    struct TestRun *run = findTestRun(mngr, txtuple);
     extractRespTestData(buf,  run);
 
 
@@ -377,7 +371,6 @@ main(int   argc,
     struct FiveTuple *txFiveTuple;
     txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig.localAddr,
                               (struct sockaddr *)&listenConfig.remoteAddr, listenConfig.port);
-    struct Results results;
     struct TestRun txTestRun;
     //initTestRun(&results.txTestRun, testRunConfig.pktConfig.numPktsToSend, txFiveTuple, &testRunConfig);
     initTestRun(&txTestRun, testRunConfig.pktConfig.numPktsToSend, txFiveTuple, &testRunConfig);
@@ -391,13 +384,13 @@ main(int   argc,
                                 (struct sockaddr *)&listenConfig.localAddr, listenConfig.port);
     //struct TestRunConfig rxConfig = testRunConfig;
 
-    results.mng = &testRunManager;
+
     int sockfd = listenConfig.socketConfig[0].sockfd;
 
 
     pthread_t socketListenThread;
     listenConfig.pkt_handler          = packetHandler;
-    listenConfig.tInst = &results;
+    listenConfig.tInst = &testRunManager;
     pthread_create(&socketListenThread,
                    NULL,
                    socketListenDemux,
@@ -408,7 +401,7 @@ main(int   argc,
 
     sendStarOfTest(&testRunConfig, txFiveTuple, sockfd);
 
-    
+
     struct TestPacket pkt;
 
     int currBurstIdx = 0;
