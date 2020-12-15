@@ -65,8 +65,27 @@ void sendEndOfTest(struct TestRun *run, int num, int sockfd) {
     }
 }
 
+static int insertResponseData(uint8_t *buf, size_t bufsize, const struct TestRun *run ) {
+    int32_t sendSize = run->numTestData - run->resp.lastIdxConfirmed;
+    // printf("Num TestData: %i, Last confirmed: %i\n", run->numTestData, run->resp.lastIdxConfirmed);
+    int32_t testPacketSize = sizeof(struct TestPacket);
+    int32_t dataPos = testPacketSize + sizeof(int32_t);
+    int32_t max_num_to_send = (bufsize - dataPos)/sizeof(struct TestData);
+    int32_t sendActual = sendSize<max_num_to_send ? sendSize : max_num_to_send;
+    if(sendActual > 0){
+        memcpy(buf + testPacketSize, &sendActual, sizeof(int32_t));
+        memcpy(buf+dataPos,
+               run->testData + run->resp.lastIdxConfirmed,
+               sizeof(struct TestData)*sendActual);
+    }else{
+        memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
+    }
+
+    return sendActual;
+}
+
 static void*
-responseHandler(void* ptr){
+startDownStreamTests(void* ptr){
   struct TestRun *run = ptr;
 
     struct timespec startBurst,endBurst, inBurst, timeBeforeSendPacket, timeLastPacket;
@@ -78,8 +97,6 @@ responseHandler(void* ptr){
     struct timespec overshoot = {0,0};
     nap(&run->config.pktConfig.delay, &overshoot);
 
-
-
     sendStarOfTest(run, sockfd);
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &timeLastPacket);
@@ -90,7 +107,6 @@ responseHandler(void* ptr){
     memset(buf, 67, sizeof(buf));
 
     for(numPkt=0 ;numPkt<run->config.pktConfig.numPktsToSend;numPkt++){
-
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
         struct timespec timeSinceLastPkt;
         timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
@@ -98,9 +114,9 @@ responseHandler(void* ptr){
         //pkt = getNextTestPacket(run, &timeBeforeSendPacket);
         fillPacket(&pkt, 0, numPkt+1, in_progress_test_cmd,
                    &timeSinceLastPkt,NULL,NULL);
-        memcpy(&buf, &pkt, sizeof(pkt));
+        memcpy(buf, &pkt, sizeof(pkt));
 
-        sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
+        sendPacket(sockfd, (const uint8_t *) buf, sizeof(buf),
                    (const struct sockaddr *) &run->fiveTuple->dst,
                    0, run->config.pktConfig.dscp, 0);
 
@@ -121,23 +137,7 @@ responseHandler(void* ptr){
         timeLastPacket = timeBeforeSendPacket;
 
         //Lets prepare fill the next packet buffer with some usefull data.
-        int32_t sendSize = run->numTestData - run->resp.lastIdxConfirmed;
-       // printf("Num TestData: %i, Last confirmed: %i\n", run->numTestData, run->resp.lastIdxConfirmed);
-       int32_t sendSizePos = sizeof(pkt);
-       int32_t dataPos = sendSizePos + sizeof(int32_t);
-       int32_t max_num_to_send = (sizeof(buf) - dataPos)/sizeof(struct TestData);
-       int32_t sendActual = sendSize<max_num_to_send ? sendSize : max_num_to_send;
-
-        if(sendActual > 0){
-            memcpy(buf+sendSizePos, &sendActual, sizeof(int32_t));
-
-
-            memcpy(buf+dataPos,
-                   run->testData + run->resp.lastIdxConfirmed,
-                   sizeof(struct TestData)*sendActual);
-        }else{
-            memset(buf+sizeof(pkt), 0, sizeof(buf)-sizeof(pkt));
-        }
+        insertResponseData(buf, sizeof(buf), run);
 
     }//End of main test run. Just some cleanup remaining.
     sendEndOfTest(run, numPkt, sockfd);
@@ -169,7 +169,7 @@ packetHandler(struct ListenConfig* config,
     if(res == 1){
         pthread_t responseThread;
         struct TestRun *run = findTestRun(mng, tuple);
-        pthread_create(&responseThread, NULL, responseHandler, (void*)run);
+        pthread_create(&responseThread, NULL, startDownStreamTests, (void *) run);
     }
 
     free(tuple);

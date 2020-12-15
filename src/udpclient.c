@@ -33,7 +33,6 @@ packetHandler(struct ListenConfig* config,
               int                  buflen) {
     struct timespec now, result;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-
     struct Results *results = config->tInst;
     struct FiveTuple *tuple;
     tuple = makeFiveTuple((const struct sockaddr *)&config->remoteAddr,
@@ -50,10 +49,7 @@ packetHandler(struct ListenConfig* config,
     uint32_t currPosition = sizeof(struct TestPacket);
     memcpy(&numTestData, buf+currPosition, sizeof(int32_t));
     if(numTestData > 0){
-        //struct FiveTuple *respfiveTuple;
-        //respfiveTuple = makeFiveTuple((struct sockaddr *)from_addr,
-        //                              (struct sockaddr *)&mng->defaultConfig.localAddr,
-        //                              mng->defaultConfig.port);
+
         struct TestRun *run = &results->txTestRun;
        // printf(" tx Run (%s) contains %i (%i)\n ", run->config.testName, run->numTestData, run->maxNumTestData);
        // run->numTestData++;
@@ -62,8 +58,6 @@ packetHandler(struct ListenConfig* config,
             struct TestData data;
             memcpy(&data, buf+currPosition, sizeof(struct TestData));
             if(data.pkt.pktCookie == TEST_PKT_COOKIE) {
-               // printf("Num Testdata..: %i\n ", numTestData);
-               // printf("aaa\n");
                 for(int i=0;i<numTestData;i++){
                     memcpy(&data, buf+currPosition, sizeof(struct TestData));
                     //printf("seq: %i ", data.pkt.seq);
@@ -190,8 +184,13 @@ printUsage(char* prgName)
   exit(0);
 }
 
-void printStats(const struct timespec *now, const struct timespec *startOfTest, int numPkts, int numPktsToSend, int pktSize ) {
+void printStats(struct TestRunManager *mngr, const struct timespec *now, const struct timespec *startOfTest, int numPkts, int numPktsToSend, int pktSize ) {
     if(numPkts % 100 == 0){
+        if( getNumberOfActiveTestRuns(mngr)< 1){
+            printf("Hmmm, not receiving from the server. Do not feed the black holes on the Internet!\n");
+            printf("Did you send to the right server? (Or check your FW settings)\n");
+            exit(1);
+        }
         struct timespec elapsed = {0,0};
         timespec_sub(&elapsed, now, startOfTest);
         double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
@@ -375,20 +374,7 @@ main(int   argc,
     testRunManager.map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
                                      TestRun_hash, TestRun_compare, NULL);
 
-    //Create a testrun for resp packages.
-    //struct FiveTuple *respfiveTuple;
-    //respfiveTuple = makeFiveTuple((struct sockaddr *)&testRunConfig.remoteAddr,
-    //                            (struct sockaddr *)&testRunConfig.localAddr,
-    //                            testRunConfig.port);
-    //struct TestRun respRun;
-    //initTestRun(&respRun,
-    //            testRunManager.defaultConfig.pktConfig.numPktsToSend,
-    //            respfiveTuple,
-    //            &testRunManager.defaultConfig);
-    //hashmap_set(testRunManager.map, &respRun);
 
-    //struct TestRun *respRunPtr = findTestRun(&testRunManager, respfiveTuple);
-    //free(respfiveTuple);
 
     struct FiveTuple *txFiveTuple;
     txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig.localAddr,
@@ -401,13 +387,6 @@ main(int   argc,
     rxFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig.remoteAddr,
                                 (struct sockaddr *)&listenConfig.localAddr, listenConfig.port);
     struct TestRunConfig rxConfig = testRunConfig;
-    //Switch adresses for rx config testrun.
-   // sockaddr_copy((struct sockaddr *)&rxConfig.remoteAddr, (struct sockaddr *)&testRunConfig.localAddr);
-   // sockaddr_copy((struct sockaddr *)&rxConfig.localAddr, (struct sockaddr *)&testRunConfig.remoteAddr);
-//    initTestRun(&results.rxTestRun, testRunConfig.pktConfig.numPktsToSend, rxFiveTuple, &rxConfig);
-
-    //hashmap_set(testRunManager.map, &results.rxTestRun);
-    //hashmap_set(testRunManager.map, &results.txTestRun);
 
     results.mng = &testRunManager;
     int sockfd = listenConfig.socketConfig[0].sockfd;
@@ -458,8 +437,8 @@ main(int   argc,
         //addTestDataFromBuf(&testRunManager, testRun->fiveTuple,
         //                   buf, sizeof(buf), &timeBeforeSendPacket);
 
-        printStats(&timeBeforeSendPacket, &startOfTest, numPkt, testRunConfig.pktConfig.numPktsToSend, testRunConfig.pktConfig.pkt_size );
-        //printStats(j, &timeBeforeSendPacket, testRun);
+        printStats(&testRunManager, &timeBeforeSendPacket, &startOfTest, numPkt, testRunConfig.pktConfig.numPktsToSend, testRunConfig.pktConfig.pkt_size );
+
 
         //Do I sleep or am I bursting..
         if(currBurstIdx < testRunConfig.pktConfig.pktsInBurst){
