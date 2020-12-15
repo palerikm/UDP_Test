@@ -25,32 +25,13 @@ struct Results{
     //struct TestRun rxTestRun;
 };
 
-void
-packetHandler(struct ListenConfig* config,
-              struct sockaddr*     from_addr,
-              void*                cb,
-              unsigned char*       buf,
-              int                  buflen) {
-    struct timespec now, result;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-    struct Results *results = config->tInst;
-    struct FiveTuple *tuple;
-    tuple = makeFiveTuple((const struct sockaddr *)&config->remoteAddr,
-                          (const struct sockaddr *)&config->localAddr,
-                          config->port);
-
-    int res = addTestDataFromBuf(results->mng, tuple, buf, buflen, &now);
-
-    if(res<0){
-        printf("Encountered error while processing incoming UDP packet\n");
-    }
-    //lets check if there is more stuff in the packet..
+void extractRespTestData(const unsigned char *buf, struct TestRun *run) {
     int32_t numTestData = 0;
     uint32_t currPosition = sizeof(struct TestPacket);
-    memcpy(&numTestData, buf+currPosition, sizeof(int32_t));
+    memcpy(&numTestData, buf + currPosition, sizeof(int32_t));
     if(numTestData > 0){
 
-        struct TestRun *run = &results->txTestRun;
+
        // printf(" tx Run (%s) contains %i (%i)\n ", run->config.testName, run->numTestData, run->maxNumTestData);
        // run->numTestData++;
         currPosition+= sizeof(int32_t);
@@ -81,18 +62,30 @@ packetHandler(struct ListenConfig* config,
             }
        // }
     }
+}
 
+void
+packetHandler(struct ListenConfig* config,
+              struct sockaddr*     from_addr,
+              void*                cb,
+              unsigned char*       buf,
+              int                  buflen) {
+    struct timespec now, result;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+    struct Results *results = config->tInst;
+    struct FiveTuple *tuple;
+    tuple = makeFiveTuple((const struct sockaddr *)&config->remoteAddr,
+                          (const struct sockaddr *)&config->localAddr,
+                          config->port);
 
+    int res = addTestDataFromBuf(results->mng, tuple, buf, buflen, &now);
 
-    //char j[200];
-    //iveTupleToString(j, respfiveTuple);
+    if(res<0){
+        printf("Encountered error while processing incoming UDP packet\n");
+    }
+    //lets check if there is more stuff in the packet..
+    extractRespTestData(buf,  &results->txTestRun);
 
-    //printf("\n %s \n", j);
-    //hashmap_scan(mng->map, TestRun_print_iter, NULL);
-    //printf("\n");
-
-    //printf("Got: %i", numTestData);
-    //free(tuple);
 
 }
 
@@ -419,6 +412,7 @@ main(int   argc,
     for(numPkt=0 ;numPkt<testRunConfig.pktConfig.numPktsToSend;numPkt++){
       
         r.lastIdxConfirmed = results.txTestRun.numTestData;
+
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
         struct timespec timeSinceLastPkt;
         timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
