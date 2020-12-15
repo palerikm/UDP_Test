@@ -65,7 +65,7 @@ void sendEndOfTest(struct TestRun *run, int num, int sockfd) {
     }
 }
 
-static int insertResponseData(uint8_t *buf, size_t bufsize, const struct TestRun *run ) {
+static int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestRun *run ) {
     int32_t sendSize = run->numTestData - run->resp.lastIdxConfirmed;
     // printf("Num TestData: %i, Last confirmed: %i\n", run->numTestData, run->resp.lastIdxConfirmed);
     int32_t testPacketSize = sizeof(struct TestPacket);
@@ -80,8 +80,9 @@ static int insertResponseData(uint8_t *buf, size_t bufsize, const struct TestRun
     }else{
         memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
     }
-
-    return sendActual;
+    int offset = seq - run->testData[run->resp.lastIdxConfirmed + sendActual -1].pkt.seq;
+   // printf("Offset: %i\n", offset);
+    return  offset;
 }
 
 static void*
@@ -137,7 +138,7 @@ startDownStreamTests(void* ptr){
         timeLastPacket = timeBeforeSendPacket;
 
         //Lets prepare fill the next packet buffer with some usefull data.
-        insertResponseData(buf, sizeof(buf), run);
+        insertResponseData(buf, sizeof(buf), numPkt+1, run);
 
     }//End of main test run. Just some cleanup remaining.
     sendEndOfTest(run, numPkt, sockfd);

@@ -24,37 +24,33 @@ void extractRespTestData(const unsigned char *buf, struct TestRun *run) {
     uint32_t currPosition = sizeof(struct TestPacket);
     memcpy(&numTestData, buf + currPosition, sizeof(int32_t));
     if(numTestData > 0){
-
-
-       printf(" tx Run (%s) contains %i (%i)\n ", run->config.testName, run->numTestData, run->maxNumTestData);
-       // run->numTestData++;
-        currPosition+= sizeof(int32_t);
-        //if(run != NULL){
-            struct TestData data;
+    currPosition+= sizeof(int32_t);
+    //if(run != NULL){
+    struct TestData data;
+    memcpy(&data, buf+currPosition, sizeof(struct TestData));
+    if(data.pkt.pktCookie == TEST_PKT_COOKIE) {
+        for(int i=0;i<numTestData;i++){
             memcpy(&data, buf+currPosition, sizeof(struct TestData));
-            if(data.pkt.pktCookie == TEST_PKT_COOKIE) {
-                for(int i=0;i<numTestData;i++){
-                    memcpy(&data, buf+currPosition, sizeof(struct TestData));
-                    //printf("seq: %i ", data.pkt.seq);
-                    if(run->numTestData == 0) {
-                        memcpy(run->testData + run->numTestData, &data, sizeof(struct TestData));
-                        run->numTestData++;
-                        //currPosition+=sizeof(struct TestData);
-                    }else{
-                        struct TestData *prev = run->testData + run->numTestData -1;
-                        if(data.pkt.seq == prev->pkt.seq +1){
-                            memcpy(run->testData + run->numTestData, &data, sizeof(struct TestData));
-                            run->numTestData++;
-                            //currPosition+=sizeof(struct TestData);
-                        }
-                    }
-                    currPosition+=sizeof(struct TestData);
-                //    printf(" Resp Run contains %i \n ", run->numTestData);
-                //    fflush(stdout);
-
+            //printf("seq: %i ", data.pkt.seq);
+            if(run->numTestData == 0) {
+                memcpy(run->testData + run->numTestData, &data, sizeof(struct TestData));
+                run->numTestData++;
+                //currPosition+=sizeof(struct TestData);
+            }else{
+                struct TestData *prev = run->testData + run->numTestData -1;
+                if(data.pkt.seq == prev->pkt.seq +1){
+                    memcpy(run->testData + run->numTestData, &data, sizeof(struct TestData));
+                    run->numTestData++;
+                    //currPosition+=sizeof(struct TestData);
                 }
             }
-       // }
+            currPosition+=sizeof(struct TestData);
+        //    printf(" Resp Run contains %i \n ", run->numTestData);
+        //    fflush(stdout);
+
+        }
+    }
+    // }
     }
 }
 
@@ -178,7 +174,7 @@ printUsage(char* prgName)
 
 void printStats(struct TestRunManager *mngr, const struct timespec *now, const struct timespec *startOfTest, int numPkts, int numPktsToSend, int pktSize ) {
     if(numPkts % 100 == 0){
-        if( getNumberOfActiveTestRuns(mngr)< 1){
+        if( getNumberOfActiveTestRuns(mngr)< 2){
             printf("Hmmm, not receiving from the server. Do not feed the black holes on the Internet!\n");
             printf("Did you send to the right server? (Or check your FW settings)\n");
             exit(1);
@@ -413,7 +409,9 @@ main(int   argc,
     for(numPkt=0 ;numPkt<testRunConfig.pktConfig.numPktsToSend;numPkt++){
 
         struct TestRun *run = findTestRun(&testRunManager, txFiveTuple);
-        r.lastIdxConfirmed = run->numTestData;
+        if(run != NULL) {
+            r.lastIdxConfirmed = run->numTestData;
+        }
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
         struct timespec timeSinceLastPkt;
@@ -468,16 +466,12 @@ main(int   argc,
 
     struct TestRun *rxrun = findTestRun(&testRunManager, rxFiveTuple);
     strncat(rxrun->config.testName, "_rx\0", 5);
-
-
+    
    while(!done){
         int num = getNumberOfActiveTestRuns(&testRunManager);
-        printf("Num: %i\n", num);
         if(  num > 0 ){
             saveAndDeleteFinishedTestRuns(&testRunManager, fileEnding);
             nap(&testRunConfig.pktConfig.delay, &overshoot);
-
-
         }else{
             done = true;
         }
