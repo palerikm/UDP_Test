@@ -156,6 +156,7 @@ bool pruneLingeringTestRuns(struct TestRunManager *mngr){
     struct TestRun *run;
     bool notEarly = hashmap_scan(mngr->map, TestRun_lingering_iter, &run);
     if(!notEarly) {
+        printf("Freeing Testrun!\n");
         freeTestRun(hashmap_delete(mngr->map, run));
     }
     return !notEarly;
@@ -225,7 +226,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         testRun->done = false;
         testRun->lastPktTime = *now;
         testRun->stats.startTest = *now;
-        return 1;
+        return 0;
     }
 
     if(testRun->numTestData > 0) {
@@ -234,9 +235,16 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         //Did we loose any packets? Or out of order?
         struct TestPacket *lastPkt = &(testRun->testData + testRun->numTestData - 1)->pkt;
         if (testPacket->seq < lastPkt->seq) {
-            printf("Todo: Fix out of order handling\n");
+            //printf("Todo: Fix out of order handling\n");
+            return -3;
 
         }
+        if (testPacket->seq == lastPkt->seq) {
+            //printf("Todo: Duplicate packet\n");
+            return -4;
+
+        }
+
         if (testPacket->seq > lastPkt->seq + 1) {
             int lostPkts = (testPacket->seq - lastPkt->seq) - 1;
             for (int i = 0; i < lostPkts; i++) {
@@ -357,7 +365,9 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         if(pkt->cmd == start_test_cmd){
             return 0;
         }
-        return addTestData(run, pkt, buflen, now);
+        addTestData(run, pkt, buflen, now);
+
+        return sizeof(*pkt);
     }
 
     if(pkt->cmd == stop_test_cmd){

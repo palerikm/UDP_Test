@@ -21,37 +21,63 @@ static struct ListenConfig listenConfig;
 
 void extractRespTestData(const unsigned char *buf, struct TestRun *run) {
     int32_t numTestData = 0;
-    uint32_t currPosition = sizeof(struct TestPacket);
-    memcpy(&numTestData, buf + currPosition, sizeof(int32_t));
+    uint32_t currPosition = 0;
+    memcpy(&numTestData, buf, sizeof(int32_t));
     if(numTestData > 0){
     currPosition+= sizeof(int32_t);
+   // printf("num Testdata: %i\n", numTestData);
     //if(run != NULL){
-    struct TestData data;
-    memcpy(&data, buf+currPosition, sizeof(struct TestData));
-    if(data.pkt.pktCookie == TEST_PKT_COOKIE) {
+
+    //if(data.pktCookie == TEST_RESP_PKT_COOKIE) {
+
+       /// printf("juhu...\n");
         for(int i=0;i<numTestData;i++){
-            memcpy(&data, buf+currPosition, sizeof(struct TestData));
-            //printf("seq: %i ", data.pkt.seq);
-            if(run->numTestData == 0) {
-                memcpy(run->testData + run->numTestData, &data, sizeof(struct TestData));
-                run->numTestData++;
-                //currPosition+=sizeof(struct TestData);
-            }else{
-                struct TestData *prev = run->testData + run->numTestData -1;
-                if(data.pkt.seq == prev->pkt.seq +1){
-                    memcpy(run->testData + run->numTestData, &data, sizeof(struct TestData));
-                    run->numTestData++;
-                    //currPosition+=sizeof(struct TestData);
-                }
+            struct TestRunPktResponse respPkt;
+            memcpy(&respPkt, buf + currPosition, sizeof(respPkt));
+            if(respPkt.pktCookie != TEST_RESP_PKT_COOKIE) {
+             //   printf("This is baaaad\n");
+                break;
             }
-            currPosition+=sizeof(struct TestData);
+           // struct TestData tData;
+           // memcpy(&data, buf+currPosition, sizeof(data));
+
+            //tData.pkt.seq = respPkt.seq;
+            //tData.jitter_ns = respPkt.jitter_ns;
+            //tData.pkt.txDiff = respPkt.txDiff;
+            //tData.rxDiff = respPkt.rxDiff;
+
+           struct TestPacket tPkt;
+            tPkt.seq = respPkt.seq;
+            tPkt.txDiff = respPkt.txDiff;
+
+            run->lastPktTime.tv_sec = 0;
+            run->lastPktTime.tv_nsec = 0;
+
+           // printf("Client adding seq: %i \n", respPkt.seq);
+            int res = addTestData(run, &tPkt, sizeof(tPkt), &respPkt.rxDiff);
+            //printf("Result: %i\n", res);
+
+            //if(run->numTestData == 0) {
+            //    memcpy(run->testData + run->numTestData, &tData, sizeof(tData));
+            //    run->numTestData++;
+            //    //currPosition+=sizeof(struct TestData);
+            //}else{
+            //    struct TestData *prev = run->testData + run->numTestData -1;
+            //    if(respPkt.seq == prev->pkt.seq + 1){
+            //        memcpy(run->testData + run->numTestData, &tData, sizeof(tData));
+            //        run->numTestData++;
+            //        //currPosition+=sizeof(struct TestData);
+            //    }
+            //}
+            currPosition+=sizeof(respPkt);
         //    printf(" Resp Run contains %i \n ", run->numTestData);
         //    fflush(stdout);
 
         }
     }
     // }
-    }
+    //}
+  //  printf("Done Extracting\n");
 }
 
 void
@@ -68,18 +94,19 @@ packetHandler(struct ListenConfig* config,
                           (const struct sockaddr *)&config->localAddr,
                           config->port);
 
-    int res = addTestDataFromBuf(mngr, tuple, buf, buflen, &now);
+    int pos = addTestDataFromBuf(mngr, tuple, buf, buflen, &now);
 
-    if(res<0){
+    if(pos<0){
         printf("Encountered error while processing incoming UDP packet\n");
     }
     //lets check if there is more stuff in the packet..
-
-    struct FiveTuple *txtuple = makeFiveTuple((const struct sockaddr *)&config->localAddr,
-                          (const struct sockaddr *)&config->remoteAddr,
-                          config->port);
-    struct TestRun *run = findTestRun(mngr, txtuple);
-    extractRespTestData(buf,  run);
+    if(pos > 1) {
+        struct FiveTuple *txtuple = makeFiveTuple((const struct sockaddr *) &config->localAddr,
+                                                  (const struct sockaddr *) &config->remoteAddr,
+                                                  config->port);
+        struct TestRun *run = findTestRun(mngr, txtuple);
+        extractRespTestData(buf + pos, run);
+    }
 
 
 }
@@ -408,9 +435,12 @@ main(int   argc,
     struct TestRunResponse r;
     for(numPkt=0 ;numPkt<testRunConfig.pktConfig.numPktsToSend;numPkt++){
 
-        struct TestRun *run = findTestRun(&testRunManager, txFiveTuple);
-        if(run != NULL) {
-            r.lastIdxConfirmed = run->numTestData;
+        struct TestRun *respRun = findTestRun(&testRunManager, txFiveTuple);
+        if(respRun != NULL) {
+            r.lastIdxConfirmed = respRun->numTestData;
+            //printf("LastIdx Confirmed: %i\n", r.lastIdxConfirmed );
+        }else{
+            continue;
         }
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
@@ -466,7 +496,7 @@ main(int   argc,
 
     struct TestRun *rxrun = findTestRun(&testRunManager, rxFiveTuple);
     strncat(rxrun->config.testName, "_rx\0", 5);
-    
+
    while(!done){
         int num = getNumberOfActiveTestRuns(&testRunManager);
         if(  num > 0 ){

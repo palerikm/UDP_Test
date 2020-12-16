@@ -66,23 +66,36 @@ void sendEndOfTest(struct TestRun *run, int num, int sockfd) {
 }
 
 static int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestRun *run ) {
-    int32_t sendSize = run->numTestData - run->resp.lastIdxConfirmed;
-    // printf("Num TestData: %i, Last confirmed: %i\n", run->numTestData, run->resp.lastIdxConfirmed);
-    int32_t testPacketSize = sizeof(struct TestPacket);
-    int32_t dataPos = testPacketSize + sizeof(int32_t);
-    int32_t max_num_to_send = (bufsize - dataPos)/sizeof(struct TestData);
-    int32_t sendActual = sendSize<max_num_to_send ? sendSize : max_num_to_send;
-    if(sendActual > 0){
-        memcpy(buf + testPacketSize, &sendActual, sizeof(int32_t));
-        memcpy(buf+dataPos,
-               run->testData + run->resp.lastIdxConfirmed,
-               sizeof(struct TestData)*sendActual);
-    }else{
-        memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
+    memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
+   // printf("Num Testdata: %i, last idx confirmed: %i\n", run->numTestData, run->resp.lastIdxConfirmed);
+    int numRespItemsInQueue = run->numTestData - run->resp.lastIdxConfirmed;
+    int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
+
+    int currentWritePos = sizeof(int32_t);
+    int32_t written = -1;
+    bool done = false;
+    while(!done){
+        written++;
+    //for(written = 0; written<numRespItemsInQueue;written++){
+        if(written>=numRespItemsThatFitInBuffer || written>=numRespItemsInQueue){
+            done = true;
+        }
+        struct TestRunPktResponse respPkt;
+        struct TestData *tData = &run->testData[run->resp.lastIdxConfirmed+written];
+        respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
+        respPkt.seq = tData->pkt.seq;
+     //   printf("seq: %i\n", respPkt.seq);
+        respPkt.jitter_ns = tData->jitter_ns;
+        respPkt.txDiff = tData->pkt.txDiff;
+        respPkt.rxDiff = tData->rxDiff;
+        memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
+
     }
-    int offset = seq - run->testData[run->resp.lastIdxConfirmed + sendActual -1].pkt.seq;
+    memcpy(buf, &written, sizeof(written));
+  //   printf("Written: %i (%i) In queue: %i\n", written, numRespItemsThatFitInBuffer, numRespItemsInQueue);
+    //int offset = seq - run->testData[run->resp.lastIdxConfirmed + written -1].pkt.seq;
    // printf("Offset: %i\n", offset);
-    return  offset;
+    return  written;
 }
 
 static void*
@@ -106,8 +119,9 @@ startDownStreamTests(void* ptr){
     //uint8_t buf[1400];
 
     memset(buf, 67, sizeof(buf));
+    int numPkts_to_send = run->config.pktConfig.numPktsToSend;
 
-    for(numPkt=0 ;numPkt<run->config.pktConfig.numPktsToSend;numPkt++){
+    for(numPkt=0 ;numPkt<numPkts_to_send;numPkt++){
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
         struct timespec timeSinceLastPkt;
         timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
@@ -138,7 +152,7 @@ startDownStreamTests(void* ptr){
         timeLastPacket = timeBeforeSendPacket;
 
         //Lets prepare fill the next packet buffer with some usefull data.
-        insertResponseData(buf, sizeof(buf), numPkt+1, run);
+        insertResponseData(buf+sizeof(pkt), sizeof(buf)-sizeof(pkt), numPkt+1, run);
 
     }//End of main test run. Just some cleanup remaining.
     sendEndOfTest(run, numPkt, sockfd);
@@ -170,7 +184,13 @@ packetHandler(struct ListenConfig* config,
     if(res == 1){
         pthread_t responseThread;
         struct TestRun *run = findTestRun(mng, tuple);
-        pthread_create(&responseThread, NULL, startDownStreamTests, (void *) run);
+        if( run != NULL) {
+            printf("Starting downstream testrun: %s\n", run->config.testName);
+            pthread_create(&responseThread, NULL, startDownStreamTests, (void *) run);
+        }else{
+            printf("Could not find corresponding testrun to start downstream tests\n");
+        }
+
     }
 
     free(tuple);

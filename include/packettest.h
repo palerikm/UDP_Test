@@ -6,6 +6,7 @@
 #define UDP_TESTS_PACKETTEST_H
 
 #define TEST_PKT_COOKIE 0x0023
+#define TEST_RESP_PKT_COOKIE 0x1423
 #define MAX_TESTNAME_LEN 33
 
 #include <stdint.h>
@@ -36,6 +37,14 @@ struct TestRunResponse{
     int32_t lastIdxConfirmed;
 };
 
+struct TestRunPktResponse{
+    uint32_t pktCookie;
+    uint32_t seq;
+    struct timespec txDiff;
+    struct timespec rxDiff;
+    int64_t jitter_ns;
+};
+
 struct TestPacket{
     uint32_t pktCookie;
     uint32_t srcId;
@@ -60,10 +69,6 @@ struct TestData{
 
 struct TestRunConfig{
     char testName[MAX_TESTNAME_LEN];
-    //char                    interface[10];
-    //struct sockaddr_storage localAddr;
-    //struct sockaddr_storage remoteAddr;
-    //int                     port;
     struct TestRunPktConfig pktConfig;
 };
 
@@ -99,8 +104,6 @@ struct TestRun{
 
 struct TestRunManager{
     struct hashmap *map;
-    //struct sockaddr_storage localAddr;
-    //struct TestRunConfig defaultConfig;
 };
 
 
@@ -114,6 +117,7 @@ bool TestRun_bw_iter(const void *item, void *udata);
 int freeTestRun(struct TestRun *testRun);
 int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config);
 int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
+int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);
 struct TestPacket getEndTestPacket(const char *testName, int num);
 struct TestPacket getStartTestPacket(const char *testName);
