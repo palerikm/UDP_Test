@@ -67,68 +67,67 @@ void sendEndOfTest(struct TestRun *run, int num, int sockfd) {
 
 static int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestRun *run ) {
     memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
-   // printf("Num Testdata: %i, last idx confirmed: %i\n", run->numTestData, run->resp.lastIdxConfirmed);
     int numRespItemsInQueue = run->numTestData - run->resp.lastIdxConfirmed;
     int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
-
     int currentWritePos = sizeof(int32_t);
     int32_t written = -1;
     bool done = false;
     while(!done){
         written++;
-    //for(written = 0; written<numRespItemsInQueue;written++){
-        if(written>=numRespItemsThatFitInBuffer || written>=numRespItemsInQueue){
-            done = true;
-        }
+
+
         struct TestRunPktResponse respPkt;
         struct TestData *tData = &run->testData[run->resp.lastIdxConfirmed+written];
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
-     //   printf("seq: %i\n", respPkt.seq);
         respPkt.jitter_ns = tData->jitter_ns;
         respPkt.txDiff = tData->pkt.txDiff;
         respPkt.rxDiff = tData->rxDiff;
         memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
 
+        if(written>=numRespItemsThatFitInBuffer || written>=numRespItemsInQueue){
+            done = true;
+        }
+
     }
     memcpy(buf, &written, sizeof(written));
-  //   printf("Written: %i (%i) In queue: %i\n", written, numRespItemsThatFitInBuffer, numRespItemsInQueue);
-    //int offset = seq - run->testData[run->resp.lastIdxConfirmed + written -1].pkt.seq;
-   // printf("Offset: %i\n", offset);
     return  written;
 }
 
 static void*
-startDownStreamTests(void* ptr){
-  struct TestRun *run = ptr;
+startDownStreamTests(void* ptr) {
+    struct TestRun *run = ptr;
 
-    struct timespec startBurst,endBurst, inBurst, timeBeforeSendPacket, timeLastPacket;
+    struct timespec startBurst, endBurst, inBurst, timeBeforeSendPacket, timeLastPacket;
     struct TestPacket pkt;
 
     int currBurstIdx = 0;
     clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
 
-    struct timespec overshoot = {0,0};
+    struct timespec overshoot = {0, 0};
     nap(&run->config.pktConfig.delay, &overshoot);
 
     sendStarOfTest(run, sockfd);
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &timeLastPacket);
-    int numPkt = 0;
+
     uint8_t buf[run->config.pktConfig.pkt_size];
-    //uint8_t buf[1400];
+
 
     memset(buf, 67, sizeof(buf));
     int numPkts_to_send = run->config.pktConfig.numPktsToSend;
-
-    for(numPkt=0 ;numPkt<numPkts_to_send;numPkt++){
+    int numPkt = -1;
+    bool done = false;
+    while(!done){
+        numPkt++;
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
         struct timespec timeSinceLastPkt;
         timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
-        //Get next test packet to send.
-        //pkt = getNextTestPacket(run, &timeBeforeSendPacket);
-        fillPacket(&pkt, 0, numPkt+1, in_progress_test_cmd,
-                   &timeSinceLastPkt,NULL,NULL);
+
+
+        uint32_t seq = numPkt>=numPkts_to_send ? numPkts_to_send : numPkt +1;
+        fillPacket(&pkt, 0, seq , in_progress_test_cmd,
+                   &timeSinceLastPkt, NULL, NULL);
         memcpy(buf, &pkt, sizeof(pkt));
 
         sendPacket(sockfd, (const uint8_t *) buf, sizeof(buf),
@@ -136,11 +135,11 @@ startDownStreamTests(void* ptr){
                    0, run->config.pktConfig.dscp, 0);
 
         //Do I sleep or am I bursting..
-        if(currBurstIdx < run->config.pktConfig.pktsInBurst){
+        if (currBurstIdx < run->config.pktConfig.pktsInBurst) {
             currBurstIdx++;
-        }else {
+        } else {
             currBurstIdx = 0;
-            struct timespec delay = {0,0};
+            struct timespec delay = {0, 0};
             clock_gettime(CLOCK_MONOTONIC_RAW, &endBurst);
             timespec_sub(&inBurst, &endBurst, &startBurst);
             delay.tv_sec = run->config.pktConfig.delay.tv_sec - inBurst.tv_sec - overshoot.tv_sec;
@@ -152,10 +151,24 @@ startDownStreamTests(void* ptr){
         timeLastPacket = timeBeforeSendPacket;
 
         //Lets prepare fill the next packet buffer with some usefull data.
-        insertResponseData(buf+sizeof(pkt), sizeof(buf)-sizeof(pkt), numPkt+1, run);
+        int written = insertResponseData(buf + sizeof(pkt), sizeof(buf) - sizeof(pkt), seq, run);
+        if(numPkt > numPkts_to_send){
 
+                if (written > 0) {
+
+                    if (numPkt > numPkts_to_send * 2) {
+                       //Bail out... Time will not fix this..
+                        done = true;
+                    }
+                } else {
+                    done = true;
+                }
+
+        }
     }//End of main test run. Just some cleanup remaining.
+
     sendEndOfTest(run, numPkt, sockfd);
+
     return NULL;
 }
 
@@ -185,7 +198,6 @@ packetHandler(struct ListenConfig* config,
         pthread_t responseThread;
         struct TestRun *run = findTestRun(mng, tuple);
         if( run != NULL) {
-            printf("Starting downstream testrun: %s\n", run->config.testName);
             pthread_create(&responseThread, NULL, startDownStreamTests, (void *) run);
         }else{
             printf("Could not find corresponding testrun to start downstream tests\n");

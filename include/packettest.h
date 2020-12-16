@@ -21,6 +21,7 @@ static const uint32_t start_test_cmd = 1;
 static const uint32_t in_progress_test_cmd = 2;
 static const uint32_t stop_test_cmd = 3;
 static const uint32_t echo_pkt_cmd = 4;
+static const uint32_t transport_resp_cmd = 5;
 
 
 

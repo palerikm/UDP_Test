@@ -156,7 +156,6 @@ bool pruneLingeringTestRuns(struct TestRunManager *mngr){
     struct TestRun *run;
     bool notEarly = hashmap_scan(mngr->map, TestRun_lingering_iter, &run);
     if(!notEarly) {
-        printf("Freeing Testrun!\n");
         freeTestRun(hashmap_delete(mngr->map, run));
     }
     return !notEarly;
@@ -365,6 +364,10 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         if(pkt->cmd == start_test_cmd){
             return 0;
         }
+        if(pkt->cmd == transport_resp_cmd){
+            return 2;
+        }
+
         addTestData(run, pkt, buflen, now);
 
         return sizeof(*pkt);
@@ -372,6 +375,10 @@ int addTestDataFromBuf(struct TestRunManager *mng,
 
     if(pkt->cmd == stop_test_cmd){
         return 0;
+    }
+
+    if(pkt->cmd == transport_resp_cmd){
+        return 2;
     }
 
     if(pkt->cmd == start_test_cmd) {
