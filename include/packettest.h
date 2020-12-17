@@ -53,7 +53,7 @@ struct TestPacket{
     uint32_t cmd;
     struct timespec txDiff;
     struct TestRunResponse resp;
-    char testName[MAX_TESTNAME_LEN];
+    //char testName[MAX_TESTNAME_LEN];
 };
 
 struct FiveTuple{
@@ -120,9 +120,9 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveT
 int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);
-struct TestPacket getEndTestPacket(const char *testName, int num);
-struct TestPacket getStartTestPacket(const char *testName);
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp, const char* testName);
+struct TestPacket getEndTestPacket(int num);
+struct TestPacket getStartTestPacket();
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp);
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 

@@ -114,7 +114,7 @@ void sendSomePktTest(struct TestRunConfig *cfg, const struct TestPacket *pkt, st
 
 void sendEndOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int num, int sockfd) {
 
-    struct TestPacket pkt = getEndTestPacket(cfg->testName, num);
+    struct TestPacket pkt = getEndTestPacket(num);
 
 
     struct timespec now, remaining;
@@ -134,7 +134,7 @@ void sendEndOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int n
 void sendStarOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int sockfd) {
     //Send End of Test a few times...
 
-    struct TestPacket startPkt = getStartTestPacket(cfg->testName);
+    struct TestPacket startPkt = getStartTestPacket();
 
     struct timespec now, remaining;
     uint8_t endBuf[cfg->pktConfig.pkt_size];
@@ -252,7 +252,8 @@ void configure(struct TestRunConfig* config,
           strncpy(listenConfig->interface, optarg, max_iface_len);
           break;
         case 'w':
-            strncpy(config->testName, optarg, MAX_TESTNAME_LEN);
+            memset(config->testName, 0, MAX_TESTNAME_LEN);
+            strncpy(config->testName, optarg, MAX_TESTNAME_LEN-1);
             break;
         case 'p':
           listenConfig->port = atoi(optarg);
@@ -435,7 +436,7 @@ main(int   argc,
         //pkt = getNextTestPacket(testRun, &timeBeforeSendPacket);
         uint32_t seq = numPkt>=numPkts_to_send ? numPkts_to_send : numPkt +1;
         fillPacket(&pkt, 23, seq, in_progress_test_cmd,
-                   &timeSinceLastPkt, &r, NULL);
+                   &timeSinceLastPkt, &r);
         memcpy(buf, &pkt, sizeof(pkt));
 
 
@@ -488,11 +489,13 @@ main(int   argc,
 
     //Ish, A bit hacky to get different names when saving.. (TODO:Fixit?)
     struct TestRun *txrun = findTestRun(&testRunManager, txFiveTuple);
+    strncpy(txrun->config.testName, testRunConfig.testName, strlen(testRunConfig.testName));
     strncat(txrun->config.testName, "_tx\0", 5);
 
-
     struct TestRun *rxrun = findTestRun(&testRunManager, rxFiveTuple);
+    strncpy(rxrun->config.testName, testRunConfig.testName, strlen(testRunConfig.testName));
     strncat(rxrun->config.testName, "_rx\0", 5);
+
 
    while(!done){
         int num = getNumberOfActiveTestRuns(&testRunManager);

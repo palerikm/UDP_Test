@@ -49,7 +49,7 @@ void sendStarOfTest(struct TestRun *run, int sockfd) {
 void sendEndOfTest(struct TestRun *run, int num, int sockfd) {
     //Send End of Test a few times...
 
-    struct TestPacket startPkt = getEndTestPacket(run->config.testName, num);
+    struct TestPacket startPkt = getEndTestPacket(num);
 
     struct timespec now, remaining;
     uint8_t endBuf[run->config.pktConfig.pkt_size];
@@ -127,7 +127,7 @@ startDownStreamTests(void* ptr) {
 
         uint32_t seq = numPkt>=numPkts_to_send ? numPkts_to_send : numPkt +1;
         fillPacket(&pkt, 0, seq , in_progress_test_cmd,
-                   &timeSinceLastPkt, NULL, NULL);
+                   &timeSinceLastPkt, NULL);
         memcpy(buf, &pkt, sizeof(pkt));
 
         sendPacket(sockfd, (const uint8_t *) buf, sizeof(buf),

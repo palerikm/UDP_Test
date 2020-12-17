@@ -110,7 +110,7 @@ bool TestRun_max_jitter_iter(const void *item, void *udata) {
 }
 
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
-                   uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp, const char* testName){
+                   uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp){
     testPacket->pktCookie = TEST_PKT_COOKIE;
     testPacket->srcId = srcId;
     testPacket->seq = seq;
@@ -123,10 +123,7 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
     }else{
         testPacket->resp.lastIdxConfirmed = -1;
     }
-    if(testName != NULL) {
-        //testPacket->testName = testName;
-        strncpy(testPacket->testName, testName, sizeof(testPacket->testName));
-    }
+
     return 0;
 }
 
@@ -386,9 +383,6 @@ int addTestDataFromBuf(struct TestRunManager *mng,
 
         struct TestRunConfig newConf;
 
-        //memcpy(&newConf, &mng->defaultConfig, sizeof(struct TestRunConfig));
-        strncpy(newConf.testName, pkt->testName, sizeof(pkt->testName));
-
         struct TestRunPktConfig pktConfig;
         memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
         newConf.pktConfig = pktConfig;
@@ -414,17 +408,17 @@ int addTestDataFromBuf(struct TestRunManager *mng,
 //    return pkt;
 //}
 
-struct TestPacket getEndTestPacket(const char *testName, int num){
+struct TestPacket getEndTestPacket(int num){
     struct TestPacket pkt;
     fillPacket(&pkt, 23, num, stop_test_cmd,
-               NULL, NULL, testName);
+               NULL, NULL);
     return pkt;
 }
 
-struct TestPacket getStartTestPacket(const char *testName){
+struct TestPacket getStartTestPacket(){
     struct TestPacket pkt;
     fillPacket(&pkt, 23, 0, start_test_cmd,
-               NULL, NULL, testName);
+               NULL, NULL);
     return pkt;
 }
 
