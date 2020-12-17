@@ -29,5 +29,12 @@ timespec_to_nsec(const struct timespec *a)
 {
     return (int64_t)a->tv_sec * NSEC_PER_SEC + a->tv_nsec;
 }
+static inline void
+timespec_from_nsec(struct timespec *a, int64_t b)
+{
+    a->tv_sec = b / NSEC_PER_SEC;
+    a->tv_nsec = b % NSEC_PER_SEC;
+}
+
 
 #endif //UDP_TESTS_UDPTESTCOMMON_H
