@@ -7,7 +7,12 @@
 
 #define NSEC_PER_SEC 1000000000
 
+#include "packettest.h"
+
 int nap(const struct timespec *naptime, struct timespec *overshoot);
+
+void waitForSomeTime(const struct TestRunConfig *cfg, struct timespec *startBurst, struct timespec *endBurst,
+                     struct timespec *inBurst, int currBurstIdx, struct timespec *overshoot);
 
 static inline void timespec_sub(struct timespec *result, const struct timespec *a, const struct timespec *b) {
     result->tv_sec  = a->tv_sec  - b->tv_sec;

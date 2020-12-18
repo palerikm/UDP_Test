@@ -65,34 +65,6 @@ void sendEndOfTest(struct TestRun *run, int num, int sockfd) {
     }
 }
 
-static int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestRun *run ) {
-    memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
-    int numRespItemsInQueue = run->numTestData - run->resp.lastIdxConfirmed;
-    int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
-    int currentWritePos = sizeof(int32_t);
-    int32_t written = -1;
-    bool done = false;
-    while(!done){
-        written++;
-
-
-        struct TestRunPktResponse respPkt;
-        struct TestData *tData = &run->testData[run->resp.lastIdxConfirmed+written];
-        respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
-        respPkt.seq = tData->pkt.seq;
-        respPkt.jitter_ns = tData->jitter_ns;
-        respPkt.txDiff = tData->pkt.txDiff;
-        respPkt.rxDiff = tData->rxDiff;
-        memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
-
-        if(written>=numRespItemsThatFitInBuffer || written>=numRespItemsInQueue){
-            done = true;
-        }
-
-    }
-    memcpy(buf, &written, sizeof(written));
-    return  written;
-}
 
 static void*
 startDownStreamTests(void* ptr) {

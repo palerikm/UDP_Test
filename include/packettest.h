@@ -123,6 +123,9 @@ struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timesp
 struct TestPacket getEndTestPacket(int num);
 struct TestPacket getStartTestPacket();
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp);
+
+
+int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestRun *run );
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 
