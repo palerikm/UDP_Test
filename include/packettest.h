@@ -27,7 +27,7 @@ static const uint32_t transport_resp_cmd = 5;
 
 
 struct TestRunPktConfig{
-     int numPktsToSend;
+    int numPktsToSend;
     struct timespec delay;
     int pktsInBurst;
     int dscp;

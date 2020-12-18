@@ -4,10 +4,12 @@
 
 #ifndef UDP_TESTS_UDPTESTCOMMON_H
 #define UDP_TESTS_UDPTESTCOMMON_H
+#include <stdint.h>
+#include "packettest.h"
 
 #define NSEC_PER_SEC 1000000000
 
-#include "packettest.h"
+
 
 int nap(const struct timespec *naptime, struct timespec *overshoot);
 
