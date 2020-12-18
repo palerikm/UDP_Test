@@ -19,42 +19,7 @@
 static struct ListenConfig listenConfig;
 
 
-int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
-    int32_t numTestData = 0;
-    uint32_t currPosition = 0;
-    memcpy(&numTestData, buf, sizeof(int32_t));
-    if(numTestData > 0){
-        currPosition+= sizeof(int32_t);
 
-        for(int i=0;i<numTestData;i++){
-            struct TestRunPktResponse respPkt;
-            memcpy(&respPkt, buf + currPosition, sizeof(respPkt));
-            if(respPkt.pktCookie != TEST_RESP_PKT_COOKIE) {
-                //printf("Not a valid RSP COOKIE\n");
-                break;
-            }
-
-
-           struct TestPacket tPkt;
-            tPkt.seq = respPkt.seq;
-            struct timespec txts = {0, respPkt.txDiff};
-            tPkt.txDiff = txts;
-
-            run->lastPktTime.tv_sec = 0;
-            run->lastPktTime.tv_nsec = 0;
-
-            struct timespec rxts = {0, respPkt.rxDiff};
-            int res = addTestData(run, &tPkt, sizeof(tPkt), &rxts);
-
-
-            currPosition+=sizeof(respPkt);
-
-
-        }
-    }
-    return numTestData;
-
-}
 
 void
 packetHandler(struct ListenConfig* config,

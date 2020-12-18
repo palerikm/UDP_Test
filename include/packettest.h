@@ -127,6 +127,9 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 
 
 int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestRun *run );
+int extractRespTestData(const unsigned char *buf, struct TestRun *run);
+
+
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
 void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
 
