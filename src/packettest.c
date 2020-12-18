@@ -121,7 +121,7 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
     if(resp != NULL) {
         testPacket->resp = *resp;
     }else{
-        testPacket->resp.lastIdxConfirmed = -1;
+        testPacket->resp.lastSeqConfirmed = -1;
     }
 
     return 0;
@@ -145,7 +145,7 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveT
         return -1;
     }
 
-    testRun->resp.lastIdxConfirmed = 0;
+    testRun->resp.lastSeqConfirmed = 0;
     return 0;
 }
 
@@ -317,6 +317,7 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
             struct timespec txts = {0, respPkt.txDiff};
             tPkt.txDiff = txts;
 
+           // printf("Seq %i\n", respPkt.seq);
             run->lastPktTime.tv_sec = 0;
             run->lastPktTime.tv_nsec = 0;
 
@@ -325,25 +326,31 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
 
 
             currPosition+=sizeof(respPkt);
-
-
         }
     }
     return numTestData;
 
 }
 
-int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestRun *run ) {
+int insertResponseData(uint8_t *buf, size_t bufsize, int seq, struct TestRun *run ) {
     memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
-    int numRespItemsInQueue = run->numTestData - run->resp.lastIdxConfirmed;
+    if(run->numTestData < 1){
+        return 0;
+    }
+    int numRespItemsInQueue = run->testData[run->numTestData-1].pkt.seq - run->resp.lastSeqConfirmed;
     int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
+    //printf("\nIn queue: %i ( %i ) Num testdata: %i Last seq: %i (%i)\n", numRespItemsInQueue, numRespItemsThatFitInBuffer, run->numTestData, run->testData[run->numTestData-1].pkt.seq, run->resp.lastSeqConfirmed);
     int currentWritePos = sizeof(int32_t);
     int32_t written = -1;
     bool done = false;
+    int idx = 0;
     while(!done){
         written++;
         struct TestRunPktResponse respPkt;
-        struct TestData *tData = &run->testData[run->resp.lastIdxConfirmed+written];
+        idx = run->numTestData-numRespItemsInQueue+written;
+        //printf("Copying idx: %i\n", idx);
+        struct TestData *tData = &run->testData[idx];
+
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
         respPkt.jitter_ns = tData->jitter_ns;
@@ -358,6 +365,9 @@ int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestR
 
     }
     memcpy(buf, &written, sizeof(written));
+
+    memcpy(run->testData, &run->testData[idx-written], sizeof(struct TestData));
+    run->numTestData = 1;
     return  written;
 }
 
@@ -451,7 +461,7 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
         newConf.pktConfig = pktConfig;
 
-        initTestRun(&testRun, MAX_NUM_RCVD_TEST_PACKETS, fiveTuple, &newConf);
+        initTestRun(&testRun, pktConfig.numPktsToSend, fiveTuple, &newConf);
 
         testRun.lastPktTime = *now;
         testRun.stats.startTest = *now;

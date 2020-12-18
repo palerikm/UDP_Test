@@ -117,19 +117,28 @@ startDownStreamTests(void* ptr) {
 
         //Lets prepare fill the next packet buffer with some usefull data.
         int written = insertResponseData(buf + sizeof(pkt), sizeof(buf) - sizeof(pkt), seq, run);
-        if(numPkt > numPkts_to_send){
 
-                if (written > 0) {
+        struct timespec elapsed = {0,0};
+        timespec_sub(&elapsed, &startBurst, &run->lastPktTime);
+      //  double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
 
-                    if (numPkt > numPkts_to_send * 2) {
-                       //Bail out... Time will not fix this..
-                        done = true;
-                    }
-                } else {
+        if (elapsed.tv_sec > 1){
+            done = true;
+        }
+        /*if(numPkt > numPkts_to_send){
+
+            if (written > 0) {
+
+                if (numPkt > numPkts_to_send * 2) {
+                   //Bail out... Time will not fix this..
                     done = true;
                 }
+            } else {
+                done = true;
+            }
 
         }
+         */
     }//End of main test run. Just some cleanup remaining.
 
     sendEndOfTest(run, numPkt, sockfd);

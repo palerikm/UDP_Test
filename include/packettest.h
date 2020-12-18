@@ -27,7 +27,7 @@ static const uint32_t transport_resp_cmd = 5;
 
 
 struct TestRunPktConfig{
-    int numPktsToSend;
+     int numPktsToSend;
     struct timespec delay;
     int pktsInBurst;
     int dscp;
@@ -35,7 +35,7 @@ struct TestRunPktConfig{
 };
 
 struct TestRunResponse{
-    int32_t lastIdxConfirmed;
+    int32_t lastSeqConfirmed;
 };
 
 struct TestRunPktResponse{
@@ -43,8 +43,6 @@ struct TestRunPktResponse{
     uint32_t seq;
     int64_t txDiff;
     int64_t rxDiff;
-    //struct timespec txDiff;
-    //struct timespec rxDiff;
     int64_t jitter_ns;
 };
 
@@ -126,7 +124,7 @@ struct TestPacket getStartTestPacket();
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp);
 
 
-int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestRun *run );
+int insertResponseData(uint8_t *buf, size_t bufsize, int seq, struct TestRun *run );
 int extractRespTestData(const unsigned char *buf, struct TestRun *run);
 
 

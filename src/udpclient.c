@@ -237,10 +237,6 @@ void configure(struct TestRunConfig* config,
             break;
         case 'n':
             config->pktConfig.numPktsToSend = atoi(optarg);
-            if (config->pktConfig.numPktsToSend > MAX_NUM_RCVD_TEST_PACKETS)
-            {
-                config->pktConfig.numPktsToSend = MAX_NUM_RCVD_TEST_PACKETS;
-            }
             break;
         case 'h':
           printUsage(argv[0]);
@@ -389,10 +385,15 @@ main(int   argc,
     //for(numPkt=0 ;numPkt<testRunConfig.pktConfig.numPktsToSend;numPkt++){
         numPkt++;
         struct TestRun *respRun = findTestRun(&testRunManager, txFiveTuple);
-        if(respRun != NULL) {
-            r.lastIdxConfirmed = respRun->numTestData;
+        if(respRun != NULL){
+            if( respRun->numTestData > 1) {
+                r.lastSeqConfirmed = respRun->testData[respRun->numTestData - 1].pkt.seq;
+            }else{
+                r.lastSeqConfirmed = 0;
+            }
+            printf("Last seq confirmed %i\n", r.lastSeqConfirmed);
         }else{
-            continue;
+           continue;
         }
 
         clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
@@ -425,7 +426,7 @@ main(int   argc,
         timeLastPacket = timeBeforeSendPacket;
         timeLastPacket = timeBeforeSendPacket;
         if(numPkt > numPkts_to_send){
-            if(r.lastIdxConfirmed == testRunConfig.pktConfig.numPktsToSend) {
+            if(r.lastSeqConfirmed == testRunConfig.pktConfig.numPktsToSend) {
                 struct TestRun *txrun = findTestRun(&testRunManager, txFiveTuple);
                 txrun->done = true;
                 done = true;

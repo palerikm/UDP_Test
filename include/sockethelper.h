@@ -10,7 +10,7 @@
 #define MAXBUFLEN 1500
 #define MAX_LISTEN_SOCKETS 1
 #define MAX_THREADS 100000
-#define MAX_NUM_RCVD_TEST_PACKETS 500000
+//#define MAX_NUM_RCVD_TEST_PACKETS 500000
 
 #define max_iface_len 10
 
