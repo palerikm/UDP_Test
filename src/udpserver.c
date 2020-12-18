@@ -117,7 +117,20 @@ startDownStreamTests(void* ptr) {
 
         //Lets prepare fill the next packet buffer with some usefull data.
         int written = insertResponseData(buf + sizeof(pkt), sizeof(buf) - sizeof(pkt), seq, run);
-
+        if(written > 0) {
+            pthread_mutex_lock(&run->lock);
+            //So how much can we move back?
+            //Find the packet with the last conf seq
+            int idx = run->numTestData - written;
+            for(int i = 0; i < written; i++){
+                if( run->testData[idx+i].pkt.seq == run->resp.lastSeqConfirmed){
+                    memcpy(run->testData, &run->testData[idx+i], sizeof(struct TestData)*i);
+                    run->numTestData = i;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&run->lock);
+        }
         struct timespec elapsed = {0,0};
         timespec_sub(&elapsed, &startBurst, &run->lastPktTime);
       //  double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;

@@ -9,6 +9,7 @@
 #include <sockethelper.h>
 
 #include <hashmap.h>
+#include <pthread.h>
 #include "packettest.h"
 #include "udptestcommon.h"
 
@@ -146,6 +147,11 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveT
     }
 
     testRun->resp.lastSeqConfirmed = 0;
+
+    if (pthread_mutex_init(&testRun->lock, NULL) != 0) {
+        printf("\n TestRun mutex init has failed\n");
+        return 1;
+    }
     return 0;
 }
 
@@ -229,7 +235,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
         testRun->resp = testPacket->resp;
         //Did we loose any packets? Or out of order?
-        struct TestPacket *lastPkt = &(testRun->testData + testRun->numTestData - 1)->pkt;
+        struct TestPacket *lastPkt = &testRun->testData[testRun->numTestData-1].pkt;
         if (testPacket->seq < lastPkt->seq) {
             //printf("Todo: Fix out of order handling\n");
             return -3;
@@ -243,6 +249,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
         if (testPacket->seq > lastPkt->seq + 1) {
             int lostPkts = (testPacket->seq - lastPkt->seq) - 1;
+            printf("Lost packets: %i (%i,%i)\n", lostPkts, testPacket->seq, lastPkt->seq);
             for (int i = 0; i < lostPkts; i++) {
                 struct TestPacket tPkt;
                 memset(&tPkt, 0, sizeof(tPkt));
@@ -337,9 +344,10 @@ int insertResponseData(uint8_t *buf, size_t bufsize, int seq, struct TestRun *ru
     if(run->numTestData < 1){
         return 0;
     }
-    int numRespItemsInQueue = run->testData[run->numTestData-1].pkt.seq - run->resp.lastSeqConfirmed;
+    int lastSeq = run->testData[run->numTestData-1].pkt.seq;
+    int numRespItemsInQueue =  lastSeq - run->resp.lastSeqConfirmed;
     int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
-    //printf("\nIn queue: %i ( %i ) Num testdata: %i Last seq: %i (%i)\n", numRespItemsInQueue, numRespItemsThatFitInBuffer, run->numTestData, run->testData[run->numTestData-1].pkt.seq, run->resp.lastSeqConfirmed);
+    //printf("\nIn queue: %i ( %i ) Num testdata: %i Last seq: %i (conf: %i)\n", numRespItemsInQueue, numRespItemsThatFitInBuffer, run->numTestData, lastSeq, run->resp.lastSeqConfirmed);
     int currentWritePos = sizeof(int32_t);
     int32_t written = -1;
     bool done = false;
@@ -366,8 +374,6 @@ int insertResponseData(uint8_t *buf, size_t bufsize, int seq, struct TestRun *ru
     }
     memcpy(buf, &written, sizeof(written));
 
-    memcpy(run->testData, &run->testData[idx-written], sizeof(struct TestData));
-    run->numTestData = 1;
     return  written;
 }
 
@@ -438,9 +444,9 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         if(pkt->cmd == transport_resp_cmd){
             return 2;
         }
-
+        pthread_mutex_lock(&run->lock);
         addTestData(run, pkt, buflen, now);
-
+        pthread_mutex_unlock(&run->lock);
         return sizeof(*pkt);
     }
 
@@ -497,7 +503,9 @@ struct TestPacket getStartTestPacket(){
 }
 
 int freeTestRun(struct TestRun *testRun){
+
     if(testRun != NULL){
+        pthread_mutex_destroy(&testRun->lock);
         if(testRun->testData != NULL) {
             free(testRun->testData);
         }

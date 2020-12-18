@@ -391,7 +391,7 @@ main(int   argc,
             }else{
                 r.lastSeqConfirmed = 0;
             }
-            printf("Last seq confirmed %i\n", r.lastSeqConfirmed);
+           // printf("Last seq confirmed %i\n", r.lastSeqConfirmed);
         }else{
            continue;
         }

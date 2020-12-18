@@ -99,6 +99,7 @@ struct TestRun{
 
     struct TestRunStatistics stats;
     struct TestRunResponse resp;
+    pthread_mutex_t lock;
     bool done;
 };
 
