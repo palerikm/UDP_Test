@@ -41,8 +41,10 @@ struct TestRunResponse{
 struct TestRunPktResponse{
     uint32_t pktCookie;
     uint32_t seq;
-    struct timespec txDiff;
-    struct timespec rxDiff;
+    int64_t txDiff;
+    int64_t rxDiff;
+    //struct timespec txDiff;
+    //struct timespec rxDiff;
     int64_t jitter_ns;
 };
 
@@ -53,7 +55,6 @@ struct TestPacket{
     uint32_t cmd;
     struct timespec txDiff;
     struct TestRunResponse resp;
-    //char testName[MAX_TESTNAME_LEN];
 };
 
 struct FiveTuple{

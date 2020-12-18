@@ -37,13 +37,14 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
 
            struct TestPacket tPkt;
             tPkt.seq = respPkt.seq;
-            tPkt.txDiff = respPkt.txDiff;
+            struct timespec txts = {0, respPkt.txDiff};
+            tPkt.txDiff = txts;
 
             run->lastPktTime.tv_sec = 0;
             run->lastPktTime.tv_nsec = 0;
 
-
-            int res = addTestData(run, &tPkt, sizeof(tPkt), &respPkt.rxDiff);
+            struct timespec rxts = {0, respPkt.rxDiff};
+            int res = addTestData(run, &tPkt, sizeof(tPkt), &rxts);
 
 
             currPosition+=sizeof(respPkt);

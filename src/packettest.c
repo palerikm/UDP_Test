@@ -310,8 +310,10 @@ int insertResponseData(uint8_t *buf, size_t bufsize, int seq, const struct TestR
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
         respPkt.jitter_ns = tData->jitter_ns;
-        respPkt.txDiff = tData->pkt.txDiff;
-        respPkt.rxDiff = tData->rxDiff;
+        respPkt.txDiff = timespec_to_nsec(&tData->pkt.txDiff);
+        respPkt.rxDiff = timespec_to_nsec(&tData->rxDiff);
+
+        printf("\n txdiff: %llu, rxdiff_ %llu\n", respPkt.txDiff, respPkt.rxDiff);
         memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
 
         if(written>=numRespItemsThatFitInBuffer || written>=numRespItemsInQueue){
