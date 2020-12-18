@@ -16,19 +16,18 @@ int nap(const struct timespec *naptime, struct timespec *overshoot){
     return 0;
 }
 
-void waitForSomeTime(const struct TestRunConfig *cfg, struct timespec *startBurst, struct timespec *endBurst,
-                            struct timespec *inBurst, int currBurstIdx, struct timespec *overshoot) {
-    if (currBurstIdx < cfg->pktConfig.pktsInBurst) {
-        currBurstIdx++;
+struct timespec getBurstDelay(const struct TestRunConfig *cfg, struct timespec *startBurst, struct timespec *endBurst,
+                              struct timespec *inBurst, int *currBurstIdx, struct timespec *overshoot) {
+    struct timespec delay = {0, 0};
+    if (*currBurstIdx < cfg->pktConfig.pktsInBurst) {
+        (*currBurstIdx)++;
+        return delay;
     } else {
-        currBurstIdx = 0;
-        struct timespec delay = {0, 0};
+        *currBurstIdx = 0;
         clock_gettime(CLOCK_MONOTONIC_RAW, endBurst);
         timespec_sub(inBurst, endBurst, startBurst);
-        delay.tv_sec = cfg->pktConfig.delay.tv_sec - (*inBurst).tv_sec - (*overshoot).tv_sec;
-        delay.tv_nsec = cfg->pktConfig.delay.tv_nsec - (*inBurst).tv_nsec - (*overshoot).tv_nsec;
-        nap(&delay, overshoot);
-        //Staring a new burst when we start at top of for loop.
-        clock_gettime(CLOCK_MONOTONIC_RAW, startBurst);
+        timespec_sub(&delay, &cfg->pktConfig.delay, inBurst );
+        timespec_sub(&delay, &delay, overshoot);
+        return delay;
     }
 }

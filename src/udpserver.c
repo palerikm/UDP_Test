@@ -66,6 +66,8 @@ void sendEndOfTest(struct TestRun *run, int num, int sockfd) {
 }
 
 
+
+
 static void*
 startDownStreamTests(void* ptr) {
     struct TestRun *run = ptr;
@@ -107,19 +109,10 @@ startDownStreamTests(void* ptr) {
                    0, run->config.pktConfig.dscp, 0);
 
         //Do I sleep or am I bursting..
-        if (currBurstIdx < run->config.pktConfig.pktsInBurst) {
-            currBurstIdx++;
-        } else {
-            currBurstIdx = 0;
-            struct timespec delay = {0, 0};
-            clock_gettime(CLOCK_MONOTONIC_RAW, &endBurst);
-            timespec_sub(&inBurst, &endBurst, &startBurst);
-            delay.tv_sec = run->config.pktConfig.delay.tv_sec - inBurst.tv_sec - overshoot.tv_sec;
-            delay.tv_nsec = run->config.pktConfig.delay.tv_nsec - inBurst.tv_nsec - overshoot.tv_nsec;
-            nap(&delay, &overshoot);
-            //Staring a new burst when we start at top of for loop.
-            clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
-        }
+        struct timespec delay = getBurstDelay(&run->config, &startBurst, &endBurst, &inBurst, &currBurstIdx, &overshoot);
+        nap(&delay, &overshoot);
+        //Staring a new burst when we start at top of for loop.
+        clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
         timeLastPacket = timeBeforeSendPacket;
 
         //Lets prepare fill the next packet buffer with some usefull data.

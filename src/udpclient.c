@@ -418,19 +418,11 @@ main(int   argc,
 
 
         //Do I sleep or am I bursting..
-        if(currBurstIdx < testRunConfig.pktConfig.pktsInBurst){
-          currBurstIdx++;
-        }else {
-          currBurstIdx = 0;
-          struct timespec delay = {0,0};
-          clock_gettime(CLOCK_MONOTONIC_RAW, &endBurst);
-            timespec_sub(&inBurst, &endBurst, &startBurst);
-          delay.tv_sec = testRunConfig.pktConfig.delay.tv_sec - inBurst.tv_sec - overshoot.tv_sec;
-          delay.tv_nsec = testRunConfig.pktConfig.delay.tv_nsec - inBurst.tv_nsec - overshoot.tv_nsec;
-          nap(&delay, &overshoot);
-          //Staring a new burst when we start at top of for loop.
-          clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
-        }
+        struct timespec delay = getBurstDelay(&testRunConfig, &startBurst, &endBurst, &inBurst, &currBurstIdx, &overshoot);
+        nap(&delay, &overshoot);
+        //Staring a new burst when we start at top of for loop.
+        clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
+        timeLastPacket = timeBeforeSendPacket;
         timeLastPacket = timeBeforeSendPacket;
         if(numPkt > numPkts_to_send){
             if(r.lastIdxConfirmed == testRunConfig.pktConfig.numPktsToSend) {
