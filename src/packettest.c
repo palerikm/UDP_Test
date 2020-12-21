@@ -596,6 +596,27 @@ void saveTestData(const struct TestData *tData, FILE *fptr){
     fprintf(fptr, "%" PRId64, tData->jitter_ns);
     fprintf(fptr, "\n");
 }
+void saveCsvHeader(FILE *fptr){
+    fprintf(fptr, "seq,txDiff,rxDiff,jitter\n");
+}
+
+void saveTestRunConfigToFile(const struct TestRun *testRun, FILE *fptr) {
+    char fiveTplStr[200];
+    fiveTupleToString(fiveTplStr,testRun->fiveTuple );
+    printf("    %s  ", fiveTplStr);
+    fprintf(fptr,"    %s  ", fiveTplStr);
+    char configStr[1000];
+    configToString(configStr, &testRun->config);
+    printf("     %s\n", configStr);
+    fprintf(fptr, "%s\n", configStr);
+}
+
+void saveTestRunStatsToFile(const struct TestRunStatistics *testRunStats, FILE *fptr) {
+    char statsStr[1000];
+    statsToString(statsStr, testRunStats);
+    printf("     %s\n", statsStr);
+    fprintf(fptr, "%s\n", statsStr);
+}
 
 void saveTestRunToFile(const struct TestRun *testRun, const char* filename) {
     printf("Saving--- %s (%i)\n", filename, testRun->numTestData);
@@ -607,22 +628,9 @@ void saveTestRunToFile(const struct TestRun *testRun, const char* filename) {
         exit(1);
     }
 
-    char fiveTplStr[200];
-    fiveTupleToString(fiveTplStr,testRun->fiveTuple );
-    printf("    %s  ", fiveTplStr);
-    fprintf(fptr,"    %s  ", fiveTplStr);
-    char configStr[1000];
-    configToString(configStr, &testRun->config);
-    printf("     %s\n", configStr);
-    fprintf(fptr, "%s\n", configStr);
-
-    char statsStr[1000];
-    statsToString(statsStr, &testRun->stats);
-    printf("     %s\n", statsStr);
-    fprintf(fptr, "%s\n", statsStr);
-
-
-    fprintf(fptr, "seq,txDiff,rxDiff,jitter\n");
+    saveTestRunConfigToFile(testRun, fptr);
+    saveTestRunStatsToFile(&testRun->stats, fptr);
+    saveCsvHeader(fptr);
     for(int i=0; i<testRun->numTestData;i++){
         const struct TestData *muh;
         muh = testRun->testData+i;
