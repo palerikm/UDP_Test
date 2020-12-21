@@ -130,7 +130,7 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run);
 
 
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
-void saveTestDataToFile(const struct TestRun *testRun, const char* filename);
+void saveTestRunToFile(const struct TestRun *testRun, const char* filename);
 
 int configToString(char* configStr, const struct TestRunConfig *config);
 

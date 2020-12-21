@@ -205,7 +205,7 @@ bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *file
         char filename[100];
         strncpy(filename, run->config.testName, sizeof(filename));
         strncat(filename, filenameEnding, strlen(filenameEnding));
-        saveTestDataToFile(run, filename);
+        saveTestRunToFile(run, filename);
         freeTestRun(hashmap_delete(mngr->map, run));
     }
     return !notEarly;
@@ -578,7 +578,26 @@ int statsToString(char* configStr, const struct TestRunStatistics *stats) {
 
 }
 
-void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
+void saveTestData(const struct TestData *tData, FILE *fptr){
+    int64_t rxDiff = timespec_to_nsec(&tData->rxDiff);
+    int64_t txDiff = timespec_to_nsec(&tData->pkt.txDiff);
+    fprintf(fptr, "%i,", tData->pkt.seq);
+    if(rxDiff == 0){
+        fprintf(fptr, "%s,","NaN");
+    }else{
+        fprintf(fptr, "%" PRId64 ",", rxDiff);
+    }
+    if(txDiff == 0){
+        fprintf(fptr, "%s,","NaN");
+    }else{
+        fprintf(fptr, "%" PRId64 ",", txDiff);
+    }
+
+    fprintf(fptr, "%" PRId64, tData->jitter_ns);
+    fprintf(fptr, "\n");
+}
+
+void saveTestRunToFile(const struct TestRun *testRun, const char* filename) {
     printf("Saving--- %s (%i)\n", filename, testRun->numTestData);
     FILE *fptr;
     fptr = fopen(filename,"w");
@@ -607,22 +626,8 @@ void saveTestDataToFile(const struct TestRun *testRun, const char* filename) {
     for(int i=0; i<testRun->numTestData;i++){
         const struct TestData *muh;
         muh = testRun->testData+i;
-        int64_t rxDiff = timespec_to_nsec(&muh->rxDiff);
-        int64_t txDiff = timespec_to_nsec(&muh->pkt.txDiff);
-        fprintf(fptr, "%i,", muh->pkt.seq);
-        if(rxDiff == 0){
-            fprintf(fptr, "%s,","NaN");
-        }else{
-            fprintf(fptr, "%" PRId64 ",", rxDiff);
-        }
-        if(txDiff == 0){
-            fprintf(fptr, "%s,","NaN");
-        }else{
-            fprintf(fptr, "%" PRId64 ",", txDiff);
-        }
+        saveTestData(muh, fptr);
 
-        fprintf(fptr, "%" PRId64, muh->jitter_ns);
-        fprintf(fptr, "\n");
     }
     fclose(fptr);
     printf("----Done saving\n");
