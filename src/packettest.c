@@ -3,7 +3,6 @@
 //
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
 #include <sockethelper.h>
@@ -129,6 +128,9 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 }
 
 int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config){
+    printf("\n---- Init Testrun: %s  ------\n", config->testName);
+
+
     testRun->fiveTuple = makeFiveTuple((struct sockaddr*)&fiveTuple->src, (struct sockaddr*)&fiveTuple->dst, fiveTuple->port);
     testRun->maxNumTestData = maxNumPkts;
     testRun->done = false;
@@ -467,6 +469,7 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
         newConf.pktConfig = pktConfig;
 
+        printf("\n--- Calling init form addfrombuf! ---");
         initTestRun(&testRun, pktConfig.numPktsToSend, fiveTuple, &newConf);
 
         testRun.lastPktTime = *now;

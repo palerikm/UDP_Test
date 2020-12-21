@@ -9,6 +9,7 @@
 #define TEST_RESP_PKT_COOKIE 0x1423
 #define MAX_TESTNAME_LEN 33
 
+#include <stdio.h>
 #include <stdint.h>
 #include <time.h>
 #include <stdbool.h>
@@ -100,6 +101,7 @@ struct TestRun{
     struct TestRunStatistics stats;
     struct TestRunResponse resp;
     pthread_mutex_t lock;
+    FILE *fptr;
     bool done;
 };
 

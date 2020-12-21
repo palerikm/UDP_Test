@@ -340,8 +340,11 @@ main(int   argc,
     txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig.localAddr,
                               (struct sockaddr *)&listenConfig.remoteAddr, listenConfig.port);
     struct TestRun txTestRun;
+    struct TestRunConfig txConfig;
+    txConfig = testRunConfig;
+    strncat(txConfig.testName, "_tx\0", 5);
     //initTestRun(&results.txTestRun, testRunConfig.pktConfig.numPktsToSend, txFiveTuple, &testRunConfig);
-    initTestRun(&txTestRun, testRunConfig.pktConfig.numPktsToSend, txFiveTuple, &testRunConfig);
+    initTestRun(&txTestRun, txConfig.pktConfig.numPktsToSend, txFiveTuple, &txConfig);
     clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
     txTestRun.lastPktTime = startBurst;
     txTestRun.stats.startTest = startBurst;
@@ -350,7 +353,15 @@ main(int   argc,
     struct FiveTuple *rxFiveTuple;
     rxFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig.remoteAddr,
                                 (struct sockaddr *)&listenConfig.localAddr, listenConfig.port);
-    //struct TestRunConfig rxConfig = testRunConfig;
+
+    struct TestRun rxTestRun;
+    struct TestRunConfig rxConfig;
+    rxConfig = testRunConfig;
+    strncat(rxConfig.testName, "_rx\0", 5);
+    initTestRun(&rxTestRun, rxTestRun.config.pktConfig.numPktsToSend, rxFiveTuple, &rxConfig);
+    rxTestRun.lastPktTime = startBurst;
+    rxTestRun.stats.startTest = startBurst;
+    hashmap_set(testRunManager.map, &rxTestRun);
 
 
     int sockfd = listenConfig.socketConfig[0].sockfd;
@@ -447,13 +458,13 @@ main(int   argc,
     char fileEnding[] = "_testrun.txt\0";
 
     //Ish, A bit hacky to get different names when saving.. (TODO:Fixit?)
-    struct TestRun *txrun = findTestRun(&testRunManager, txFiveTuple);
-    strncpy(txrun->config.testName, testRunConfig.testName, strlen(testRunConfig.testName));
-    strncat(txrun->config.testName, "_tx\0", 5);
+    //struct TestRun *txrun = findTestRun(&testRunManager, txFiveTuple);
+    //strncpy(txrun->config.testName, testRunConfig.testName, strlen(testRunConfig.testName));
+    //strncat(txrun->config.testName, "_tx\0", 5);
 
-    struct TestRun *rxrun = findTestRun(&testRunManager, rxFiveTuple);
-    strncpy(rxrun->config.testName, testRunConfig.testName, strlen(testRunConfig.testName));
-    strncat(rxrun->config.testName, "_rx\0", 5);
+    //struct TestRun *rxrun = findTestRun(&testRunManager, rxFiveTuple);
+    //strncpy(rxrun->config.testName, testRunConfig.testName, strlen(testRunConfig.testName));
+    //strncat(rxrun->config.testName, "_rx\0", 5);
 
 
    while(!done){
