@@ -118,7 +118,7 @@ bool TestRun_bw_iter(const void *item, void *udata);
 
 
 int freeTestRun(struct TestRun *testRun);
-int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config);
+int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);
 int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);
@@ -133,9 +133,11 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run);
 
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
 void saveTestRunToFile(const struct TestRun *testRun, const char* filename);
+void saveTestData(const struct TestData *tData, FILE *fptr);
 
 int configToString(char* configStr, const struct TestRunConfig *config);
 
+void saveCsvHeader(FILE *fptr);
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filename);
 bool pruneLingeringTestRuns(struct TestRunManager *mngr);
 double getActiveBwOnAllTestRuns(struct TestRunManager *mngr);

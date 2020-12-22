@@ -127,9 +127,26 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
     return 0;
 }
 
-int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config){
+int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
+                const struct FiveTuple *fiveTuple,
+                struct TestRunConfig *config, bool liveUpdate){
     printf("\n---- Init Testrun: %s  ------\n", config->testName);
-
+    if(liveUpdate){
+        char filename[100];
+        char fileEnding[] = "_live.csv\0";
+        strncpy(filename, config->testName, sizeof(filename));
+        strncat(filename, fileEnding, strlen(fileEnding));
+        printf("Trying to open: %s", filename);
+        testRun->fptr = fopen(filename,"w");
+        if(testRun->fptr == NULL)
+        {
+            printf("Error!");
+            exit(1);
+        }
+        saveCsvHeader(testRun->fptr);
+    }else{
+        testRun->fptr = NULL;
+    }
 
     testRun->fiveTuple = makeFiveTuple((struct sockaddr*)&fiveTuple->src, (struct sockaddr*)&fiveTuple->dst, fiveTuple->port);
     testRun->maxNumTestData = maxNumPkts;
@@ -292,6 +309,10 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     testRun->numTestData++;
     testRun->lastPktTime = *now;
 
+    if(testRun->fptr != NULL){
+        saveTestData(&d, testRun->fptr);
+        fflush(testRun->fptr);
+    }
     if(llabs(d.jitter_ns) > llabs(testRun->stats.jitterInfo.maxJitter)){
         testRun->stats.jitterInfo.maxJitter = d.jitter_ns;
     }
@@ -349,8 +370,7 @@ int insertResponseData(uint8_t *buf, size_t bufsize, int seq, struct TestRun *ru
     int lastSeq = run->testData[run->numTestData-1].pkt.seq;
     int numRespItemsInQueue =  lastSeq - run->resp.lastSeqConfirmed;
     int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
-    //printf("\nIn queue: %i ( %i ) Num testdata: %i Last seq: %i (conf: %i)\n", numRespItemsInQueue, numRespItemsThatFitInBuffer, run->numTestData, lastSeq, run->resp.lastSeqConfirmed);
-    int currentWritePos = sizeof(int32_t);
+       int currentWritePos = sizeof(int32_t);
     int32_t written = -1;
     bool done = false;
     int idx = 0;
@@ -358,7 +378,6 @@ int insertResponseData(uint8_t *buf, size_t bufsize, int seq, struct TestRun *ru
         written++;
         struct TestRunPktResponse respPkt;
         idx = run->numTestData-numRespItemsInQueue+written;
-        //printf("Copying idx: %i\n", idx);
         struct TestData *tData = &run->testData[idx];
 
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
@@ -469,8 +488,7 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
         newConf.pktConfig = pktConfig;
 
-        printf("\n--- Calling init form addfrombuf! ---");
-        initTestRun(&testRun, pktConfig.numPktsToSend, fiveTuple, &newConf);
+        initTestRun(&testRun, pktConfig.numPktsToSend, fiveTuple, &newConf, false);
 
         testRun.lastPktTime = *now;
         testRun.stats.startTest = *now;
@@ -480,16 +498,6 @@ int addTestDataFromBuf(struct TestRunManager *mng,
 
     return 0;
 }
-
-//struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now){
-//    struct TestPacket pkt;
-//    struct timespec timeSinceLastPkt;
-//    timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
-  //  printf("%s, %i\n", testRun->config.testName, testRun->numTestData);
-//    fillPacket(&pkt, 23, testRun->numTestData, in_progress_test_cmd,
-//               &timeSinceLastPkt,NULL);
-//    return pkt;
-//}
 
 struct TestPacket getEndTestPacket(int num){
     struct TestPacket pkt;
