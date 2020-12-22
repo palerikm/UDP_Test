@@ -19,7 +19,15 @@
 static struct ListenConfig listenConfig;
 
 
-
+struct TestRunResponse getResponse(const struct TestRun *respRun) {
+    struct TestRunResponse r;
+    if(respRun->numTestData > 1) {
+        r.lastSeqConfirmed = respRun->testData[respRun->numTestData - 1].pkt.seq;
+    }else{
+        r.lastSeqConfirmed = 0;
+    }
+    return r;
+}
 
 void
 packetHandler(struct ListenConfig* config,
@@ -289,6 +297,8 @@ setupSocket(struct ListenConfig *lconf, const struct ListenConfig* sconfig)
 }
 
 
+
+
 int
 main(int   argc,
      char* argv[])
@@ -323,7 +333,7 @@ main(int   argc,
     uint8_t buf[testRunConfig.pktConfig.pkt_size];
     memset(&buf, 43, sizeof(buf));
 
-    struct timespec startOfTest, startBurst,endBurst, inBurst, timeBeforeSendPacket, timeLastPacket;
+
 
     //Do a quick test to check how "accurate" nanosleep is on this platform
     nap(&testRunConfig.pktConfig.delay, &overshoot);
@@ -335,6 +345,7 @@ main(int   argc,
                                      TestRun_hash, TestRun_compare, NULL);
 
 
+    struct TimingInfo timingInfo;
 
     struct FiveTuple *txFiveTuple;
     txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig.localAddr,
@@ -345,9 +356,9 @@ main(int   argc,
     strncat(txConfig.testName, "_tx\0", 5);
     //initTestRun(&results.txTestRun, testRunConfig.pktConfig.numPktsToSend, txFiveTuple, &testRunConfig);
     initTestRun(&txTestRun, txConfig.pktConfig.numPktsToSend, txFiveTuple, &txConfig, true);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
-    txTestRun.lastPktTime = startBurst;
-    txTestRun.stats.startTest = startBurst;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &timingInfo.startBurst);
+    txTestRun.lastPktTime = timingInfo.startBurst;
+    txTestRun.stats.startTest = timingInfo.startBurst;
     hashmap_set(testRunManager.map, &txTestRun);
 
     struct FiveTuple *rxFiveTuple;
@@ -359,8 +370,8 @@ main(int   argc,
     rxConfig = testRunConfig;
     strncat(rxConfig.testName, "_rx\0", 5);
     initTestRun(&rxTestRun, rxTestRun.config.pktConfig.numPktsToSend, rxFiveTuple, &rxConfig, true);
-    rxTestRun.lastPktTime = startBurst;
-    rxTestRun.stats.startTest = startBurst;
+    rxTestRun.lastPktTime = timingInfo.startBurst;
+    rxTestRun.stats.startTest = timingInfo.startBurst;
     hashmap_set(testRunManager.map, &rxTestRun);
 
 
@@ -384,65 +395,49 @@ main(int   argc,
     struct TestPacket pkt;
 
     int currBurstIdx = 0;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
-    startOfTest = startBurst;
+
+    timeStartTest(&timingInfo);
+
 
     //int numPkt  = 0;
-    struct TestRunResponse r;
+    //struct TestRunResponse r;
     int numPkt = -1;
     bool done = false;
     int numPkts_to_send = testRunConfig.pktConfig.numPktsToSend;
-    while(!done){
-    //for(numPkt=0 ;numPkt<testRunConfig.pktConfig.numPktsToSend;numPkt++){
-        numPkt++;
-        struct TestRun *respRun = findTestRun(&testRunManager, txFiveTuple);
-        if(respRun != NULL){
-            if( respRun->numTestData > 1) {
-                r.lastSeqConfirmed = respRun->testData[respRun->numTestData - 1].pkt.seq;
-            }else{
-                r.lastSeqConfirmed = 0;
-            }
-           // printf("Last seq confirmed %i\n", r.lastSeqConfirmed);
-        }else{
-           continue;
-        }
+    struct TestRun *respRun = findTestRun(&testRunManager, txFiveTuple);
+    if(respRun == NULL){
+        printf("Something terrible has happened! Cant find the response testrun!");
+       exit(1);
+    }
 
-        clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
-        struct timespec timeSinceLastPkt;
-        timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
-        //Get next test packet to send.
-        //pkt = getNextTestPacket(testRun, &timeBeforeSendPacket);
+    while(!done){
+        numPkt++;
+        struct TestRunResponse r = getResponse(respRun);
+
+        timeSendPacket(&timingInfo);
+        
         uint32_t seq = numPkt>=numPkts_to_send ? numPkts_to_send : numPkt +1;
         fillPacket(&pkt, 23, seq, in_progress_test_cmd,
-                   &timeSinceLastPkt, &r);
+                   &timingInfo.timeSinceLastPkt, &r);
         memcpy(buf, &pkt, sizeof(pkt));
-
-
 
         sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
                  (const struct sockaddr *) &txFiveTuple->dst,
                  0, testRunConfig.pktConfig.dscp, 0);
 
-        //addTestDataFromBuf(&testRunManager, testRun->fiveTuple,
-        //                   buf, sizeof(buf), &timeBeforeSendPacket);
-
-        printStats(&testRunManager, &timeBeforeSendPacket, &startOfTest, numPkt, testRunConfig.pktConfig.numPktsToSend, testRunConfig.pktConfig.pkt_size );
+        printStats(&testRunManager, &timingInfo.timeBeforeSendPacket, &timingInfo.startOfTest, numPkt, testRunConfig.pktConfig.numPktsToSend, testRunConfig.pktConfig.pkt_size );
 
 
         //Do I sleep or am I bursting..
-        struct timespec delay = getBurstDelay(&testRunConfig, &startBurst, &endBurst, &inBurst, &currBurstIdx, &overshoot);
-        nap(&delay, &overshoot);
+        sleepBeforeNextBurst(&timingInfo,testRunConfig.pktConfig.pktsInBurst, &currBurstIdx, &testRunConfig.pktConfig.delay);
+
         //Staring a new burst when we start at top of for loop.
-        clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
-        timeLastPacket = timeBeforeSendPacket;
-        timeLastPacket = timeBeforeSendPacket;
+        timeStartBurst(&timingInfo);
+
         if(numPkt > numPkts_to_send){
             if(r.lastSeqConfirmed == testRunConfig.pktConfig.numPktsToSend) {
                 struct TestRun *txrun = findTestRun(&testRunManager, txFiveTuple);
                 txrun->done = true;
-                done = true;
-            }
-            if(numPkt > numPkts_to_send*8){
                 done = true;
             }
         }

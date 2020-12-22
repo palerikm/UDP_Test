@@ -6,6 +6,28 @@
 #include <time.h>
 #include "udptestcommon.h"
 
+
+void timeStartTest(struct TimingInfo *tInfo){
+    clock_gettime(CLOCK_MONOTONIC_RAW, &tInfo->startBurst);
+    tInfo->startOfTest = tInfo->startBurst;
+}
+
+void timeSendPacket(struct TimingInfo *tInfo){
+    clock_gettime(CLOCK_MONOTONIC_RAW, &tInfo->timeBeforeSendPacket);
+    timespec_sub(&tInfo->timeSinceLastPkt, &tInfo->timeBeforeSendPacket, &tInfo->timeLastPacket);
+}
+
+void timeStartBurst(struct TimingInfo *tInfo){
+    clock_gettime(CLOCK_MONOTONIC_RAW, &tInfo->startBurst);
+    tInfo->timeLastPacket = tInfo->timeBeforeSendPacket;
+}
+
+void sleepBeforeNextBurst(struct TimingInfo *tInfo, int pktsInBurst, int *currBurstIdx, const struct timespec *pktDelay){
+    struct timespec delay = getBurstDelay(pktsInBurst, currBurstIdx, tInfo, pktDelay);
+    nap(&delay, &tInfo->overshoot);
+}
+
+
 int nap(const struct timespec *naptime, struct timespec *overshoot){
     struct timespec ts, te, td, over = {0,0};
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
@@ -16,18 +38,17 @@ int nap(const struct timespec *naptime, struct timespec *overshoot){
     return 0;
 }
 
-struct timespec getBurstDelay(const struct TestRunConfig *cfg, struct timespec *startBurst, struct timespec *endBurst,
-                              struct timespec *inBurst, int *currBurstIdx, struct timespec *overshoot) {
+struct timespec getBurstDelay(int pktsInBurst, int *currBurstIdx, struct TimingInfo *tInfo, const struct timespec *pktDelay) {
     struct timespec delay = {0, 0};
-    if (*currBurstIdx < cfg->pktConfig.pktsInBurst) {
+    if (*currBurstIdx < pktsInBurst) {
         (*currBurstIdx)++;
         return delay;
     } else {
         *currBurstIdx = 0;
-        clock_gettime(CLOCK_MONOTONIC_RAW, endBurst);
-        timespec_sub(inBurst, endBurst, startBurst);
-        timespec_sub(&delay, &cfg->pktConfig.delay, inBurst );
-        timespec_sub(&delay, &delay, overshoot);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &tInfo->endBurst);
+        timespec_sub(&tInfo->inBurst, &tInfo->endBurst, &tInfo->startBurst);
+        timespec_sub(&delay, pktDelay, &tInfo->inBurst );
+        timespec_sub(&delay, &delay, &tInfo->overshoot);
         return delay;
     }
 }

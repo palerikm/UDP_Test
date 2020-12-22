@@ -72,18 +72,21 @@ static void*
 startDownStreamTests(void* ptr) {
     struct TestRun *run = ptr;
 
-    struct timespec startBurst, endBurst, inBurst, timeBeforeSendPacket, timeLastPacket;
+    //struct timespec startBurst, endBurst, inBurst, timeBeforeSendPacket, timeLastPacket;
+    struct TimingInfo timingInfo;
     struct TestPacket pkt;
 
+
     int currBurstIdx = 0;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
+    timeStartTest(&timingInfo);
+    //clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
 
     struct timespec overshoot = {0, 0};
     nap(&run->config.pktConfig.delay, &overshoot);
 
     sendStarOfTest(run, sockfd);
 
-    clock_gettime(CLOCK_MONOTONIC_RAW, &timeLastPacket);
+    //clock_gettime(CLOCK_MONOTONIC_RAW, &timeLastPacket);
 
     uint8_t buf[run->config.pktConfig.pkt_size];
 
@@ -94,14 +97,15 @@ startDownStreamTests(void* ptr) {
     bool done = false;
     while(!done){
         numPkt++;
-        clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
-        struct timespec timeSinceLastPkt;
-        timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
+        timeSendPacket(&timingInfo);
+        //clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
+        //struct timespec timeSinceLastPkt;
+        //timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
 
 
         uint32_t seq = numPkt>=numPkts_to_send ? numPkts_to_send : numPkt +1;
         fillPacket(&pkt, 0, seq , in_progress_test_cmd,
-                   &timeSinceLastPkt, NULL);
+                   &timingInfo.timeSinceLastPkt, NULL);
         memcpy(buf, &pkt, sizeof(pkt));
 
         sendPacket(sockfd, (const uint8_t *) buf, sizeof(buf),
@@ -109,11 +113,13 @@ startDownStreamTests(void* ptr) {
                    0, run->config.pktConfig.dscp, 0);
 
         //Do I sleep or am I bursting..
-        struct timespec delay = getBurstDelay(&run->config, &startBurst, &endBurst, &inBurst, &currBurstIdx, &overshoot);
-        nap(&delay, &overshoot);
+        sleepBeforeNextBurst(&timingInfo, run->config.pktConfig.pktsInBurst, &currBurstIdx, &run->config.pktConfig.delay);
+        //struct timespec delay = getBurstDelay(&run->config, &startBurst, &endBurst, &inBurst, &currBurstIdx, &overshoot);
+        //nap(&delay, &overshoot);
         //Staring a new burst when we start at top of for loop.
-        clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
-        timeLastPacket = timeBeforeSendPacket;
+        timeStartBurst(&timingInfo);
+        //clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
+        //timeLastPacket = timeBeforeSendPacket;
 
         //Lets prepare fill the next packet buffer with some usefull data.
         int written = insertResponseData(buf + sizeof(pkt), sizeof(buf) - sizeof(pkt), seq, run);
@@ -131,27 +137,14 @@ startDownStreamTests(void* ptr) {
             }
             pthread_mutex_unlock(&run->lock);
         }
-        struct timespec elapsed = {0,0};
-        timespec_sub(&elapsed, &startBurst, &run->lastPktTime);
-      //  double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
 
+        //Bail out if we have not recieved a packet the last second.
+        //Todo: Make this a function of the delay in the config?
+        struct timespec elapsed = {0,0};
+        timespec_sub(&elapsed, &timingInfo.startBurst, &run->lastPktTime);
         if (elapsed.tv_sec > 1){
             done = true;
         }
-        /*if(numPkt > numPkts_to_send){
-
-            if (written > 0) {
-
-                if (numPkt > numPkts_to_send * 2) {
-                   //Bail out... Time will not fix this..
-                    done = true;
-                }
-            } else {
-                done = true;
-            }
-
-        }
-         */
     }//End of main test run. Just some cleanup remaining.
 
     sendEndOfTest(run, numPkt, sockfd);

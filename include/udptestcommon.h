@@ -9,12 +9,25 @@
 
 #define NSEC_PER_SEC 1000000000
 
+struct TimingInfo{
+    struct timespec startOfTest;
+    struct timespec startBurst;
+    struct timespec endBurst;
+    struct timespec inBurst;
+    struct timespec timeBeforeSendPacket;
+    struct timespec timeLastPacket;
+    struct timespec timeSinceLastPkt;
+    struct timespec overshoot;
+};
 
+void timeStartTest(struct TimingInfo *tInfo);
+void timeSendPacket(struct TimingInfo *tInfo);
+void timeStartBurst(struct TimingInfo *tInfo);
+void sleepBeforeNextBurst(struct TimingInfo *tInfo, int pktsInBurst, int *currBurstIdx, const struct timespec *pktDelay);
 
 int nap(const struct timespec *naptime, struct timespec *overshoot);
 
-struct timespec getBurstDelay(const struct TestRunConfig *cfg, struct timespec *startBurst, struct timespec *endBurst,
-                              struct timespec *inBurst, int *currBurstIdx, struct timespec *overshoot);
+struct timespec getBurstDelay(int pktsInBurst, int *currBurstIdx, struct TimingInfo *tInfo, const struct timespec *pktDelay);
 
 static inline void timespec_sub(struct timespec *result, const struct timespec *a, const struct timespec *b) {
     result->tv_sec  = a->tv_sec  - b->tv_sec;
