@@ -130,7 +130,6 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
                 const struct FiveTuple *fiveTuple,
                 struct TestRunConfig *config, bool liveUpdate){
-    printf("\n---- Init Testrun: %s  ------\n", config->testName);
     if(liveUpdate){
         char filename[100];
         char fileEnding[] = "_live.csv\0";
