@@ -249,7 +249,7 @@ main(int   argc,
     /* int                 digit_optind = 0; */
     /* set config to default values */
     strncpy(listenConfig.interface, "default", 7);
-    listenConfig.port          = 3478;
+    listenConfig.port          = 5004;
 
 
     static struct option long_options[] = {
