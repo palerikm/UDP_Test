@@ -126,6 +126,10 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 
     return 0;
 }
+void initTestRunManager(struct TestRunManager *testRunManager) {
+    (*testRunManager).map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
+                                        TestRun_hash, TestRun_compare, NULL);
+}
 
 int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
                 const struct FiveTuple *fiveTuple,
@@ -232,12 +236,15 @@ bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *file
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now){
     struct timespec timeSinceLastPkt;
 
+    //printf("Adding Test Data\n");
     if(testRun == NULL){
+       // printf("  TestRun is NULL");
         return -1;
     }
-
+   // printf("  Name: %s (%i)\n", testRun->config.testName,testRun->numTestData);
     if(testRun->numTestData >= testRun->maxNumTestData){
         testRun->stats.endTest = *now;
+      //  printf("  To much testData %i out of %i Bailing..\n",testRun->numTestData, testRun->maxNumTestData);
         return -2;
     }
 

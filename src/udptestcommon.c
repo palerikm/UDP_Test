@@ -29,7 +29,7 @@ void sleepBeforeNextBurst(struct TimingInfo *tInfo, int pktsInBurst, int *currBu
 
 
 int nap(const struct timespec *naptime, struct timespec *overshoot){
-    struct timespec ts, te, td, over = {0,0};
+    struct timespec ts, te, td = {0,0};
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
     nanosleep(naptime, NULL);
     clock_gettime(CLOCK_MONOTONIC_RAW, &te);
@@ -45,7 +45,9 @@ struct timespec getBurstDelay(int pktsInBurst, int *currBurstIdx, struct TimingI
         return delay;
     } else {
         *currBurstIdx = 0;
+        //Time when burst ended
         clock_gettime(CLOCK_MONOTONIC_RAW, &tInfo->endBurst);
+        //How long did we burst?
         timespec_sub(&tInfo->inBurst, &tInfo->endBurst, &tInfo->startBurst);
         timespec_sub(&delay, pktDelay, &tInfo->inBurst );
         timespec_sub(&delay, &delay, &tInfo->overshoot);

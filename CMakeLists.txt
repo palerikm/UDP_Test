@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.15cmake )
-project(UDP_tests C)
+project(UDP_tests C CXX)
 
 set(CMAKE_C_STANDARD 99)
+
 
 
 Include(ExternalProject)
@@ -40,7 +41,17 @@ add_library(sockaddrutil STATIC IMPORTED)
 set_property(TARGET sockaddrutil PROPERTY IMPORTED_LOCATION "${install_dir}/lib/${CMAKE_SHARED_MODULE_PREFIX}sockaddrutil${CMAKE_SHARED_LIBRARY_SUFFIX}")
 add_dependencies(sockaddrutil project_sockaddrutil)
 
+# Find the QtWidgets library
+find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
+
 
 ## include the parts
 #add_subdirectory ( include )
 add_subdirectory ( src )
+
+if (${Qt5_FOUND})
+    MESSAGE(STATUS "Found Qt5")
+    add_subdirectory( qtclient)
+else (${Qt5_FOUND})
+    MESSAGE(STATUS "Could not locate Qt5")
+ENDIF (${Qt5_FOUND})
