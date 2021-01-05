@@ -20,7 +20,7 @@ set_target_properties(udpserver PROPERTIES BUILD_WITH_INSTALL_RPATH ON)
 
 add_executable ( udpclient
         iphelper.c
-        udpclient.c sockethelper.c packettest.c ../include/packettest.h udptestcommon.c ../include/udptestcommon.h)
+        udpclient.c sockethelper.c packettest.c clientcommon.c ../include/clientcommon.h ../include/packettest.h udptestcommon.c ../include/udptestcommon.h)
 
 target_link_libraries ( udpclient PRIVATE sockaddrutil
         pthread
