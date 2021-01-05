@@ -105,24 +105,6 @@ packetHandler(struct ListenConfig* config,
 
 }
 
-void sendSomePktTest(struct TestRunConfig *cfg, const struct TestPacket *pkt, struct FiveTuple *fiveTuple, int sockfd) {
-    //Send End of Test a few times...
-    struct timespec now, remaining;
-    uint8_t endBuf[cfg->pktConfig.pkt_size];
-    memcpy(endBuf, pkt, sizeof(struct TestPacket));
-    for(int j=0;j<10;j++){
-        clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-        sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
-                   (const struct sockaddr*)&fiveTuple->dst,
-                   0, cfg->pktConfig.dscp, 0 );
-
-
-        //addTestDataFromBuf(mng, fiveTuple,
-        //                   endBuf, sizeof(endBuf), &now);
-
-        nanosleep(&cfg->pktConfig.delay, &remaining);
-    }
-}
 
 void sendEndOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int num, int sockfd) {
 
@@ -348,6 +330,101 @@ int startListenThread(struct TestRunManager *testRunManager, const struct Listen
 
 }
 
+int runTests(int sockfd, struct FiveTuple *txFiveTuple,
+         struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager) {
+    int numPkt = -1;
+    int numPkts_to_send = testRunConfig->pktConfig.numPktsToSend;
+    uint8_t buf[(*testRunConfig).pktConfig.pkt_size];
+    memset(&buf, 43, sizeof(buf));
+    bool done = false;
+    struct TestPacket pkt;
+    int currBurstIdx = 0;
+
+
+
+    struct TestRun *respRun = findTestRun(testRunManager, txFiveTuple);
+    if(respRun == NULL){
+        printf("\nSomething terrible has happened! Cant find the response testrun!\n");
+        char ft[200];
+        printf("FiveTuple: %s\n", fiveTupleToString(ft, txFiveTuple));
+        exit(1);
+    }
+
+
+    struct TimingInfo timingInfo;
+    memset(&timingInfo, 0, sizeof(timingInfo));
+    clock_gettime(CLOCK_MONOTONIC_RAW, &timingInfo.startBurst);
+    timeStartTest(&timingInfo);
+    timeStartBurst(&timingInfo);
+    while(!done){
+        numPkt++;
+        struct TestRunResponse r = getResponse(respRun);
+
+        timeSendPacket(&timingInfo);
+
+        uint32_t seq = numPkt >= numPkts_to_send ? numPkts_to_send : numPkt + 1;
+        fillPacket(&pkt, 23, seq, in_progress_test_cmd,
+                   &timingInfo.timeSinceLastPkt, &r);
+        memcpy(buf, &pkt, sizeof(pkt));
+
+        sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
+                   (const struct sockaddr *) &txFiveTuple->dst,
+                   0, (*testRunConfig).pktConfig.dscp, 0);
+
+        printStats(testRunManager, &timingInfo.timeBeforeSendPacket, &timingInfo.startOfTest, numPkt, (*testRunConfig).pktConfig.numPktsToSend, (*testRunConfig).pktConfig.pkt_size );
+        //Do I sleep or am I bursting..
+        sleepBeforeNextBurst(&timingInfo, (*testRunConfig).pktConfig.pktsInBurst, &currBurstIdx, &(*testRunConfig).pktConfig.delay);
+
+        //Staring a new burst when we start at top of for loop.
+        timeStartBurst(&timingInfo);
+
+        if(numPkt > numPkts_to_send){
+
+            if(r.lastSeqConfirmed == (*testRunConfig).pktConfig.numPktsToSend) {
+                struct TestRun *txrun = findTestRun(testRunManager, txFiveTuple);
+                txrun->done = true;
+                done = true;
+            }
+        }
+
+    }//End of main test run. Just some cleanup remaining.
+    return numPkt;
+}
+
+void waitForResponses(struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager) {
+    bool done = false;
+    char fileEnding[] = "_testrun.txt\0";
+
+    while(!done){
+         int num = getNumberOfActiveTestRuns(testRunManager);
+         if(  num > 0 ){
+             saveAndDeleteFinishedTestRuns(testRunManager, fileEnding);
+             struct timespec overshoot = {0,0};
+             nap(&(*testRunConfig).pktConfig.delay, &overshoot);
+         }else{
+             done = true;
+         }
+     }
+}
+
+void addTxAndRxTests(struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager) {
+    struct TestRun *txTestRun = addTxTestRun(testRunConfig, testRunManager);
+    struct TestRun *rxTestRun = addRxTestRun(testRunConfig, testRunManager);
+    free(rxTestRun);
+    free(txTestRun);
+}
+
+void runAllTests(int sockfd, struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager) {
+    struct FiveTuple *txFiveTuple;
+    txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig.localAddr,
+                                (struct sockaddr *)&listenConfig.remoteAddr, listenConfig.port);
+
+    sendStarOfTest(testRunConfig, txFiveTuple , sockfd);
+    int numPkt = runTests(sockfd, txFiveTuple, testRunConfig, testRunManager);
+    sendEndOfTest(testRunConfig, txFiveTuple, numPkt, sockfd);
+    free(txFiveTuple);
+}
+
 int
 main(int   argc,
      char* argv[])
@@ -377,105 +454,16 @@ main(int   argc,
            sizeof(addrStr),
                        true ) );
 
-
-    uint8_t buf[testRunConfig.pktConfig.pkt_size];
-    memset(&buf, 43, sizeof(buf));
-
     struct TestRunManager testRunManager;
     initTestRunManager(&testRunManager);
 
-
-
-
-    struct TestRun *txTestRun = addTxTestRun(&testRunConfig, &testRunManager);
-    struct TestRun *rxTestRun = addRxTestRun(&testRunConfig, &testRunManager);
-
+    addTxAndRxTests(&testRunConfig, &testRunManager);
     int sockfd = startListenThread(&testRunManager, &listenConfig);
-
-
-    struct FiveTuple *txFiveTuple = txTestRun->fiveTuple;
-    sendStarOfTest(&testRunConfig, txFiveTuple , sockfd);
-
-
-    struct TimingInfo timingInfo;
-    memset(&timingInfo, 0, sizeof(timingInfo));
-    clock_gettime(CLOCK_MONOTONIC_RAW, &timingInfo.startBurst);
-    timeStartTest(&timingInfo);
-    timeStartBurst(&timingInfo);
-
-    int numPkts_to_send = testRunConfig.pktConfig.numPktsToSend;
-    struct TestRun *respRun = findTestRun(&testRunManager, txFiveTuple);
-    if(respRun == NULL){
-        printf("\nSomething terrible has happened! Cant find the response testrun!\n");
-        char ft[200];
-        printf("FiveTuple: %s\n", fiveTupleToString(ft, txFiveTuple));
-       exit(1);
-    }
-
-    int numPkt = -1;
-    bool done = false;
-    struct TestPacket pkt;
-    int currBurstIdx = 0;
-    while(!done){
-        numPkt++;
-        struct TestRunResponse r = getResponse(respRun);
-
-        timeSendPacket(&timingInfo);
-
-        uint32_t seq = numPkt>=numPkts_to_send ? numPkts_to_send : numPkt +1;
-        fillPacket(&pkt, 23, seq, in_progress_test_cmd,
-                   &timingInfo.timeSinceLastPkt, &r);
-        memcpy(buf, &pkt, sizeof(pkt));
-
-        sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
-                 (const struct sockaddr *) &txFiveTuple->dst,
-                 0, testRunConfig.pktConfig.dscp, 0);
-
-        printStats(&testRunManager, &timingInfo.timeBeforeSendPacket, &timingInfo.startOfTest, numPkt, testRunConfig.pktConfig.numPktsToSend, testRunConfig.pktConfig.pkt_size );
-        //Do I sleep or am I bursting..
-        sleepBeforeNextBurst(&timingInfo,testRunConfig.pktConfig.pktsInBurst, &currBurstIdx, &testRunConfig.pktConfig.delay);
-
-        //Staring a new burst when we start at top of for loop.
-        timeStartBurst(&timingInfo);
-
-        if(numPkt > numPkts_to_send){
-
-            if(r.lastSeqConfirmed == testRunConfig.pktConfig.numPktsToSend) {
-                struct TestRun *txrun = findTestRun(&testRunManager, txFiveTuple);
-                txrun->done = true;
-                done = true;
-            }
-        }
-
-    }//End of main test run. Just some cleanup remaining.
-
-    sendEndOfTest(&testRunConfig, txFiveTuple, numPkt, sockfd);
-
+    runAllTests(sockfd, &testRunConfig, &testRunManager);
     printf("\n");
-
-
-    done = false;
-    char fileEnding[] = "_testrun.txt\0";
-
-   while(!done){
-        int num = getNumberOfActiveTestRuns(&testRunManager);
-        if(  num > 0 ){
-            saveAndDeleteFinishedTestRuns(&testRunManager, fileEnding);
-            struct timespec overshoot = {0,0};
-            nap(&testRunConfig.pktConfig.delay, &overshoot);
-        }else{
-            done = true;
-        }
-
-    }
-
-//    free(rxFiveTuple);
-
-   // free(txFiveTuple);
+    waitForResponses(&testRunConfig, &testRunManager);
     pruneLingeringTestRuns(&testRunManager);
     freeTestRunManager(&testRunManager);
-    free(rxTestRun);
-    free(txTestRun);
     return 0;
 }
 
