@@ -1,5 +1,10 @@
 #ifndef UDP_TESTS_IPHELPER_H
 #define UDP_TESTS_IPHELPER_H
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include <stdbool.h>
 
 typedef enum IPv6_ADDR_TYPES {IPv6_ADDR_NONE,
@@ -19,4 +24,8 @@ int
 getRemoteIpAddr(struct sockaddr* remoteAddr,
                 char*            fqdn,
                 uint16_t         port);
+
+#ifdef __cplusplus
+}
+#endif
 #endif //UDP_TESTS_IPHELPER_H

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+    <class>JitterQChartWidget</class>
+    <widget class="QWidget" name="JitterQChartWidget">
+        <property name="geometry">
+            <rect>
+                <x>0</x>
+                <y>0</y>
+                <width>1553</width>
+                <height>970</height>
+            </rect>
+        </property>
+        <property name="windowTitle">
+            <string>Jitter</string>
+        </property>
+        <property name="autoFillBackground">
+            <bool>true</bool>
+        </property>
+        <layout class="QGridLayout" name="gridLayout">
+            <item row="1" column="0">
+                <widget class="QLabel" name="processedLabel_1">
+                    <property name="minimumSize">
+                        <size>
+                            <width>58</width>
+                            <height>307</height>
+                        </size>
+                    </property>
+                    <property name="text">
+                        <string>TX Jitter</string>
+                    </property>
+                </widget>
+            </item>
+            <item row="2" column="0">
+                <widget class="QLabel" name="videoLabel">
+                    <property name="minimumSize">
+                        <size>
+                            <width>58</width>
+                            <height>307</height>
+                        </size>
+                    </property>
+                    <property name="text">
+                        <string>RX Jitter</string>
+                    </property>
+                </widget>
+            </item>
+            <item row="4" column="0" alignment="Qt::AlignBottom">
+                <widget class="QFrame" name="frame_2">
+                    <property name="frameShape">
+                        <enum>QFrame::StyledPanel</enum>
+                    </property>
+                    <property name="frameShadow">
+                        <enum>QFrame::Raised</enum>
+                    </property>
+                    <layout class="QHBoxLayout" name="horizontalLayout">
+                        <item alignment="Qt::AlignLeft">
+                            <widget class="QLabel" name="label">
+                                <property name="text">
+                                    <string>FPS</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QLCDNumber" name="lcdActualFPS">
+                                <property name="styleSheet">
+                                    <string notr="true">border-color: rgb(252, 0, 46);</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QLabel" name="label_2">
+                                <property name="text">
+                                    <string>ReadTime</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item alignment="Qt::AlignLeft">
+                            <widget class="QLCDNumber" name="lcdReadTime"/>
+                        </item>
+                        <item>
+                            <widget class="QLabel" name="label_3">
+                                <property name="text">
+                                    <string>ProcessTime</string>
+                                </property>
+                            </widget>
+                        </item>
+                        <item>
+                            <widget class="QLCDNumber" name="lcdProcessTime"/>
+                        </item>
+                    </layout>
+                </widget>
+            </item>
+
+        </layout>
+    </widget>
+    <layoutdefault spacing="6" margin="11"/>
+    <resources/>
+    <connections/>
+</ui>

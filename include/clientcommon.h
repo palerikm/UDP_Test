@@ -4,6 +4,12 @@
 
 #ifndef UDP_TESTS_CLIENTCOMMON_H
 #define UDP_TESTS_CLIENTCOMMON_H
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+
 #include "packettest.h"
 #include "sockethelper.h"
 #include "udptestcommon.h"
@@ -38,4 +44,9 @@ int
 setupSocket(struct ListenConfig *lconf, const struct ListenConfig* sconfig);
 
 int startListenThread(struct TestRunManager *testRunManager, struct ListenConfig* listenConfig);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif //UDP_TESTS_CLIENTCOMMON_H

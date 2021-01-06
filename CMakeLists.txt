@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15cmake )
-project(UDP_tests C CXX)
+project(UDP_tests CXX C)
 
 set(CMAKE_C_STANDARD 99)
 

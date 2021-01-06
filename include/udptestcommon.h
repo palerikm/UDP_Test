@@ -4,6 +4,11 @@
 
 #ifndef UDP_TESTS_UDPTESTCOMMON_H
 #define UDP_TESTS_UDPTESTCOMMON_H
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include <stdint.h>
 #include "packettest.h"
 
@@ -56,5 +61,7 @@ timespec_from_nsec(struct timespec *a, int64_t b)
     a->tv_nsec = b % NSEC_PER_SEC;
 }
 
-
+#ifdef __cplusplus
+}
+#endif
 #endif //UDP_TESTS_UDPTESTCOMMON_H
