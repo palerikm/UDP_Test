@@ -47,5 +47,5 @@ public slots:
 
     //void receiveGrabFrame();
 
-    void receiveSetup();
+    void startTests();
 };

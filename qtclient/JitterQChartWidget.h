@@ -47,7 +47,7 @@ protected:
 
 signals:
 
-    void sendSetup();
+    void sendStartTests();
 
 
 private slots:

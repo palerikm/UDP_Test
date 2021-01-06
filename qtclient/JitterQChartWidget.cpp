@@ -32,17 +32,11 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent) :
     chart->legend()->hide();
     chart->setTitle("Real-time dynamic curve");
     chart->createDefaultAxes();
-    chart->axisX()->setRange(0, 300);
-    chart->axisY()->setRange(0, maxY);
+    chart->axes(Qt::Horizontal).first()->setRange(0, 300);
+    chart->axes(Qt::Vertical).first()->setRange(0, maxY);
     chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
     ui->gridLayout->addWidget(chartView, 1,0);
-    //ui->horizontalLayout->addWidget(chartView);
-    //ui->label->add(
-    //QHBoxLayout *layout = new QHBoxLayout();
-    //layout->setContentsMargins(0, 0, 0, 0);
-    //layout->addWidget(chartView);
-    //setLayout(layout);
 
     setup();
 }
@@ -62,7 +56,7 @@ void JitterQChartWidget::setup()
     TestRunWorker *worker = new TestRunWorker();
 
     connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
-    connect(this, SIGNAL(sendSetup()), worker, SLOT(receiveSetup()));
+    connect(this, SIGNAL(sendStartTests()), worker, SLOT(startTests()));
 
     connect(worker, SIGNAL(sendData(int)), this, SLOT(receiveData(int)));
 
@@ -74,7 +68,7 @@ void JitterQChartWidget::setup()
 
     thread->start();
 
-    emit sendSetup();
+    emit sendStartTests();
 }
 void JitterQChartWidget::receiveData(int value) {
     std::cout<<"data: " << value<<std::endl;
@@ -95,7 +89,8 @@ void JitterQChartWidget::receiveData(int value) {
         if(start < 0){
             start = 0;
         }
-        chart->axisX()->setRange(start,data.size());
+        //chart->axisX()->setRange(start,);
+        chart->axes(Qt::Horizontal).first()->setRange(start, data.size());
         for (int i = start; i < data.size(); ++i) {
             //splineSeries->append((less*dx+i*dx)+numPkts, data.at(i));
             //scatterSeries->append((less*dx+i*dx)+numPkts, data.at(i));

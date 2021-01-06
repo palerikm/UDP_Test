@@ -30,7 +30,7 @@ TestRunWorker::~TestRunWorker()
 
 
 
-void TestRunWorker::receiveSetup()
+void TestRunWorker::startTests()
 {
     srand( (unsigned)time(NULL) );
 
