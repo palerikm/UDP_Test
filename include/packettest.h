@@ -4,6 +4,10 @@
 
 #ifndef UDP_TESTS_PACKETTEST_H
 #define UDP_TESTS_PACKETTEST_H
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 #define TEST_PKT_COOKIE 0x0023
 #define TEST_RESP_PKT_COOKIE 0x1423
@@ -70,6 +74,7 @@ struct TestData{
 
 struct TestRunConfig{
     char testName[MAX_TESTNAME_LEN];
+    void (* TestRun_live_cb)(int, uint32_t seq, int64_t);
     struct TestRunPktConfig pktConfig;
 };
 
@@ -91,6 +96,7 @@ struct TestRunStatistics{
 
 struct TestRun{
     struct FiveTuple *fiveTuple;
+    int32_t id;
     struct TestRunConfig config;
     struct TestData *testData;
     uint32_t numTestData;
@@ -118,7 +124,7 @@ bool TestRun_bw_iter(const void *item, void *udata);
 
 
 int freeTestRun(struct TestRun *testRun);
-int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);
+int initTestRun(struct TestRun *testRun, int32_t id, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);
 int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);
@@ -154,4 +160,7 @@ char  *fiveTupleToString(char *str, const struct FiveTuple *tuple);
 
 bool TestRun_print_iter(const void *item, void *udata);
 
+#ifdef __cplusplus
+}
+#endif
 #endif //UDP_TESTS_PACKETTEST_H

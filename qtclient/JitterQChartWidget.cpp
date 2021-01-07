@@ -9,7 +9,7 @@
 #include "ui_JitterQChartWidget.h"
 #include "TestRunWorker.h"
 
-JitterQChartWidget::JitterQChartWidget(QWidget *parent) :
+JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tConfig, struct ListenConfig *listenConfig) :
         QWidget(parent),
         ui(new Ui::JitterQChartWidget)
 {
@@ -22,7 +22,6 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent) :
     maxSize = 101; // Only store the latest 31 data
     maxX = 300;
     maxY = 100;
-    numPkts = 0;
     splineSeries = new QSplineSeries();
     scatterSeries = new QScatterSeries();
     scatterSeries->setMarkerSize(8);
@@ -32,13 +31,13 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent) :
     chart->legend()->hide();
     chart->setTitle("Real-time dynamic curve");
     chart->createDefaultAxes();
-    chart->axes(Qt::Horizontal).first()->setRange(0, 300);
-    chart->axes(Qt::Vertical).first()->setRange(0, maxY);
+    chart->axes(Qt::Horizontal).first()->setRange(0-maxX, 0);
+    chart->axes(Qt::Vertical).first()->setRange(-30, maxY);
     chartView = new QChartView(chart);
     chartView->setRenderHint(QPainter::Antialiasing);
     ui->gridLayout->addWidget(chartView, 1,0);
 
-    setup();
+    setup(tConfig, listenConfig);
 }
 
 JitterQChartWidget::~JitterQChartWidget()
@@ -50,15 +49,15 @@ JitterQChartWidget::~JitterQChartWidget()
     delete ui;
 }
 
-void JitterQChartWidget::setup()
+void JitterQChartWidget::setup(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig)
 {
     thread = new QThread();
-    TestRunWorker *worker = new TestRunWorker();
+    TestRunWorker *worker = new TestRunWorker(nullptr, tConfig, listenConfig);
 
     connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
     connect(this, SIGNAL(sendStartTests()), worker, SLOT(startTests()));
 
-    connect(worker, SIGNAL(sendData(int)), this, SLOT(receiveData(int)));
+    connect(worker, SIGNAL(sendData(int, unsigned int, long)), this, SLOT(receiveData(int, unsigned int, long)));
 
 
     connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
@@ -70,14 +69,21 @@ void JitterQChartWidget::setup()
 
     emit sendStartTests();
 }
-void JitterQChartWidget::receiveData(int value) {
-    std::cout<<"data: " << value<<std::endl;
-    data << value;
-    //numPkts++;
+void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
+
+    if(id != 1){
+        return;
+    }
+    if(seq < 2){
+        return;
+    }
+    std::cout<<"data: " << jitter<<std::endl;
+    data << (double)jitter/1000000;
+
 // The number of data exceeds the maximum number, delete the first received data, and move the curve forward
-    //while (data.size() > maxSize) {
-    //    data.removeFirst();
-    //}
+    while (data.size() > maxSize) {
+        data.removeFirst();
+    }
 // There is no need to draw data curves after the interface is hidden
     if (isVisible()) {
         splineSeries->clear();
@@ -90,12 +96,16 @@ void JitterQChartWidget::receiveData(int value) {
             start = 0;
         }
         //chart->axisX()->setRange(start,);
-        chart->axes(Qt::Horizontal).first()->setRange(start, data.size());
+        //
+
+        double min = *std::min_element(data.begin(), data.end());
+        double max = *std::max_element(data.begin(), data.end());
+        chart->axes(Qt::Vertical).first()->setRange(min-1, max+1);
         for (int i = start; i < data.size(); ++i) {
-            //splineSeries->append((less*dx+i*dx)+numPkts, data.at(i));
-            //scatterSeries->append((less*dx+i*dx)+numPkts, data.at(i));
-            splineSeries->append(numPkts+i, data.at(i));
-            scatterSeries->append(numPkts+i, data.at(i));
+            splineSeries->append((less*dx+i*dx)-maxX, data.at(i));
+            //scatterSeries->append((less*dx+i*dx)-maxX, data.at(i));
+            //splineSeries->append(numPkts+i, data.at(i));
+            //scatterSeries->append(numPkts+i, data.at(i));
         }
 
     }

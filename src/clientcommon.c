@@ -32,7 +32,7 @@ addTxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig txConfig;
     memcpy(&txConfig, testRunConfig, sizeof(txConfig));
     strncat(txConfig.testName, "_tx\0", 5);
-    initTestRun(txTestRun, txConfig.pktConfig.numPktsToSend, txFiveTuple, &txConfig, true);
+    initTestRun(txTestRun, 1, txConfig.pktConfig.numPktsToSend, txFiveTuple, &txConfig, true);
     clock_gettime(CLOCK_MONOTONIC_RAW, &txTestRun->lastPktTime);
     txTestRun->stats.startTest = txTestRun->lastPktTime;
     hashmap_set((*testRunManager).map, txTestRun);
@@ -53,7 +53,7 @@ addRxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig rxConfig;
     memcpy(&rxConfig, testRunConfig, sizeof(rxConfig));
     strncat(rxConfig.testName, "_rx\0", 5);
-    initTestRun(rxTestRun, rxConfig.pktConfig.numPktsToSend, rxFiveTuple, &rxConfig, true);
+    initTestRun(rxTestRun, 2, rxConfig.pktConfig.numPktsToSend, rxFiveTuple, &rxConfig, true);
     clock_gettime(CLOCK_MONOTONIC_RAW, &rxTestRun->lastPktTime);
     rxTestRun->stats.startTest = rxTestRun->lastPktTime;
 

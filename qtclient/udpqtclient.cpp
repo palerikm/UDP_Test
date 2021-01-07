@@ -166,25 +166,23 @@ int main(int argc, char *argv[]) {
                                sizeof(addrStr),
                                true ) );
 
-    struct TestRunManager testRunManager;
-    initTestRunManager(&testRunManager);
+
+
 
     QApplication a(argc, argv);
-    JitterQChartWidget w;
+    JitterQChartWidget w(0, &testRunConfig, &listenConfig);
     w.resize(700, 400);
     w.show();
-    a.exec();
+    return a.exec();
 
-    addTxAndRxTests(&testRunConfig, &testRunManager, &listenConfig);
-    int sockfd = startListenThread(&testRunManager, &listenConfig);
-    runAllTests(sockfd, &testRunConfig, &testRunManager, &listenConfig);
+
     //printf("\n");
     //waitForResponses(&testRunConfig, &testRunManager);
     //pruneLingeringTestRuns(&testRunManager);
     //freeTestRunManager(&testRunManager);
 
 
-    return a.exec();
+    //return a.exec();
 }
 
 

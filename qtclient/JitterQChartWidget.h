@@ -26,17 +26,16 @@ private:
     int maxSize; // data stores at most maxSize elements
     int maxX;
     int maxY;
-    int numPkts;
     QList<double> data; // A list to store business data
     QChart *chart;
     QChartView *chartView;
     QSplineSeries *splineSeries;
     QScatterSeries *scatterSeries;
 
-    void setup();
+    void setup(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
 
 public:
-    explicit JitterQChartWidget(QWidget *parent = 0);
+    explicit JitterQChartWidget(QWidget *parent = 0, struct TestRunConfig *tConfig = nullptr, struct ListenConfig *listenConfig = nullptr);
 
     ~JitterQChartWidget();
 
@@ -51,7 +50,7 @@ signals:
 
 
 private slots:
-    void receiveData(int data);
+    void receiveData(int, unsigned int, long);
     //void receiveFrame(QImage frame);
 
     //void receiveProcessedFrame(QImage frame1, QImage frame2, QImage frame3);

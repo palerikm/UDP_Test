@@ -3,7 +3,8 @@
 #include <QObject>
 #include <QImage>
 
-
+#include "packettest.h"
+#include "sockethelper.h"
 
 
 
@@ -11,28 +12,23 @@ class TestRunWorker : public QObject {
 Q_OBJECT
 
 private:
-    //std::shared_ptr<MediaProcessing> mp;
+    struct TestRunConfig testRunConfig;
+    struct ListenConfig listenConfig;
+    struct TestRunManager testRunManager;
 
-    //cv::Ptr<cv::BackgroundSubtractor> pBackSub;
-    //cv::Mat originalFrame;
-    //QImage::Format originalFrameFormat = QImage::Format_BGR888;
-    //cv::Mat processedFrame_1;
-    //QImage::Format processedFrame_1Format = QImage::Format_Grayscale8;
-    //cv::Mat processedFrame_2;
-    //QImage::Format processedFrame_2Format = QImage::Format_BGR888;
-    //cv::Mat processedFrame_3;
-    //QImage::Format processedFrame_3Format = QImage::Format_BGR888;
-
-    //void process();
+    void testRunDataCb(int i, uint32_t, int64_t);
 
 public:
-    explicit TestRunWorker(QObject *parent = nullptr);
+    explicit TestRunWorker(QObject *parent = nullptr,
+                           struct TestRunConfig *tConfig = nullptr,
+                           struct ListenConfig *listenConfig = nullptr  );
+
 
     ~TestRunWorker() override;
 
 signals:
 
-   void sendData(int value);
+   void sendData(int, unsigned int, long);
 
     //void sendProcessedFrame(QImage frame1, QImage frame2, QImage frame3);
 

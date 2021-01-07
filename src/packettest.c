@@ -131,7 +131,7 @@ void initTestRunManager(struct TestRunManager *testRunManager) {
                                         TestRun_hash, TestRun_compare, NULL);
 }
 
-int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
+int initTestRun(struct TestRun *testRun, int32_t id, uint32_t maxNumPkts,
                 const struct FiveTuple *fiveTuple,
                 struct TestRunConfig *config, bool liveUpdate){
     if(liveUpdate){
@@ -152,6 +152,7 @@ int initTestRun(struct TestRun *testRun, uint32_t maxNumPkts,
     }
 
     testRun->fiveTuple = makeFiveTuple((struct sockaddr*)&fiveTuple->src, (struct sockaddr*)&fiveTuple->dst, fiveTuple->port);
+    testRun->id = id;
     testRun->maxNumTestData = maxNumPkts;
     testRun->done = false;
     testRun->numTestData = 0;
@@ -319,6 +320,10 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         saveTestData(&d, testRun->fptr);
         fflush(testRun->fptr);
     }
+    if(testRun->config.TestRun_live_cb != NULL){
+        testRun->config.TestRun_live_cb(testRun->id, d.pkt.seq, d.jitter_ns);
+    }
+
     if(llabs(d.jitter_ns) > llabs(testRun->stats.jitterInfo.maxJitter)){
         testRun->stats.jitterInfo.maxJitter = d.jitter_ns;
     }
@@ -494,7 +499,7 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
         newConf.pktConfig = pktConfig;
 
-        initTestRun(&testRun, pktConfig.numPktsToSend, fiveTuple, &newConf, false);
+        initTestRun(&testRun, 0, pktConfig.numPktsToSend, fiveTuple, &newConf, false);
 
         testRun.lastPktTime = *now;
         testRun.stats.startTest = *now;
