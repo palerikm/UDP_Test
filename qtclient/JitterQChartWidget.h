@@ -23,14 +23,20 @@ private:
     QThread *thread;
 
     int timerId;
-    int maxSize; // data stores at most maxSize elements
+    int maxSize; // txData stores at most maxSize elements
     int maxX;
     int maxY;
-    QList<double> data; // A list to store business data
-    QChart *chart;
-    QChartView *chartView;
-    QSplineSeries *splineSeries;
-    QScatterSeries *scatterSeries;
+    int nth;
+    QList<double> txData; // A list to store business txData
+    QList<double> rxData; // A list to store business txData
+    QChart *txChart;
+    QChart *rxChart;
+    QChartView *txChartView;
+    QChartView *rxChartView;
+
+    QLineSeries *txLineSeries;
+    QLineSeries *rxLineSeries;
+    //QScatterSeries *scatterSeries;
 
     void setup(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
 
@@ -82,14 +88,14 @@ private:
 
     void dataReceived(int value);
     int timerId;
-    int maxSize; // data stores at most maxSize elements
+    int maxSize; // txData stores at most maxSize elements
     int maxX;
     int maxY;
     int numPkts;
-    QList<double> data; // A list to store business data
-    QChart *chart;
-    QChartView *chartView;
-    QSplineSeries *splineSeries;
+    QList<double> txData; // A list to store business txData
+    QChart *txChart;
+    QChartView *txChartView;
+    QSplineSeries *txLineSeries;
     QScatterSeries *scatterSeries;
 };
 

@@ -90,17 +90,17 @@ void TestRunWorker::startTests()
 //        auto stopProcess = std::chrono::high_resolution_clock::now();
 //        auto durationProcess = std::chrono::duration_cast<std::chrono::microseconds>(stopProcess - stopReadFrame);
 //
-//        QImage outputOriginal(originalFrame.data, originalFrame.cols, originalFrame.rows, originalFrame.step,
+//        QImage outputOriginal(originalFrame.txData, originalFrame.cols, originalFrame.rows, originalFrame.step,
 //                              originalFrameFormat);
-//        QImage outputProcessed_1(processedFrame_1.data, processedFrame_1.cols, processedFrame_1.rows,
+//        QImage outputProcessed_1(processedFrame_1.txData, processedFrame_1.cols, processedFrame_1.rows,
 //                                 processedFrame_1.step,
 //                                 processedFrame_1Format);
 
-//        QImage outputProcessed_2(processedFrame_2.data, processedFrame_2.cols, processedFrame_2.rows,
+//        QImage outputProcessed_2(processedFrame_2.txData, processedFrame_2.cols, processedFrame_2.rows,
 //                                 processedFrame_2.step,
 //                                 processedFrame_2Format);
 
-//        QImage outputProcessed_3(processedFrame_3.data, processedFrame_3.cols, processedFrame_3.rows,
+//        QImage outputProcessed_3(processedFrame_3.txData, processedFrame_3.cols, processedFrame_3.rows,
 //                                 processedFrame_3.step,
 //                                 processedFrame_3Format);
 //

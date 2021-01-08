@@ -153,7 +153,7 @@ socketListenDemux(void* ptr)
                         exit(1);
                     }
 
-                    //printf("Got som data(%i): %s ", numbytes, buf);
+                    //printf("Got som txData(%i): %s ", numbytes, buf);
                     //char              addrStr[SOCKADDR_MAX_STRLEN];
                     //printf( "From '%s' \n",
                     //        sockaddr_toString( (struct sockaddr*)&their_addr,

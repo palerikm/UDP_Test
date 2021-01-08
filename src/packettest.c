@@ -67,7 +67,7 @@ bool TestRun_lingering_iter(const void *item, void *udata) {
     timespec_sub(&elapsed, &now, &(*testRun).lastPktTime);
     double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
 
-    //No data recieved last 5 sec.
+    //No txData recieved last 5 sec.
    // printf(" %f, ", sec);
     if(sec > 5){
         memcpy(udata, &item, sizeof(void *));

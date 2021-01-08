@@ -121,7 +121,7 @@ startDownStreamTests(void* ptr) {
         //clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
         //timeLastPacket = timeBeforeSendPacket;
 
-        //Lets prepare fill the next packet buffer with some usefull data.
+        //Lets prepare fill the next packet buffer with some usefull txData.
         int written = insertResponseData(buf + sizeof(pkt), sizeof(buf) - sizeof(pkt), seq, run);
         if(written > 0) {
             pthread_mutex_lock(&run->lock);
