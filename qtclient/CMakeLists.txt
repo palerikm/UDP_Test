@@ -15,6 +15,7 @@ find_package(Qt5 COMPONENTS Core Widgets Charts Quick REQUIRED)
 
 add_executable( udpqtclient udpqtclient.cpp
           JitterQChartWidget.cpp JitterQChartWidget.h
+        ControlWindow.cpp ControlWindow.h
         TestRunWorker.cpp TestRunWorker.h
         ../src/iphelper.c ../include/iphelper.h
          ../src/sockethelper.c ../include/sockethelper.h

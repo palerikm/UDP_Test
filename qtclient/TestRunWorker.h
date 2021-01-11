@@ -12,11 +12,12 @@ class TestRunWorker : public QObject {
 Q_OBJECT
 
 private:
-    struct TestRunConfig testRunConfig;
-    struct ListenConfig listenConfig;
+    struct TestRunConfig *testRunConfig;
+    struct ListenConfig *listenConfig;
     struct TestRunManager testRunManager;
 
     void testRunDataCb(int i, uint32_t, int64_t);
+    void testRunStatusCB(double mpbs, double ps);
 
 public:
     explicit TestRunWorker(QObject *parent = nullptr,
@@ -29,7 +30,8 @@ public:
 signals:
 
    void sendData(int, unsigned int, long);
-
+   void sendPktStatus(double, double );
+   void finished();
     //void sendProcessedFrame(QImage frame1, QImage frame2, QImage frame3);
 
     //void sendActualFps(int actualFps);
@@ -44,4 +46,5 @@ public slots:
     //void receiveGrabFrame();
 
     void startTests();
+    void stopTests();
 };

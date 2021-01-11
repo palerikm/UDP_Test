@@ -15,8 +15,16 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
 {
     ui->setupUi(this);
     //ui->labelView->setScaledContents(true);
-    ui->videoLabel->setScaledContents(true);
-    ui->processedLabel_1->setScaledContents(true);
+    //ui->rxJitter->setScaledContents(true);
+    //ui->txJitter->setScaledContents(true);
+    //ControlWindow
+    //
+
+    ctrlWindow = new ControlWindow(this, ui, tConfig, listenConfig);
+    ui->gridLayout->addWidget(ctrlWindow, 0, 0);
+    //ctrlWindow->show();
+    //ctrlWindow->raise();
+    //ctrlWindow->activateWindow();
 
 
     maxSize = 101; // Only store the latest 31 txData
@@ -25,11 +33,10 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     txLineSeries = new QSplineSeries();
     txLineSeries->setUseOpenGL(true);
 
-//    scatterSeries = new QScatterSeries();
-//    scatterSeries->setMarkerSize(8);
+
     txChart = new QChart();
     txChart->addSeries(txLineSeries);
-//    txChart->addSeries(scatterSeries);
+
     txChart->legend()->hide();
     txChart->setTitle("TX Jitter");
     txChart->createDefaultAxes();
@@ -37,13 +44,12 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     txChart->axes(Qt::Vertical).first()->setRange(-30, maxY);
     txChartView = new QChartView(txChart);
     txChartView->setRenderHint(QPainter::Antialiasing);
-    ui->gridLayout->addWidget(txChartView, 1, 0);
+    ui->gridLayout->addWidget(txChartView, 1, 1);
 
     rxLineSeries = new QSplineSeries();
     rxLineSeries->setUseOpenGL(true);
     rxChart = new QChart();
     rxChart->addSeries(rxLineSeries);
-//    txChart->addSeries(scatterSeries);
     rxChart->legend()->hide();
     rxChart->setTitle("RX Jitter");
     rxChart->createDefaultAxes();
@@ -51,9 +57,9 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     rxChart->axes(Qt::Vertical).first()->setRange(-30, maxY);
     rxChartView = new QChartView(rxChart);
     rxChartView->setRenderHint(QPainter::Antialiasing);
-    ui->gridLayout->addWidget(rxChartView, 2, 0);
+    ui->gridLayout->addWidget(rxChartView, 2, 1);
 
-    setup(tConfig, listenConfig);
+   // setup(tConfig, listenConfig);
 }
 
 JitterQChartWidget::~JitterQChartWidget()
@@ -65,33 +71,74 @@ JitterQChartWidget::~JitterQChartWidget()
     delete ui;
 }
 
-void JitterQChartWidget::setup(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig)
-{
+//void JitterQChartWidget::setup(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig)
+//{
+//    thread = new QThread();
+//    TestRunWorker *worker = new TestRunWorker(nullptr, tConfig, listenConfig);
+//
+//    connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
+//    connect(this, SIGNAL(sendStartTestWorker()), worker, SLOT(startTests()));
+//
+//    connect(worker, SIGNAL(sendData(int, unsigned int, long)), this, SLOT(receiveData(int, unsigned int, long)));
+//    connect(worker, SIGNAL(sendPktStatus(double, double)), this, SLOT(updatePktStatus(double, double)));
+//
+//
+//    connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
+//    worker->moveToThread(thread);
+//
+//
+//    thread->start();
+//
+//    emit sendStartTestWorker();
+//}
+
+void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig){
     thread = new QThread();
     TestRunWorker *worker = new TestRunWorker(nullptr, tConfig, listenConfig);
-
     connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
-    connect(this, SIGNAL(sendStartTests()), worker, SLOT(startTests()));
+    connect(this, SIGNAL(sendStartTestWorker()), worker, SLOT(startTests()));
+    connect(this, SIGNAL(sendStopTestWorker()), worker, SLOT(stopTests()), Qt::DirectConnection);
 
     connect(worker, SIGNAL(sendData(int, unsigned int, long)), this, SLOT(receiveData(int, unsigned int, long)));
-
+    connect(worker, SIGNAL(sendPktStatus(double, double)), this, SLOT(updatePktStatus(double, double)));
 
     connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
 
     worker->moveToThread(thread);
 
-
     thread->start();
 
-    emit sendStartTests();
+    emit sendStartTestWorker();
 }
-void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
 
-    if(seq < 2){
+void JitterQChartWidget::stopTest()
+{
+    std::cout<<"Trying to stop it.."<<std::endl;
+
+    //thread->terminate();
+    thread->quit();
+    emit sendStopTestWorker();
+}
+
+void JitterQChartWidget::updatePktStatus(double mbps, double ps){
+    //std::cout<<"mbps: "<<mbps<<" ps: "<<ps<<std::endl;
+    if (lcdNth % 20 != 0) {
+        lcdNth++;
         return;
     }
-    if(id == 1){
-        txData << (double)jitter / 1000000;
+    lcdNth = 1;
+    ui->lcdMps->display(mbps);
+    ui->lcdPs->display(ps);
+}
+
+
+void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
+
+    if (seq < 2) {
+        return;
+    }
+    if (id == 1) {
+        txData << (double) jitter / 1000000;
         while (txData.size() > maxSize) {
             txData.removeFirst();
         }
@@ -99,7 +146,7 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
     }
 
 
-    if(id == 2) {
+    if (id == 2) {
         rxData << (double) jitter / 1000000;
         while (rxData.size() > maxSize) {
             rxData.removeFirst();
@@ -109,22 +156,19 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         }
     }
     if (isVisible()) {
-        if(nth%5 != 0){
+        if (nth % 5 != 0) {
             nth++;
             return;
         }
-        nth=1;
+
+        nth = 1;
         txLineSeries->clear();
         rxLineSeries->clear();
 
-        int dx = maxX / (maxSize-1);
+        int dx = maxX / (maxSize - 1);
         int txLess = maxSize - txData.size();
         int rxLess = maxSize - txData.size();
-        int txStart = txData.size() - maxSize;
-        int rxStart = txData.size() - maxSize;
 
-        //txChart->axisX()->setRange(start,);
-        //
 
         double txMin = *std::min_element(txData.begin(), txData.end());
         double txMax = *std::max_element(txData.begin(), txData.end());
@@ -132,100 +176,20 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         double rxMax = *std::max_element(rxData.begin(), rxData.end());
         double maxY = txMax > rxMax ? txMax : rxMax;
         double minY = txMin < rxMin ? txMin : rxMin;
-        maxY*=1.5;
-        minY*=1.5;
+        maxY *= 1.5;
+        minY *= 1.5;
 
+        if(maxY> 10){
+            QApplication::beep();
+        }
         txChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
         for (int i = 0; i < txData.size(); ++i) {
             txLineSeries->append((txLess * dx + i * dx) - maxX, txData.at(i));
-            //scatterSeries->append((less*dx+i*dx)-maxX, txData.at(i));
-            //txLineSeries->append(numPkts+i, txData.at(i));
-            //scatterSeries->append(numPkts+i, txData.at(i));
         }
 
         rxChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
         for (int i = 0; i < rxData.size(); ++i) {
             rxLineSeries->append((rxLess * dx + i * dx) - maxX, rxData.at(i));
-            //scatterSeries->append((less*dx+i*dx)-maxX, txData.at(i));
-            //txLineSeries->append(numPkts+i, txData.at(i));
-            //scatterSeries->append(numPkts+i, txData.at(i));
         }
-
-
-    }
-
-
-
-// The number of txData exceeds the maximum number, delete the first received txData, and move the curve forward
-
-// There is no need to draw txData curves after the interface is hidden
-
-}
-
-#if 0
-JitterQChartWidget::JitterQChartWidget(QWidget *parent) : QWidget(parent), ui(new Ui::JitterQChartWidget){
-    maxSize = 101; // Only store the latest 31 txData
-    maxX = 300;
-    maxY = 100;
-    numPkts = 0;
-    txLineSeries = new QSplineSeries();
-    scatterSeries = new QScatterSeries();
-    scatterSeries->setMarkerSize(8);
-    txChart = new QChart();
-    txChart->addSeries(txLineSeries);
-    txChart->addSeries(scatterSeries);
-    txChart->legend()->hide();
-    txChart->setTitle("Real-time dynamic curve");
-    txChart->createDefaultAxes();
-    txChart->axisX()->setRange(0, 300);
-    txChart->axisY()->setRange(0, maxY);
-    txChartView = new QChartView(txChart);
-    txChartView->setRenderHint(QPainter::Antialiasing);
-    QHBoxLayout *layout = new QHBoxLayout();
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(txChartView);
-    setLayout(layout);
-    timerId = startTimer(100);
-    qsrand(QDateTime::currentDateTime().toTime_t());
-}
-
-
-JitterQChartWidget::~JitterQChartWidget() {
-}
-void JitterQChartWidget::timerEvent(QTimerEvent *event) {
-// Generate a txData to simulate the continuous reception of new txData
-    if (event->timerId() == timerId) {
-        int newData = qrand() % (maxY + 1);
-        dataReceived(newData);
     }
 }
-void JitterQChartWidget::dataReceived(int value) {
-    txData << value;
-    //numPkts++;
-// The number of txData exceeds the maximum number, delete the first received txData, and move the curve forward
-    //while (txData.size() > maxSize) {
-    //    txData.removeFirst();
-    //}
-// There is no need to draw txData curves after the interface is hidden
-    if (isVisible()) {
-        txLineSeries->clear();
-        scatterSeries->clear();
-
-        int dx = maxX / (maxSize-1);
-        int less = maxSize - txData.size();
-        int start = txData.size() - maxSize;
-        if(start < 0){
-            start = 0;
-        }
-        txChart->axisX()->setRange(start,txData.size());
-        for (int i = start; i < txData.size(); ++i) {
-            //txLineSeries->append((less*dx+i*dx)+numPkts, txData.at(i));
-            //scatterSeries->append((less*dx+i*dx)+numPkts, txData.at(i));
-            txLineSeries->append(numPkts+i, txData.at(i));
-            scatterSeries->append(numPkts+i, txData.at(i));
-        }
-
-    }
-
-}
-#endif

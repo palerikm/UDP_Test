@@ -26,23 +26,30 @@ struct Callback<Ret(Params...)> {
 template <typename Ret, typename... Params>
 std::function<Ret(Params...)> Callback<Ret(Params...)>::func;
 
-typedef void (*callback_t)(int, uint32_t, int64_t);
+typedef void (*TestRun_live_cb)(int, uint32_t, int64_t);
+typedef void (*TestRun_status_cb)(double, double);
 
 TestRunWorker::TestRunWorker(QObject *parent,
                              struct TestRunConfig *tConfig,
                                      struct ListenConfig *listenConfig) :
         QObject(parent)
 {
-    memcpy(&testRunConfig, tConfig, sizeof(testRunConfig));
+    //memcpy(&testRunConfig, tConfig, sizeof(testRunConfig));
+    this->testRunConfig = tConfig;
+    this->listenConfig = listenConfig;
 
 
     Callback<void(int, uint32_t, int64_t)>::func = std::bind(&TestRunWorker::testRunDataCb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-    callback_t func = static_cast<callback_t>(Callback<void(int, uint32_t, int64_t)>::callback);
+    TestRun_live_cb func = static_cast<TestRun_live_cb>(Callback<void(int, uint32_t, int64_t)>::callback);
+    testRunConfig->TestRun_live_cb = func;
 
-    testRunConfig.TestRun_live_cb = func;
-   memcpy( &this->listenConfig, listenConfig, sizeof(struct ListenConfig));
+    Callback<void(double,double)>::func = std::bind(&TestRunWorker::testRunStatusCB, this, std::placeholders::_1, std::placeholders::_2);
+    TestRun_status_cb status_cb = static_cast<TestRun_status_cb>(Callback<void(double, double)>::callback);
+    testRunConfig->TestRun_status_cb = status_cb;
+
+    //memcpy( &this->listenConfig, listenConfig, sizeof(struct ListenConfig));
     /* Setting up UDP socket  */
-    setupSocket(&this->listenConfig, &this->listenConfig);
+    setupSocket(this->listenConfig, this->listenConfig);
 
     initTestRunManager(&testRunManager);
 
@@ -54,11 +61,6 @@ TestRunWorker::~TestRunWorker()
 }
 
 
-//void OpenCvWorker::process() {
-//    pBackSub->apply(originalFrame, processedFrame_1);
-//    cv::flip(originalFrame, processedFrame_2, 1);
-//    processedFrame_3 = originalFrame.clone();
-//}
 
 void TestRunWorker::testRunDataCb(int i, uint32_t seq, int64_t jitter)
 {
@@ -66,51 +68,24 @@ void TestRunWorker::testRunDataCb(int i, uint32_t seq, int64_t jitter)
     emit sendData(i, seq, jitter);
 }
 
+void TestRunWorker::testRunStatusCB(double mbps, double ps){
+   emit sendPktStatus(mbps, ps);
+}
 
 void TestRunWorker::startTests()
 {
-    addTxAndRxTests(&testRunConfig, &testRunManager, &listenConfig);
-    int sockfd = startListenThread(&testRunManager, &listenConfig);
-    runAllTests(sockfd, &testRunConfig, &testRunManager, &listenConfig);
-
-    srand( (unsigned)time(NULL) );
-
+    addTxAndRxTests(testRunConfig, &testRunManager, listenConfig);
+    int sockfd = startListenThread(&testRunManager, listenConfig);
+    runAllTests(sockfd, testRunConfig, &testRunManager, listenConfig);
+    emit finished();
 
 }
 
-//void OpenCvWorker::receiveGrabFrame() {
-//    auto start = std::chrono::high_resolution_clock::now();
-//    if (mp->readFrame(originalFrame)) {
-//
-//       auto stopReadFrame = std::chrono::high_resolution_clock::now();
-//        auto durationReadFrame = std::chrono::duration_cast<std::chrono::microseconds>(stopReadFrame - start);
-//
-//        process();
-//
-//        auto stopProcess = std::chrono::high_resolution_clock::now();
-//        auto durationProcess = std::chrono::duration_cast<std::chrono::microseconds>(stopProcess - stopReadFrame);
-//
-//        QImage outputOriginal(originalFrame.txData, originalFrame.cols, originalFrame.rows, originalFrame.step,
-//                              originalFrameFormat);
-//        QImage outputProcessed_1(processedFrame_1.txData, processedFrame_1.cols, processedFrame_1.rows,
-//                                 processedFrame_1.step,
-//                                 processedFrame_1Format);
+void TestRunWorker::stopTests()
+{
+    
 
-//        QImage outputProcessed_2(processedFrame_2.txData, processedFrame_2.cols, processedFrame_2.rows,
-//                                 processedFrame_2.step,
-//                                 processedFrame_2Format);
+    std::cout<<"Stopping tests.."<<std::endl;
 
-//        QImage outputProcessed_3(processedFrame_3.txData, processedFrame_3.cols, processedFrame_3.rows,
-//                                 processedFrame_3.step,
-//                                 processedFrame_3Format);
-//
-
-//        emit sendFrame(outputOriginal);
-//        emit sendProcessedFrame(outputProcessed_1, outputProcessed_2, outputProcessed_3);
-//        emit sendActualFps(mp->getActualFps());
-//        emit sendFrameReadTime(durationReadFrame.count() / 1000);
-//        emit sendProcessTime(durationProcess.count() / 1000);
-//    }
-
-//}
+}
 

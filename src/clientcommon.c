@@ -146,7 +146,18 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
                    (const struct sockaddr *) &txFiveTuple->dst,
                    0, (*testRunConfig).pktConfig.dscp, 0);
 
-        printStats(testRunManager, &timingInfo.timeBeforeSendPacket, &timingInfo.startOfTest, numPkt, (*testRunConfig).pktConfig.numPktsToSend, (*testRunConfig).pktConfig.pkt_size );
+        if(testRunConfig->TestRun_status_cb != NULL){
+            struct timespec elapsed = {0,0};
+            timespec_sub(&elapsed, &timingInfo.timeBeforeSendPacket, &timingInfo.startOfTest);
+            double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
+            double mbps = (((double)(testRunConfig->pktConfig.pkt_size *numPkt * 8) / sec)/ 1000000);
+            double ps = numPkt / sec;
+            testRunConfig->TestRun_status_cb(mbps, ps);
+            //printf("\r(Mbps : %f, p/s: %f Progress: %i %%)", (((pktSize *numPkts * 8) / sec) / 1000000), numPkts / sec, done);
+        }else {
+            printStats(testRunManager, &timingInfo.timeBeforeSendPacket, &timingInfo.startOfTest, numPkt,
+                       (*testRunConfig).pktConfig.numPktsToSend, (*testRunConfig).pktConfig.pkt_size);
+        }
         //Do I sleep or am I bursting..
         sleepBeforeNextBurst(&timingInfo, (*testRunConfig).pktConfig.pktsInBurst, &currBurstIdx, &(*testRunConfig).pktConfig.delay);
 

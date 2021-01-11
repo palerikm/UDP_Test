@@ -8,6 +8,8 @@
 #include <QChart>
 #include <QChartView>
 
+#include "ControlWindow.h"
+
 using namespace QtCharts;
 
 namespace Ui {
@@ -20,6 +22,9 @@ Q_OBJECT
 
 private:
     Ui::JitterQChartWidget *ui;
+
+    ControlWindow *ctrlWindow;
+
     QThread *thread;
 
     int timerId;
@@ -38,7 +43,12 @@ private:
     QLineSeries *rxLineSeries;
     //QScatterSeries *scatterSeries;
 
-    void setup(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
+
+    int lcdNth;
+
+
+
+    //void setup(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
 
 public:
     explicit JitterQChartWidget(QWidget *parent = 0, struct TestRunConfig *tConfig = nullptr, struct ListenConfig *listenConfig = nullptr);
@@ -51,12 +61,17 @@ protected:
 
 
 signals:
-
-    void sendStartTests();
+    void sendStartTestWorker();
+    void sendStopTestWorker();
 
 
 private slots:
     void receiveData(int, unsigned int, long);
+    void updatePktStatus(double mbs, double ps);
+
+    void startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
+    void stopTest();
+
     //void receiveFrame(QImage frame);
 
     //void receiveProcessedFrame(QImage frame1, QImage frame2, QImage frame3);
@@ -67,36 +82,3 @@ private slots:
 
     //void receiveProcessTime(int time);
 };
-
-#if 0
-using namespace QtCharts;
-
-class JitterQChartWidget : public QWidget {
-    Q_OBJECT
-
-public:
-    explicit JitterQChartWidget(QWidget *parent = 0);
-    ~JitterQChartWidget();
-
-protected:
-    void timerEvent(QTimerEvent *event) Q_DECL_OVERRIDE;
-
-private:
-    Ui::JitterQChartWidget *ui;
-    QThread *thread;
-
-
-    void dataReceived(int value);
-    int timerId;
-    int maxSize; // txData stores at most maxSize elements
-    int maxX;
-    int maxY;
-    int numPkts;
-    QList<double> txData; // A list to store business txData
-    QChart *txChart;
-    QChartView *txChartView;
-    QSplineSeries *txLineSeries;
-    QScatterSeries *scatterSeries;
-};
-
-#endif

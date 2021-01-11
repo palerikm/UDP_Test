@@ -75,6 +75,7 @@ struct TestData{
 struct TestRunConfig{
     char testName[MAX_TESTNAME_LEN];
     void (* TestRun_live_cb)(int, uint32_t seq, int64_t);
+    void (* TestRun_status_cb)(double mbps, double ps);
     struct TestRunPktConfig pktConfig;
 };
 
