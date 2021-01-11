@@ -111,7 +111,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
     int numPkts_to_send = testRunConfig->pktConfig.numPktsToSend;
     uint8_t buf[(*testRunConfig).pktConfig.pkt_size];
     memset(&buf, 43, sizeof(buf));
-    bool done = false;
+
     struct TestPacket pkt;
     int currBurstIdx = 0;
 
@@ -131,7 +131,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
     clock_gettime(CLOCK_MONOTONIC_RAW, &timingInfo.startBurst);
     timeStartTest(&timingInfo);
     timeStartBurst(&timingInfo);
-    while(!done){
+    while(!testRunManager->done){
         numPkt++;
         struct TestRunResponse r = getResponse(respRun);
 
@@ -169,7 +169,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
             if(r.lastSeqConfirmed == (*testRunConfig).pktConfig.numPktsToSend) {
                 struct TestRun *txrun = findTestRun(testRunManager, txFiveTuple);
                 txrun->done = true;
-                done = true;
+                testRunManager->done = true;
             }
         }
 

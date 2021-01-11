@@ -114,6 +114,7 @@ struct TestRun{
 
 struct TestRunManager{
     struct hashmap *map;
+    bool done;
 };
 
 void initTestRunManager(struct TestRunManager *testRunManager);

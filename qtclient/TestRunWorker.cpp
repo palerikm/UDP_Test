@@ -57,6 +57,9 @@ TestRunWorker::TestRunWorker(QObject *parent,
 
 TestRunWorker::~TestRunWorker()
 {
+    std::cout<<"I am dying---"<<std::endl;
+    testRunConfig->TestRun_status_cb = nullptr;
+    testRunConfig->TestRun_live_cb = nullptr;
    // mp = nullptr;
 }
 
@@ -77,15 +80,20 @@ void TestRunWorker::startTests()
     addTxAndRxTests(testRunConfig, &testRunManager, listenConfig);
     int sockfd = startListenThread(&testRunManager, listenConfig);
     runAllTests(sockfd, testRunConfig, &testRunManager, listenConfig);
+    //waitForResponses(testRunConfig, &testRunManager);
+    pruneLingeringTestRuns(&testRunManager);
+    freeTestRunManager(&testRunManager);
+    ::close(sockfd);
+     std::cout<<"\nMy work is done emiting finished\n"<<std::endl;
     emit finished();
 
 }
 
 void TestRunWorker::stopTests()
 {
-    
+
 
     std::cout<<"Stopping tests.."<<std::endl;
-
+    testRunManager.done = true;
 }
 

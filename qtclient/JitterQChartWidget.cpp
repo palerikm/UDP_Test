@@ -59,6 +59,7 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     rxChartView->setRenderHint(QPainter::Antialiasing);
     ui->gridLayout->addWidget(rxChartView, 2, 1);
 
+    thread = new QThread();
    // setup(tConfig, listenConfig);
 }
 
@@ -93,7 +94,10 @@ JitterQChartWidget::~JitterQChartWidget()
 //}
 
 void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig){
-    thread = new QThread();
+    txData.clear();
+    rxData.clear();
+
+
     TestRunWorker *worker = new TestRunWorker(nullptr, tConfig, listenConfig);
     connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
     connect(this, SIGNAL(sendStartTestWorker()), worker, SLOT(startTests()));
@@ -102,7 +106,6 @@ void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenC
     connect(worker, SIGNAL(sendData(int, unsigned int, long)), this, SLOT(receiveData(int, unsigned int, long)));
     connect(worker, SIGNAL(sendPktStatus(double, double)), this, SLOT(updatePktStatus(double, double)));
 
-    connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
 
     worker->moveToThread(thread);
 
@@ -116,8 +119,15 @@ void JitterQChartWidget::stopTest()
     std::cout<<"Trying to stop it.."<<std::endl;
 
     //thread->terminate();
-    thread->quit();
+
     emit sendStopTestWorker();
+    std::cout<<"Thread quit"<<std::endl;
+    thread->quit();
+
+    thread->wait();
+    std::cout<<"Thread wait done"<<std::endl;
+   // thread->terminate();
+
 }
 
 void JitterQChartWidget::updatePktStatus(double mbps, double ps){

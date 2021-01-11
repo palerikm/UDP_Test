@@ -129,6 +129,7 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 void initTestRunManager(struct TestRunManager *testRunManager) {
     (*testRunManager).map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
                                         TestRun_hash, TestRun_compare, NULL);
+    (*testRunManager).done = false;
 }
 
 int initTestRun(struct TestRun *testRun, int32_t id, uint32_t maxNumPkts,
