@@ -46,7 +46,7 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
 
     ui->pktSize->setRange(20, 1500);
     ui->pktSize->setValue(this->tConfig->pktConfig.pkt_size);
-    
+
     ui->burst->setRange(0,10);
     ui->burst->setValue( this->tConfig->pktConfig.pktsInBurst);
 
