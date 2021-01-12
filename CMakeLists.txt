@@ -42,7 +42,7 @@ set_property(TARGET sockaddrutil PROPERTY IMPORTED_LOCATION "${install_dir}/lib/
 add_dependencies(sockaddrutil project_sockaddrutil)
 
 # Find the QtWidgets library
-find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
+find_package(Qt5 COMPONENTS Core Widgets)
 
 
 ## include the parts
