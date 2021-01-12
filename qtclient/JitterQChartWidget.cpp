@@ -178,24 +178,28 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         int rxLess = maxSize - txData.size();
 
 
-        double txMin = *std::min_element(txData.begin(), txData.end());
+       // double txMin = *std::min_element(txData.begin(), txData.end());
         double txMax = *std::max_element(txData.begin(), txData.end());
-        double rxMin = *std::min_element(rxData.begin(), rxData.end());
+       // double rxMin = *std::min_element(rxData.begin(), rxData.end());
         double rxMax = *std::max_element(rxData.begin(), rxData.end());
         double maxY = txMax > rxMax ? txMax : rxMax;
-        double minY = txMin < rxMin ? txMin : rxMin;
-        maxY *= 1.5;
-        minY *= 1.5;
+       // double minY = txMin < rxMin ? txMin : rxMin;
+        maxY *= 1.1;
+        //minY *= 1.5;
 
         //if(maxY> 10){
         //    QApplication::beep();
         //}
-        txChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
+        //txChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
+        txChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
+
         for (int i = 0; i < txData.size(); ++i) {
             txLineSeries->append((txLess * dx + i * dx) - maxX, txData.at(i));
         }
 
-        rxChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
+        //rxChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
+        rxChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
+
         for (int i = 0; i < rxData.size(); ++i) {
             rxLineSeries->append((rxLess * dx + i * dx) - maxX, rxData.at(i));
         }

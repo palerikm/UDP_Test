@@ -92,8 +92,8 @@ startDownStreamTests(void* ptr) {
 
 
     memset(buf, 67, sizeof(buf));
-    int numPkts_to_send = run->config.pktConfig.numPktsToSend;
-    int numPkt = -1;
+   // int numPkts_to_send = run->config.pktConfig.numPktsToSend;
+    int numPkt = 0;
     bool done = false;
     while(!done){
         numPkt++;
@@ -103,7 +103,8 @@ startDownStreamTests(void* ptr) {
         //timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
 
 
-        uint32_t seq = numPkt>=numPkts_to_send ? numPkts_to_send : numPkt +1;
+        //uint32_t seq = numPkt>=numPkts_to_send ? numPkts_to_send : numPkt +1;
+        uint32_t seq = numPkt;
         fillPacket(&pkt, 0, seq , in_progress_test_cmd,
                    &timingInfo.timeSinceLastPkt, NULL);
         memcpy(buf, &pkt, sizeof(pkt));
@@ -302,10 +303,8 @@ main(int   argc,
     listenConfig.numSockets             = 1;
 
     struct TestRunManager testRunManager;
-    //testRunManager.defaultConfig = testConfig;
-    testRunManager.map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
-                                     TestRun_hash, TestRun_compare, NULL);
 
+    initTestRunManager(&testRunManager);
 
     listenConfig.tInst = &testRunManager;
 

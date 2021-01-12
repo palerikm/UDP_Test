@@ -88,7 +88,7 @@ void TestRunWorker::startTests()
     freeTestRunManager(&testRunManager);
 
 
-
+    std::cout<<"\nTestRunWorker waiting for listenthread to finish..\n"<<std::endl;
     listenConfig->running = false;
     pthread_join(listenConfig->socketListenThread, nullptr);
 

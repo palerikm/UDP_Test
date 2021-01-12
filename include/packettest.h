@@ -9,6 +9,8 @@ extern "C"
 {
 #endif
 
+
+#define TEST_DATA_INCREMENT_SIZE 10000
 #define TEST_PKT_COOKIE 0x0023
 #define TEST_RESP_PKT_COOKIE 0x1423
 #define MAX_TESTNAME_LEN 33
@@ -129,7 +131,7 @@ bool TestRun_bw_iter(const void *item, void *udata);
 
 
 int freeTestRun(struct TestRun *testRun);
-int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);
+int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);
 int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);

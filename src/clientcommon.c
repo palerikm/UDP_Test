@@ -15,8 +15,14 @@ void printStats(struct TestRunManager *mngr, const struct timespec *now, const s
         struct timespec elapsed = {0,0};
         timespec_sub(&elapsed, now, startOfTest);
         double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
-        int done = ((double)numPkts / (double)numPktsToSend)*100;
-        printf("\r(Mbps : %f, p/s: %f Progress: %i %%)", (((pktSize *numPkts * 8) / sec) / 1000000), numPkts / sec, done);
+
+
+        printf("\r(Mbps : %f, p/s: %f ", (((pktSize *numPkts * 8) / sec) / 1000000), (numPkts / sec));
+        if(numPktsToSend > 0){
+            int doneP = ((double)numPkts / (double)numPktsToSend)*100;
+            printf("Progress: %i %%)", doneP);
+        }
+
         fflush(stdout);
     }
 }
@@ -33,7 +39,7 @@ addTxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig txConfig;
     memcpy(&txConfig, testRunConfig, sizeof(txConfig));
     strncat(txConfig.testName, "_tx\0", 5);
-    initTestRun(txTestRun, testRunManager,1, txConfig.pktConfig.numPktsToSend, txFiveTuple, &txConfig, true);
+    initTestRun(txTestRun, testRunManager,1, txFiveTuple, &txConfig, true);
     clock_gettime(CLOCK_MONOTONIC_RAW, &txTestRun->lastPktTime);
     txTestRun->stats.startTest = txTestRun->lastPktTime;
     hashmap_set((*testRunManager).map, txTestRun);
@@ -54,7 +60,7 @@ addRxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig rxConfig;
     memcpy(&rxConfig, testRunConfig, sizeof(rxConfig));
     strncat(rxConfig.testName, "_rx\0", 5);
-    initTestRun(rxTestRun, testRunManager,2, rxConfig.pktConfig.numPktsToSend, rxFiveTuple, &rxConfig, true);
+    initTestRun(rxTestRun, testRunManager,2, rxFiveTuple, &rxConfig, true);
     clock_gettime(CLOCK_MONOTONIC_RAW, &rxTestRun->lastPktTime);
     rxTestRun->stats.startTest = rxTestRun->lastPktTime;
 
@@ -81,15 +87,20 @@ void sendStarOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int 
     uint8_t endBuf[cfg->pktConfig.pkt_size];
     memcpy(endBuf, &startPkt, sizeof(struct TestPacket));
     memcpy(endBuf+sizeof(startPkt), &cfg->pktConfig, sizeof(struct TestRunPktConfig));
+
+
+    //FIXme!!!!
+    struct TestRunConfig tmpCfg;
+    memcpy(&tmpCfg, cfg, sizeof(tmpCfg));
+    tmpCfg.pktConfig.numPktsToSend = 10000;
+    memcpy(endBuf+sizeof(startPkt), &tmpCfg.pktConfig, sizeof(struct TestRunPktConfig));
+
+
     for(int j=0;j<10;j++){
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
                    (const struct sockaddr*)&fiveTuple->dst,
                    0, cfg->pktConfig.dscp, 0 );
-
-
-        //addTestDataFromBuf(mng, fiveTuple,
-        //                    endBuf, sizeof(endBuf), &now);
 
         nanosleep(&cfg->pktConfig.delay, &remaining);
     }
@@ -108,7 +119,7 @@ struct TestRunResponse getResponse(const struct TestRun *respRun) {
 
 int runTests(int sockfd, struct FiveTuple *txFiveTuple,
              struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager) {
-    int numPkt = -1;
+    int numPkt = 0;
     int numPkts_to_send = testRunConfig->pktConfig.numPktsToSend;
     uint8_t buf[(*testRunConfig).pktConfig.pkt_size];
     memset(&buf, 43, sizeof(buf));
@@ -138,10 +149,14 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
 
         timeSendPacket(&timingInfo);
 
-        uint32_t seq = numPkt >= numPkts_to_send ? numPkts_to_send : numPkt + 1;
+        //uint32_t seq = numPkt >= numPkts_to_send ? numPkts_to_send : numPkt + 1;
+
+        uint32_t seq = numPkt;
         fillPacket(&pkt, 23, seq, in_progress_test_cmd,
                    &timingInfo.timeSinceLastPkt, &r);
         memcpy(buf, &pkt, sizeof(pkt));
+
+        //printf("Sending packet (%i)\n", seq);
 
         sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
                    (const struct sockaddr *) &txFiveTuple->dst,
@@ -165,8 +180,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
         //Staring a new burst when we start at top of for loop.
         timeStartBurst(&timingInfo);
 
-        if(numPkt > numPkts_to_send){
-
+        if(numPkts_to_send > 0 && numPkt > numPkts_to_send){
             if(r.lastSeqConfirmed == (*testRunConfig).pktConfig.numPktsToSend) {
                 struct TestRun *txrun = findTestRun(testRunManager, txFiveTuple);
                 txrun->done = true;
@@ -229,6 +243,7 @@ packetHandler(struct ListenConfig* config,
               void*                cb,
               unsigned char*       buf,
               int                  buflen) {
+
     struct timespec now, result;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     struct TestRunManager *mngr = config->tInst;
@@ -239,7 +254,6 @@ packetHandler(struct ListenConfig* config,
 
 
     int pos = addTestDataFromBuf(mngr, tuple, buf, buflen, &now);
-    // printf("Got a packet..(%i)\n", pos);
 
     if(pos<0){
         printf("Encountered error while processing incoming UDP packet\n");

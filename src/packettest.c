@@ -130,9 +130,12 @@ void initTestRunManager(struct TestRunManager *testRunManager) {
     (*testRunManager).map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
                                         TestRun_hash, TestRun_compare, NULL);
     (*testRunManager).done = false;
+    (*testRunManager).TestRun_status_cb = NULL;
+    (*testRunManager).TestRun_live_cb = NULL;
+
 }
 
-int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id, uint32_t maxNumPkts,
+int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id,
                 const struct FiveTuple *fiveTuple,
                 struct TestRunConfig *config, bool liveUpdate){
     testRun->mngr = mngr;
@@ -155,7 +158,11 @@ int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id
 
     testRun->fiveTuple = makeFiveTuple((struct sockaddr*)&fiveTuple->src, (struct sockaddr*)&fiveTuple->dst, fiveTuple->port);
     testRun->id = id;
-    testRun->maxNumTestData = maxNumPkts;
+    if(config->pktConfig.numPktsToSend == 0) {
+        testRun->maxNumTestData = TEST_DATA_INCREMENT_SIZE;
+    }else{
+        testRun->maxNumTestData = config->pktConfig.numPktsToSend;
+    }
     testRun->done = false;
     testRun->numTestData = 0;
 
@@ -246,9 +253,14 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     }
    // printf("  Name: %s (%i)\n", testRun->config.testName,testRun->numTestData);
     if(testRun->numTestData >= testRun->maxNumTestData){
-        testRun->stats.endTest = *now;
-      //  printf("  To much testData %i out of %i Bailing..\n",testRun->numTestData, testRun->maxNumTestData);
-        return -2;
+        //testRun->testData = malloc(sizeof(struct TestData)* testRun->maxNumTestData);
+        testRun->maxNumTestData+= TEST_DATA_INCREMENT_SIZE;
+        testRun->testData = realloc(testRun->testData, sizeof(struct TestData)* testRun->maxNumTestData );
+        if(testRun->testData == NULL ) {
+            testRun->stats.endTest = *now;
+            printf("  To much testData %i out of %i Bailing..\n",testRun->numTestData, testRun->maxNumTestData);
+            return -2;
+        }
     }
 
     //Start of test?
@@ -501,7 +513,7 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
         newConf.pktConfig = pktConfig;
 
-        initTestRun(&testRun, mng, 0, pktConfig.numPktsToSend, fiveTuple, &newConf, false);
+        initTestRun(&testRun, mng, 0, fiveTuple, &newConf, false);
 
         testRun.lastPktTime = *now;
         testRun.stats.startTest = *now;

@@ -43,7 +43,7 @@ void configure(struct TestRunConfig* config,
     /* set config to default values */
     strncpy(listenConfig->interface, "default", 7);
     listenConfig->port  = 5004;
-    config->pktConfig.numPktsToSend = 3000;
+    config->pktConfig.numPktsToSend = 0;
     config->pktConfig.delay.tv_sec = 0;
     config->pktConfig.delay.tv_nsec = 20000000L;
     config->pktConfig.pktsInBurst = 1;

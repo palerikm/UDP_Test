@@ -166,7 +166,7 @@ main(int   argc,
     configure(&testRunConfig, &listenConfig,  argc, argv);
 
     /* Setting up UDP socket  */
-    setupSocket(&listenConfig, &listenConfig);
+    setupSocket(&listenConfig);
 
     /* at least close the socket if we get a signal.. */
     signal(SIGINT, teardown);

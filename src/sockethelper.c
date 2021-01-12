@@ -122,14 +122,15 @@ socketListenDemux(void* ptr)
 
     while (config->running)
     {
-        rv = poll(ufds, config->numSockets, -1);
+        rv = poll(ufds, config->numSockets, 500);
         if (rv == -1)
         {
             perror("poll");       /* error occurred in poll() */
         }
         else if (rv == 0)
         {
-            printf("Timeout occurred! (Should not happen)\n");
+            continue;
+           // printf("Timeout occurred! (Should not happen)\n");
         }
         else
         {
@@ -152,14 +153,6 @@ socketListenDemux(void* ptr)
                         perror("recvfrom");
                         exit(10);
                     }else {
-
-                        //printf("Got som txData(%i): %s ", numbytes, buf);
-                        //char              addrStr[SOCKADDR_MAX_STRLEN];
-                        //printf( "From '%s' \n",
-                        //        sockaddr_toString( (struct sockaddr*)&their_addr,
-                        //                           addrStr,
-                        //                           sizeof(addrStr),
-                        //                           false ) );
                         config->pkt_handler(config, (struct sockaddr *) &their_addr, NULL, (unsigned char *) &buf,
                                             numbytes);
                     }
@@ -173,7 +166,6 @@ socketListenDemux(void* ptr)
         config->numSockets = 0;
 
     }
-    printf("Listen thread finished..\n");
     return 0;
 }
 
@@ -260,7 +252,7 @@ sendPacket(int                    sockHandle,
                        sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) ) == -1 )
         {
             perror("sendto");
-            exit(7);
+            //(7);
         }
     }
 }
