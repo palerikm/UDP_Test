@@ -40,10 +40,17 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
     ui->destination->setText(addrStr);
 
     int64_t delay = timespec_to_msec( &this->tConfig->pktConfig.delay );
-    ui->delay->setText( QString::number(delay) );
+    ui->delay->setRange(0,200);
+    ui->delay->setValue(delay);
+    //ui->delay->setText( QString::number(delay) );
 
-    ui->pktSize->setText( QString::number( this->tConfig->pktConfig.pkt_size));
-    ui->burst->setText( QString::number( this->tConfig->pktConfig.pktsInBurst));
+    ui->pktSize->setRange(20, 1500);
+    ui->pktSize->setValue(this->tConfig->pktConfig.pkt_size);
+    
+    ui->burst->setRange(0,10);
+    ui->burst->setValue( this->tConfig->pktConfig.pktsInBurst);
+
+
     ui->dscp->setText( "0x"+ QString::number( this->tConfig->pktConfig.dscp, 16));
 
     // Connect button signal to appropriate slot
