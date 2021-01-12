@@ -32,6 +32,8 @@ struct ListenConfig {
                           void*,
                           unsigned char*,
                           int);
+    pthread_t socketListenThread;
+    bool running;
 };
 
 int

@@ -148,8 +148,7 @@ int main(int argc, char *argv[]) {
 
     /* Read cmd line arguments and set it up */
     configure(&testRunConfig, &listenConfig,  argc, argv);
-    /* Setting up UDP socket  */
-    setupSocket(&listenConfig, &listenConfig);
+
 
 
 

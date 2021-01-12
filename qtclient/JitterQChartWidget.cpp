@@ -118,10 +118,8 @@ void JitterQChartWidget::stopTest()
 {
     std::cout<<"Trying to stop it.."<<std::endl;
 
-    //thread->terminate();
-
     emit sendStopTestWorker();
-    std::cout<<"Thread quit"<<std::endl;
+
     thread->quit();
 
     thread->wait();
@@ -166,7 +164,7 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         }
     }
     if (isVisible()) {
-        if (nth % 5 != 0) {
+        if (nth % 15 != 0) {
             nth++;
             return;
         }
@@ -189,9 +187,9 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         maxY *= 1.5;
         minY *= 1.5;
 
-        if(maxY> 10){
-            QApplication::beep();
-        }
+        //if(maxY> 10){
+        //    QApplication::beep();
+        //}
         txChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
         for (int i = 0; i < txData.size(); ++i) {
             txLineSeries->append((txLess * dx + i * dx) - maxX, txData.at(i));

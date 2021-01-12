@@ -45,7 +45,7 @@ createLocalSocket(int                    ai_family,
     if ( ( rv = getaddrinfo(addr, service, &hints, &ai) ) != 0 )
     {
         fprintf(stderr, "selectserver: %s ('%s')\n", gai_strerror(rv), addr);
-        exit(1);
+        exit(11);
     }
 
     for (p = ai; p != NULL; p = p->ai_next)
@@ -110,7 +110,7 @@ socketListenDemux(void* ptr)
     int rv;
     /* int                     numbytes; */
     int i;
-
+    config->running = true;
 
     for (i = 0; i < config->numSockets; i++)
     {
@@ -120,7 +120,7 @@ socketListenDemux(void* ptr)
 
     /*  */
 
-    while (1)
+    while (config->running)
     {
         rv = poll(ufds, config->numSockets, -1);
         if (rv == -1)
@@ -150,22 +150,31 @@ socketListenDemux(void* ptr)
                                             &addr_len) ) == -1 )
                     {
                         perror("recvfrom");
-                        exit(1);
+                        exit(10);
+                    }else {
+
+                        //printf("Got som txData(%i): %s ", numbytes, buf);
+                        //char              addrStr[SOCKADDR_MAX_STRLEN];
+                        //printf( "From '%s' \n",
+                        //        sockaddr_toString( (struct sockaddr*)&their_addr,
+                        //                           addrStr,
+                        //                           sizeof(addrStr),
+                        //                           false ) );
+                        config->pkt_handler(config, (struct sockaddr *) &their_addr, NULL, (unsigned char *) &buf,
+                                            numbytes);
                     }
-
-                    //printf("Got som txData(%i): %s ", numbytes, buf);
-                    //char              addrStr[SOCKADDR_MAX_STRLEN];
-                    //printf( "From '%s' \n",
-                    //        sockaddr_toString( (struct sockaddr*)&their_addr,
-                    //                           addrStr,
-                    //                           sizeof(addrStr),
-                    //                           false ) );
-                    config->pkt_handler(config,(struct sockaddr*)&their_addr, NULL, (unsigned char*)&buf, numbytes );
-
                 }
             }
         }
     }
+    for (i = 0; i < config->numSockets; i++)
+    {
+        close(config->socketConfig[i].sockfd);
+        config->numSockets = 0;
+
+    }
+    printf("Listen thread finished..\n");
+    return 0;
 }
 
 
@@ -233,7 +242,7 @@ sendPacket(int                    sockHandle,
                        sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) ) == -1 )
         {
             perror("Stun sendto");
-            exit(1);
+            exit(6);
         }
         if (dstAddr->sa_family == AF_INET)
         {
@@ -251,7 +260,7 @@ sendPacket(int                    sockHandle,
                        sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) ) == -1 )
         {
             perror("sendto");
-            exit(1);
+            exit(7);
         }
     }
 }

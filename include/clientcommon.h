@@ -41,7 +41,7 @@ packetHandler(struct ListenConfig* config,
               int                  buflen);
 
 int
-setupSocket(struct ListenConfig *lconf, const struct ListenConfig* sconfig);
+setupSocket(struct ListenConfig *config);
 
 int startListenThread(struct TestRunManager *testRunManager, struct ListenConfig* listenConfig);
 

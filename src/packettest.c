@@ -132,9 +132,10 @@ void initTestRunManager(struct TestRunManager *testRunManager) {
     (*testRunManager).done = false;
 }
 
-int initTestRun(struct TestRun *testRun, int32_t id, uint32_t maxNumPkts,
+int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id, uint32_t maxNumPkts,
                 const struct FiveTuple *fiveTuple,
                 struct TestRunConfig *config, bool liveUpdate){
+    testRun->mngr = mngr;
     if(liveUpdate){
         char filename[100];
         char fileEnding[] = "_live.csv\0";
@@ -145,7 +146,7 @@ int initTestRun(struct TestRun *testRun, int32_t id, uint32_t maxNumPkts,
         if(testRun->fptr == NULL)
         {
             printf("Error!");
-            exit(1);
+            exit(5);
         }
         saveCsvHeader(testRun->fptr);
     }else{
@@ -321,8 +322,8 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         saveTestData(&d, testRun->fptr);
         fflush(testRun->fptr);
     }
-    if(testRun->config.TestRun_live_cb != NULL){
-        testRun->config.TestRun_live_cb(testRun->id, d.pkt.seq, d.jitter_ns);
+    if(testRun->mngr->TestRun_live_cb != NULL){
+        testRun->mngr->TestRun_live_cb(testRun->id, d.pkt.seq, d.jitter_ns);
     }
 
     if(llabs(d.jitter_ns) > llabs(testRun->stats.jitterInfo.maxJitter)){
@@ -500,7 +501,7 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
         newConf.pktConfig = pktConfig;
 
-        initTestRun(&testRun, 0, pktConfig.numPktsToSend, fiveTuple, &newConf, false);
+        initTestRun(&testRun, mng, 0, pktConfig.numPktsToSend, fiveTuple, &newConf, false);
 
         testRun.lastPktTime = *now;
         testRun.stats.startTest = *now;
@@ -648,7 +649,7 @@ void saveTestRunToFile(const struct TestRun *testRun, const char* filename) {
     if(fptr == NULL)
     {
         printf("Error!");
-        exit(1);
+        exit(5);
     }
 
     saveTestRunConfigToFile(testRun, fptr);

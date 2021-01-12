@@ -74,8 +74,7 @@ struct TestData{
 
 struct TestRunConfig{
     char testName[MAX_TESTNAME_LEN];
-    void (* TestRun_live_cb)(int, uint32_t seq, int64_t);
-    void (* TestRun_status_cb)(double mbps, double ps);
+
     struct TestRunPktConfig pktConfig;
 };
 
@@ -94,6 +93,12 @@ struct TestRunStatistics{
     struct JitterInfo jitterInfo;
 };
 
+struct TestRunManager{
+    struct hashmap *map;
+    void (* TestRun_live_cb)(int, uint32_t seq, int64_t);
+    void (* TestRun_status_cb)(double mbps, double ps);
+    bool done;
+};
 
 struct TestRun{
     struct FiveTuple *fiveTuple;
@@ -104,6 +109,7 @@ struct TestRun{
     uint32_t maxNumTestData;
     struct timespec lastPktTime;
 
+    struct TestRunManager *mngr;
 
     struct TestRunStatistics stats;
     struct TestRunResponse resp;
@@ -112,10 +118,7 @@ struct TestRun{
     bool done;
 };
 
-struct TestRunManager{
-    struct hashmap *map;
-    bool done;
-};
+
 
 void initTestRunManager(struct TestRunManager *testRunManager);
 uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1);
@@ -126,7 +129,7 @@ bool TestRun_bw_iter(const void *item, void *udata);
 
 
 int freeTestRun(struct TestRun *testRun);
-int initTestRun(struct TestRun *testRun, int32_t id, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);
+int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id, uint32_t maxNumPkts, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);
 int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);

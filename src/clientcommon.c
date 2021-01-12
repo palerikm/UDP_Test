@@ -9,6 +9,7 @@ void printStats(struct TestRunManager *mngr, const struct timespec *now, const s
         if( getNumberOfActiveTestRuns(mngr)< 2){
             printf("Hmmm, not receiving from the server. Do not feed the black holes on the Internet!\n");
             printf("Did you send to the right server? (Or check your FW settings)\n");
+            fflush(stdout);
             exit(1);
         }
         struct timespec elapsed = {0,0};
@@ -32,7 +33,7 @@ addTxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig txConfig;
     memcpy(&txConfig, testRunConfig, sizeof(txConfig));
     strncat(txConfig.testName, "_tx\0", 5);
-    initTestRun(txTestRun, 1, txConfig.pktConfig.numPktsToSend, txFiveTuple, &txConfig, true);
+    initTestRun(txTestRun, testRunManager,1, txConfig.pktConfig.numPktsToSend, txFiveTuple, &txConfig, true);
     clock_gettime(CLOCK_MONOTONIC_RAW, &txTestRun->lastPktTime);
     txTestRun->stats.startTest = txTestRun->lastPktTime;
     hashmap_set((*testRunManager).map, txTestRun);
@@ -53,7 +54,7 @@ addRxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig rxConfig;
     memcpy(&rxConfig, testRunConfig, sizeof(rxConfig));
     strncat(rxConfig.testName, "_rx\0", 5);
-    initTestRun(rxTestRun, 2, rxConfig.pktConfig.numPktsToSend, rxFiveTuple, &rxConfig, true);
+    initTestRun(rxTestRun, testRunManager,2, rxConfig.pktConfig.numPktsToSend, rxFiveTuple, &rxConfig, true);
     clock_gettime(CLOCK_MONOTONIC_RAW, &rxTestRun->lastPktTime);
     rxTestRun->stats.startTest = rxTestRun->lastPktTime;
 
@@ -122,7 +123,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
         printf("\nSomething terrible has happened! Cant find the response testrun!\n");
         char ft[200];
         printf("FiveTuple: %s\n", fiveTupleToString(ft, txFiveTuple));
-        exit(1);
+        exit(2);
     }
 
 
@@ -146,13 +147,13 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
                    (const struct sockaddr *) &txFiveTuple->dst,
                    0, (*testRunConfig).pktConfig.dscp, 0);
 
-        if(testRunConfig->TestRun_status_cb != NULL){
+        if(testRunManager->TestRun_status_cb != NULL){
             struct timespec elapsed = {0,0};
             timespec_sub(&elapsed, &timingInfo.timeBeforeSendPacket, &timingInfo.startOfTest);
             double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
             double mbps = (((double)(testRunConfig->pktConfig.pkt_size *numPkt * 8) / sec)/ 1000000);
             double ps = numPkt / sec;
-            testRunConfig->TestRun_status_cb(mbps, ps);
+            testRunManager->TestRun_status_cb(mbps, ps);
             //printf("\r(Mbps : %f, p/s: %f Progress: %i %%)", (((pktSize *numPkts * 8) / sec) / 1000000), numPkts / sec, done);
         }else {
             printStats(testRunManager, &timingInfo.timeBeforeSendPacket, &timingInfo.startOfTest, numPkt,
@@ -262,26 +263,26 @@ packetHandler(struct ListenConfig* config,
 }
 
 int
-setupSocket(struct ListenConfig *lconf, const struct ListenConfig* sconfig)
+setupSocket(struct ListenConfig *config)
 {
 
 
-    int sockfd = createLocalSocket(sconfig->remoteAddr.ss_family,
-                                   (struct sockaddr*)&sconfig->localAddr,
+    int sockfd = createLocalSocket(config->remoteAddr.ss_family,
+                                   (struct sockaddr*)&config->localAddr,
                                    SOCK_DGRAM,
                                    0);
 
-    lconf->socketConfig[0].sockfd = sockfd;
-    lconf->numSockets++;
+    config->socketConfig[0].sockfd = sockfd;
+    config->numSockets++;
 
-    return lconf->numSockets;
+    return config->numSockets;
 }
 
 int startListenThread(struct TestRunManager *testRunManager, struct ListenConfig* listenConfig) {
-    pthread_t socketListenThread;
+
     listenConfig->pkt_handler          = packetHandler;
     listenConfig->tInst = testRunManager;
-    pthread_create(&socketListenThread,
+    pthread_create(&listenConfig->socketListenThread,
                    NULL,
                    socketListenDemux,
                    (void*)listenConfig);

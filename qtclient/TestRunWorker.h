@@ -32,19 +32,9 @@ signals:
    void sendData(int, unsigned int, long);
    void sendPktStatus(double, double );
    void finished();
-    //void sendProcessedFrame(QImage frame1, QImage frame2, QImage frame3);
-
-    //void sendActualFps(int actualFps);
-
-    //void sendFrameReadTime(int time);
-
-    //void sendProcessTime(int time);
 
 
 public slots:
-
-    //void receiveGrabFrame();
-
     void startTests();
     void stopTests();
 };
