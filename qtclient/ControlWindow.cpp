@@ -3,9 +3,13 @@
 //
 
 #include <QGridLayout>
+#include <string>
 
 #include "ui_JitterQChartWidget.h"
 
+#include "packettest.h"
+#include "sockethelper.h"
+#include "udptestcommon.h"
 #include "ControlWindow.h"
 
 
@@ -17,6 +21,31 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
     this->ui = ui;
     this->tConfig = tConfig;
     this->listenConfig = listenConfig;
+
+    ui->interface->setText(this->listenConfig->interface);
+
+    char              addrStr[SOCKADDR_MAX_STRLEN];
+    sockaddr_toString( (struct sockaddr*)&listenConfig->localAddr,
+                       addrStr,
+                       sizeof(addrStr),
+                       false );
+    ui->source->setText(addrStr);
+    ui->source->setReadOnly(true);
+
+
+    sockaddr_toString( (struct sockaddr*)&listenConfig->remoteAddr,
+                       addrStr,
+                       sizeof(addrStr),
+                       true );
+    ui->destination->setText(addrStr);
+
+    int64_t delay = timespec_to_msec( &this->tConfig->pktConfig.delay );
+    ui->delay->setText( QString::number(delay) );
+
+    ui->pktSize->setText( QString::number( this->tConfig->pktConfig.pkt_size));
+    ui->burst->setText( QString::number( this->tConfig->pktConfig.pktsInBurst));
+    ui->dscp->setText( "0x"+ QString::number( this->tConfig->pktConfig.dscp, 16));
+
     // Connect button signal to appropriate slot
     connect(ui->startBtn, &QPushButton::released, this, &ControlWindow::handleStartButton);
     connect(ui->stopBtn, &QPushButton::released, this, &ControlWindow::handleStopButton);

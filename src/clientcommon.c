@@ -255,6 +255,7 @@ packetHandler(struct ListenConfig* config,
 
     int pos = addTestDataFromBuf(mngr, tuple, buf, buflen, &now);
 
+
     if(pos<0){
         printf("Encountered error while processing incoming UDP packet\n");
     }
@@ -279,8 +280,6 @@ packetHandler(struct ListenConfig* config,
 int
 setupSocket(struct ListenConfig *config)
 {
-
-
     int sockfd = createLocalSocket(config->remoteAddr.ss_family,
                                    (struct sockaddr*)&config->localAddr,
                                    SOCK_DGRAM,
