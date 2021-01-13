@@ -4,9 +4,11 @@
 
 #include <QGridLayout>
 #include <string>
+#include <iostream>
 
 #include "ui_JitterQChartWidget.h"
 
+#include "iphelper.h"
 #include "packettest.h"
 #include "sockethelper.h"
 #include "udptestcommon.h"
@@ -36,16 +38,21 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
     sockaddr_toString( (struct sockaddr*)&listenConfig->remoteAddr,
                        addrStr,
                        sizeof(addrStr),
-                       true );
+                       false );
     ui->destination->setText(addrStr);
+    //connect(ui->destination, SIGNAL(textChanged(const QString &)), this, SLOT(changeDestination(const QString &)));
+    connect(ui->destination, SIGNAL(editingFinished()), this, SLOT(changeDestination()));
+
+    // connect(ui->destination, &QLineEdit::textChanged, this, SLOT(changeDestination(QString&)));
 
     int64_t delay = timespec_to_msec( &this->tConfig->pktConfig.delay );
     ui->delay->setRange(0,200);
     ui->delay->setValue(delay);
     //ui->delay->setText( QString::number(delay) );
 
-    ui->pktSize->setRange(20, 1500);
+    ui->pktSize->setRange(200, 1500);
     ui->pktSize->setValue(this->tConfig->pktConfig.pkt_size);
+    connect(ui->pktSize, SIGNAL(valueChanged(int)), this, SLOT(changePktSize(int)));
 
     ui->burst->setRange(0,10);
     ui->burst->setValue( this->tConfig->pktConfig.pktsInBurst);
@@ -69,4 +76,23 @@ void ControlWindow::handleStartButton()
 void ControlWindow::handleStopButton()
 {
     emit stopTest();
+}
+
+void ControlWindow::changePktSize(int value){
+    emit stopTest();
+    std::cout<<"New value:"<<value<<std::endl;
+    tConfig->pktConfig.pkt_size = value;
+    emit startTest(tConfig, listenConfig);
+
+}
+
+void ControlWindow::changeDestination(){
+    QString s = ui->destination->text();
+    std::cout<<"Changing detination: " << qUtf8Printable(s)<<std::endl;
+    if ( !getRemoteIpAddr( (struct sockaddr*)&listenConfig->remoteAddr,
+                           const_cast<char *>(s.toStdString().c_str()),
+                           listenConfig->port ) ){
+        printf("Error getting remote IPaddr");
+
+    }
 }

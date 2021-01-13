@@ -25,6 +25,8 @@ public:
 private slots:
     void handleStartButton();
     void handleStopButton();
+    void changePktSize(int);
+    void changeDestination();
 private:
     Ui::JitterQChartWidget *ui;
     struct TestRunConfig *tConfig;
