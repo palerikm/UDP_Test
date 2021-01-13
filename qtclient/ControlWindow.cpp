@@ -25,6 +25,7 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
     this->listenConfig = listenConfig;
 
     ui->interface->setText(this->listenConfig->interface);
+    connect(ui->interface, SIGNAL(editingFinished()), this, SLOT(changeInterface()));
 
     char              addrStr[SOCKADDR_MAX_STRLEN];
     sockaddr_toString( (struct sockaddr*)&listenConfig->localAddr,
@@ -100,11 +101,35 @@ void ControlWindow::changeDscp(){
 void ControlWindow::changeDestination(){
     emit stopTest();
     QString s = ui->destination->text();
-    //std::cout<<"Changing detination: " << qUtf8Printable(s)<<std::endl;
     if ( !getRemoteIpAddr( (struct sockaddr*)&listenConfig->remoteAddr,
                            const_cast<char *>(s.toStdString().c_str()),
                            listenConfig->port ) ){
         printf("Error getting remote IPaddr");
-
     }
+}
+
+void ControlWindow::changeInterface(){
+    emit stopTest();
+    QString s = ui->interface->text();
+    strncpy(listenConfig->interface, s.toStdString().c_str(), sizeof(listenConfig->interface));
+    if ( !getLocalInterFaceAddrs( (struct sockaddr*)&listenConfig->localAddr,
+                                  listenConfig->interface,
+                                  listenConfig->remoteAddr.ss_family,
+                                  IPv6_ADDR_NORMAL,
+                                  false ) )
+    {
+        printf("Error getting IPaddr on %s\n", listenConfig->interface);
+        ui->interface->setStyleSheet("color: red;");
+        ui->source->setText("N/A");
+    }else{
+        ui->interface->setStyleSheet("color: white;");
+        char              addrStr[SOCKADDR_MAX_STRLEN];
+        sockaddr_toString( (struct sockaddr*)&listenConfig->localAddr,
+                           addrStr,
+                           sizeof(addrStr),
+                           false );
+        ui->source->setText(addrStr);
+        ui->source->setReadOnly(true);
+    }
+
 }

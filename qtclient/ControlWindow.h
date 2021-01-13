@@ -25,6 +25,7 @@ public:
 private slots:
     void handleStartButton();
     void handleStopButton();
+    void changeInterface();
     void changePktSize(int);
     void changeDelay(int);
     void changeDestination();
@@ -38,8 +39,6 @@ private:
 signals:
     void startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
     void stopTest();
-
-
 };
 
 
