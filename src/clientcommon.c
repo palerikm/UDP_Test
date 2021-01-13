@@ -31,7 +31,8 @@ void printStats(struct TestRunManager *mngr, const struct timespec *now, const s
 struct TestRun *
 addTxTestRun(const struct TestRunConfig *testRunConfig,
              struct TestRunManager *testRunManager,
-             struct ListenConfig *listenConfig) {
+             struct ListenConfig *listenConfig,
+                     bool liveCSV) {
     struct FiveTuple *txFiveTuple;
     txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig->localAddr,
                                 (struct sockaddr *)&listenConfig->remoteAddr, listenConfig->port);
@@ -39,7 +40,7 @@ addTxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig txConfig;
     memcpy(&txConfig, testRunConfig, sizeof(txConfig));
     strncat(txConfig.testName, "_tx\0", 5);
-    initTestRun(txTestRun, testRunManager,1, txFiveTuple, &txConfig, true);
+    initTestRun(txTestRun, testRunManager,1, txFiveTuple, &txConfig, liveCSV);
     clock_gettime(CLOCK_MONOTONIC_RAW, &txTestRun->lastPktTime);
     txTestRun->stats.startTest = txTestRun->lastPktTime;
     hashmap_set((*testRunManager).map, txTestRun);
@@ -51,7 +52,8 @@ addTxTestRun(const struct TestRunConfig *testRunConfig,
 struct TestRun *
 addRxTestRun(const struct TestRunConfig *testRunConfig,
              struct TestRunManager *testRunManager,
-             struct ListenConfig *listenConfig){
+             struct ListenConfig *listenConfig,
+                     bool liveCSV){
     struct FiveTuple *rxFiveTuple;
     rxFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig->remoteAddr,
                                 (struct sockaddr *)&listenConfig->localAddr, listenConfig->port);
@@ -60,7 +62,7 @@ addRxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig rxConfig;
     memcpy(&rxConfig, testRunConfig, sizeof(rxConfig));
     strncat(rxConfig.testName, "_rx\0", 5);
-    initTestRun(rxTestRun, testRunManager,2, rxFiveTuple, &rxConfig, true);
+    initTestRun(rxTestRun, testRunManager,2, rxFiveTuple, &rxConfig, liveCSV);
     clock_gettime(CLOCK_MONOTONIC_RAW, &rxTestRun->lastPktTime);
     rxTestRun->stats.startTest = rxTestRun->lastPktTime;
 
@@ -69,11 +71,16 @@ addRxTestRun(const struct TestRunConfig *testRunConfig,
     return rxTestRun;
 }
 
+
 void addTxAndRxTests(struct TestRunConfig *testRunConfig,
-                struct TestRunManager *testRunManager,
-                     struct ListenConfig *listenConfig) {
-    struct TestRun *txTestRun = addTxTestRun(testRunConfig, testRunManager, listenConfig);
-    struct TestRun *rxTestRun = addRxTestRun(testRunConfig, testRunManager, listenConfig);
+                    struct TestRunManager *testRunManager,
+                    struct ListenConfig *listenConfig,
+                    bool liveCSV) {
+
+    //addTestRun(1, testRunConfig, testRunManager, listenConfig, true);
+    //addTestRun(2, testRunConfig, testRunManager, listenConfig, true);
+    struct TestRun *txTestRun = addTxTestRun(testRunConfig, testRunManager, listenConfig, liveCSV);
+    struct TestRun *rxTestRun = addRxTestRun(testRunConfig, testRunManager, listenConfig, liveCSV);
     free(rxTestRun);
     free(txTestRun);
 }

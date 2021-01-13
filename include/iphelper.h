@@ -22,7 +22,7 @@ getLocalInterFaceAddrs(struct sockaddr* addr,
 
 int
 getRemoteIpAddr(struct sockaddr* remoteAddr,
-                char*            fqdn,
+                const char*            fqdn,
                 uint16_t         port);
 
 #ifdef __cplusplus

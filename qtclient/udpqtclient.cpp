@@ -45,20 +45,19 @@ void configure(struct TestRunConfig* config,
     listenConfig->port  = 5004;
     config->pktConfig.numPktsToSend = 0;
     config->pktConfig.delay.tv_sec = 0;
-    config->pktConfig.delay.tv_nsec = 20000000L;
-    config->pktConfig.pktsInBurst = 1;
+    config->pktConfig.delay.tv_nsec = 20*1000000L;
+    config->pktConfig.pktsInBurst = 0;
     config->pktConfig.dscp = 0;
     config->pktConfig.pkt_size = 1200;
-
 
     int iseed = (unsigned int)time(NULL);
     srand(iseed);
 
     static const int a='a', z='z';
-    for(int i=0; i<MAX_TESTNAME_LEN; i++) {
+    for(int i=0; i<MAX_TESTNAME_LEN -10; i++) {
         config->testName[i] = rand() % (z - a + 1) + a;
     }
-    config->testName[MAX_TESTNAME_LEN-1] = '\0';
+    config->testName[MAX_TESTNAME_LEN-11] = '\0';
 
     static struct option long_options[] = {
             {"interface", 1, 0, 'i'},
@@ -73,10 +72,10 @@ void configure(struct TestRunConfig* config,
             {"version", 0, 0, 'v'},
             {NULL, 0, NULL, 0}
     };
-    if (argc < 2){
-        printUsage(argv[0]);
-        exit(0);
-    }
+    //if (argc < 2){
+    //    printUsage(argv[0]);
+    //    exit(0);
+    //}
     int option_index = 0;
     while ( ( c = getopt_long(argc, argv, "hvi:w:p:o:n:d:b:t:s:",
                               long_options, &option_index) ) != -1 )
@@ -126,6 +125,13 @@ void configure(struct TestRunConfig* config,
             printf("Error getting remote IPaddr");
             exit(1);
         }
+    }else{
+        if ( !getRemoteIpAddr( (struct sockaddr*)&listenConfig->remoteAddr,
+                               std::string("3.84.244.224").c_str(),
+                               listenConfig->port ) ){
+            printf("Error getting remote IPaddr");
+            exit(1);
+        }
     }
 
 
@@ -151,7 +157,7 @@ int main(int argc, char *argv[]) {
 
 
 
-
+    printf("TestName: %s\n", testRunConfig.testName);
     char              addrStr[SOCKADDR_MAX_STRLEN];
     printf( "Sending packets from: '%s'",
             sockaddr_toString( (struct sockaddr*)&listenConfig.localAddr,
@@ -175,13 +181,6 @@ int main(int argc, char *argv[]) {
     return a.exec();
 
 
-    //printf("\n");
-    //waitForResponses(&testRunConfig, &testRunManager);
-    //pruneLingeringTestRuns(&testRunManager);
-    //freeTestRunManager(&testRunManager);
-
-
-    //return a.exec();
 }
 
 

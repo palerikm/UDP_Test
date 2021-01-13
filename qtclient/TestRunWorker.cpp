@@ -80,7 +80,7 @@ void TestRunWorker::startTests()
 {
     /* Setting up UDP socket  */
     setupSocket(listenConfig);
-    addTxAndRxTests(testRunConfig, &testRunManager, listenConfig);
+    addTxAndRxTests(testRunConfig, &testRunManager, listenConfig, false);
     int sockfd = startListenThread(&testRunManager, listenConfig);
     runAllTests(sockfd, testRunConfig, &testRunManager, listenConfig);
     //waitForResponses(testRunConfig, &testRunManager);

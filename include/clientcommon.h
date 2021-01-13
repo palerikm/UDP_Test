@@ -19,15 +19,18 @@ extern "C"
 
 struct TestRun* addRxTestRun(const struct TestRunConfig *testRunConfig,
              struct TestRunManager *testRunManager,
-             struct ListenConfig *listenConfig);
+             struct ListenConfig *listenConfig,
+             bool liveCSV);
 
 struct TestRun* addTxTestRun(const struct TestRunConfig *testRunConfig,
              struct TestRunManager *testRunManager,
-             struct ListenConfig *listenConfig);
+             struct ListenConfig *listenConfig,
+             bool liveCSV);
 
 void addTxAndRxTests(struct TestRunConfig *testRunConfig,
                      struct TestRunManager *testRunManager,
-                     struct ListenConfig *listenConfig);
+                     struct ListenConfig *listenConfig,
+                     bool liveCSV);
 
 void runAllTests(int sockfd, struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager, struct ListenConfig *listenConfig);
 
