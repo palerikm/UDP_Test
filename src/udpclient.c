@@ -187,7 +187,7 @@ main(int   argc,
     struct TestRunManager testRunManager;
     initTestRunManager(&testRunManager);
 
-    addTxAndRxTests(&testRunConfig, &testRunManager, &listenConfig);
+    addTxAndRxTests(&testRunConfig, &testRunManager, &listenConfig, true);
     int sockfd = startListenThread(&testRunManager, &listenConfig);
     runAllTests(sockfd, &testRunConfig, &testRunManager, &listenConfig);
     printf("\n");

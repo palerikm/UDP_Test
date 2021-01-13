@@ -60,6 +60,16 @@ timespec_from_nsec(struct timespec *a, int64_t b)
     a->tv_sec = b / NSEC_PER_SEC;
     a->tv_nsec = b % NSEC_PER_SEC;
 }
+static inline
+struct timespec timespec_from_ms(int64_t milliseconds)
+{
+    struct timespec ts = {
+            .tv_sec  = (milliseconds / 1000),
+            .tv_nsec = (milliseconds % 1000) * 1000000,
+    };
+
+    return ts;
+}
 
 #ifdef __cplusplus
 }

@@ -26,12 +26,14 @@ private slots:
     void handleStartButton();
     void handleStopButton();
     void changePktSize(int);
+    void changeDelay(int);
     void changeDestination();
+    void changeBurst(int value);
+    void changeDscp();
 private:
     Ui::JitterQChartWidget *ui;
     struct TestRunConfig *tConfig;
     struct ListenConfig *listenConfig;
-    //QPushButton *m_button;
 
 signals:
     void startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
