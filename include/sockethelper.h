@@ -1,6 +1,6 @@
 #ifndef UDP_TESTS_SOCKETHELPER_H
 #define UDP_TESTS_SOCKETHELPER_H
-#include <sockaddr_util.h>
+#include <sockaddrutil.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>

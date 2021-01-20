@@ -8,7 +8,7 @@
 #include <pthread.h>
 
 #include <stdint.h>
-#include <sockaddr_util.h>
+#include <sockaddrutil.h>
 
 #include "../include/sockethelper.h"
 #include "../include/iphelper.h"

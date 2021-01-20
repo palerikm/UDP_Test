@@ -9,7 +9,7 @@
 #include <ifaddrs.h>
 #include <string.h>
 
-#include <sockaddr_util.h>
+#include <sockaddrutil.h>
 
 #ifndef   NI_MAXHOST
 #define   NI_MAXHOST 1025

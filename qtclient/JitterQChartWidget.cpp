@@ -164,7 +164,7 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         }
     }
     if (isVisible()) {
-        if (nth % 15 != 0) {
+        if (nth % 25 != 0) {
             nth++;
             return;
         }
