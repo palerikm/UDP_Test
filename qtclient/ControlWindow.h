@@ -9,7 +9,7 @@
 #include <QDialog>
 #include <QPushButton>
 
-#include "packettest.h"
+#include "udpjitter.h"
 
 namespace Ui {
     class JitterQChartWidget;

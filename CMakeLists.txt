@@ -5,17 +5,8 @@ set(CMAKE_C_STANDARD 99)
 
 
 
-Include(ExternalProject)
-include(FetchContent)
 
-FetchContent_Declare(
-        hashmap_c
-        GIT_REPOSITORY "https://github.com/palerikm/hashmap.c"
-        # Uncomment and set the following to a specific hash to
-        # lock down to a specific commit and avoid contacting
-        # the remote once we've already cloned/fetched it
-        #GIT_TAG someGitHash
-)
+include(FetchContent)
 
 FetchContent_Declare(
         sockaddrutil
@@ -26,7 +17,9 @@ FetchContent_Declare(
         #GIT_TAG someGitHash
 )
 
-FetchContent_MakeAvailable(hashmap_c sockaddrutil)
+FetchContent_MakeAvailable(sockaddrutil)
+
+
 
 
 # Find the QtWidgets library
@@ -35,6 +28,7 @@ find_package(Qt5 COMPONENTS Core Widgets)
 
 ## include the parts
 #add_subdirectory ( include )
+add_subdirectory( udpjitterlib )
 add_subdirectory ( src )
 
 if (${Qt5_FOUND})

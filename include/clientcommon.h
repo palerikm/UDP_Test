@@ -10,9 +10,9 @@ extern "C"
 #endif
 
 
-#include "packettest.h"
+#include "../udpjitterlib/include/udpjitter.h"
 #include "sockethelper.h"
-#include "udptestcommon.h"
+#include "../udpjitterlib/include/testrun.h"
 
 
 

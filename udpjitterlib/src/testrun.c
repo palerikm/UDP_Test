@@ -4,7 +4,7 @@
 
 
 #include <time.h>
-#include "udptestcommon.h"
+#include "../include/testrun.h"
 
 
 void timeStartTest(struct TimingInfo *tInfo){

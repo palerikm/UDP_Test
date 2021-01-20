@@ -5,12 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
-#include <sockethelper.h>
 
+#include <sockaddrutil.h>
 #include <hashmap.h>
 #include <pthread.h>
-#include "packettest.h"
-#include "udptestcommon.h"
+#include "../include/udpjitter.h"
+#include "../include/testrun.h"
 
 uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     const struct TestRun *run = item;

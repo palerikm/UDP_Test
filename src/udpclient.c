@@ -2,18 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <inttypes.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <time.h>
 #include <getopt.h>
 #include <string.h>
-#include <pthread.h>
-#include <packettest.h>
+
+
+#include "udpjitter.h"
 
 #include "iphelper.h"
 #include "sockethelper.h"
-#include "udptestcommon.h"
 #include "clientcommon.h"
 
 
@@ -45,7 +44,6 @@ printUsage(char* prgName)
   printf("  -h, --help                Print help text\n");
   exit(0);
 }
-
 
 void configure(struct TestRunConfig* config,
           struct ListenConfig* listenConfig,

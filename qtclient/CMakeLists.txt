@@ -22,19 +22,15 @@ set(INSTALL_CMAKE_DIR "${prefix}/Resources")
 find_package(Qt5 COMPONENTS Core Widgets Charts Quick REQUIRED)
 
 
-
-
 add_executable( ${APP_NAME} MACOSX_BUNDLE udpqtclient.cpp
           JitterQChartWidget.cpp JitterQChartWidget.h
         ControlWindow.cpp ControlWindow.h
         TestRunWorker.cpp TestRunWorker.h
         ../src/iphelper.c ../include/iphelper.h
          ../src/sockethelper.c ../include/sockethelper.h
-        ../src/packettest.c ../include/packettest.h
         ../src/clientcommon.c ../include/clientcommon.h
-        ../src/udptestcommon.c ../include/udptestcommon.h
         )
-target_link_libraries( ${APP_NAME} PRIVATE sockaddrutil hashmap_c Qt5::Widgets Qt5::Charts Qt5::Core)
+target_link_libraries( ${APP_NAME} PRIVATE sockaddrutil hashmap_c udpjitter Qt5::Widgets Qt5::Charts Qt5::Core)
 
 
 

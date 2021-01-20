@@ -10,12 +10,12 @@
 #include <getopt.h>
 
 #include <stdbool.h>
-#include <packettest.h>
+#include "../udpjitterlib/include/udpjitter.h"
 
 #include "hashmap.h"
 #include "../include/iphelper.h"
 #include "../include/sockethelper.h"
-#include "../include/udptestcommon.h"
+#include "../udpjitterlib/include/testrun.h"
 
 #define MAXBUFLEN 1500
 #define MAX_LISTEN_SOCKETS 1

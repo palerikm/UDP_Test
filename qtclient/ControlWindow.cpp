@@ -9,9 +9,9 @@
 #include "ui_JitterQChartWidget.h"
 
 #include "iphelper.h"
-#include "packettest.h"
+#include "../udpjitterlib/include/udpjitter.h"
 #include "sockethelper.h"
-#include "udptestcommon.h"
+#include "../udpjitterlib/include/testrun.h"
 #include "ControlWindow.h"
 
 

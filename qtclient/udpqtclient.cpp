@@ -8,7 +8,7 @@
 
 #include "../include/iphelper.h"
 #include "../include/sockethelper.h"
-#include "../include/udptestcommon.h"
+#include "../udpjitterlib/include/testrun.h"
 #include "../include/clientcommon.h"
 
 static struct ListenConfig listenConfig;

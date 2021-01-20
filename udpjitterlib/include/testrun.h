@@ -2,15 +2,15 @@
 // Created by Pal-Erik Martinsen on 10/12/2020.
 //
 
-#ifndef UDP_TESTS_UDPTESTCOMMON_H
-#define UDP_TESTS_UDPTESTCOMMON_H
+#ifndef UDP_TESTS_TESTRUN_H
+#define UDP_TESTS_TESTRUN_H
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
 #include <stdint.h>
-#include "packettest.h"
+#include "udpjitter.h"
 
 #define NSEC_PER_SEC 1000000000
 
@@ -74,4 +74,4 @@ struct timespec timespec_from_ms(int64_t milliseconds)
 #ifdef __cplusplus
 }
 #endif
-#endif //UDP_TESTS_UDPTESTCOMMON_H
+#endif //UDP_TESTS_TESTRUN_H

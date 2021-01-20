@@ -2,8 +2,8 @@
 // Created by Pal-Erik Martinsen on 12/11/2020.
 //
 
-#ifndef UDP_TESTS_PACKETTEST_H
-#define UDP_TESTS_PACKETTEST_H
+#ifndef UDP_TESTS_UDPJITTER_H
+#define UDP_TESTS_UDPJITTER_H
 #ifdef __cplusplus
 extern "C"
 {
@@ -170,4 +170,4 @@ bool TestRun_print_iter(const void *item, void *udata);
 #ifdef __cplusplus
 }
 #endif
-#endif //UDP_TESTS_PACKETTEST_H
+#endif //UDP_TESTS_UDPJITTER_H

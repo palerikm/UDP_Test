@@ -3,7 +3,7 @@
 #include <QObject>
 #include <QImage>
 
-#include "packettest.h"
+#include "../udpjitterlib/include/udpjitter.h"
 #include "sockethelper.h"
 
 
