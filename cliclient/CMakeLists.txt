@@ -1,12 +1,4 @@
 
-add_executable ( udpserver udpserver.c )
-
-target_link_libraries ( udpserver LINK_PUBLIC
-        udpjitter
-        sockaddrutil
-        sockethelper
-        pthread )
-
 add_executable ( udpclient
         udpclient.c  clientcommon.c ../include/clientcommon.h )
 

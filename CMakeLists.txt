@@ -25,9 +25,10 @@ find_package(Qt5 QUIET COMPONENTS Core Widgets)
 
 ## include the parts
 #add_subdirectory ( include )
-add_subdirectory( sockethelperlib )
-add_subdirectory( udpjitterlib )
-add_subdirectory ( src )
+add_subdirectory(sockethelperlib)
+add_subdirectory(udpjitterlib)
+add_subdirectory(cliclient)
+add_subdirectory(server)
 
 if (${Qt5_FOUND})
     MESSAGE(STATUS "Found Qt5")
