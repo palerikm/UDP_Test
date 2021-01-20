@@ -6,12 +6,12 @@
 #include <string>
 #include <iostream>
 
+#include <sockethelper.h>
+#include <iphelper.h>
+#include <testrun.h>
 #include "ui_JitterQChartWidget.h"
 
-#include "iphelper.h"
-#include "../udpjitterlib/include/udpjitter.h"
-#include "sockethelper.h"
-#include "../udpjitterlib/include/testrun.h"
+
 #include "ControlWindow.h"
 
 

@@ -3,9 +3,6 @@ project(UDP_tests CXX C)
 
 set(CMAKE_C_STANDARD 99)
 
-
-
-
 include(FetchContent)
 
 FetchContent_Declare(
@@ -23,11 +20,12 @@ FetchContent_MakeAvailable(sockaddrutil)
 
 
 # Find the QtWidgets library
-find_package(Qt5 COMPONENTS Core Widgets)
+find_package(Qt5 QUIET COMPONENTS Core Widgets)
 
 
 ## include the parts
 #add_subdirectory ( include )
+add_subdirectory( sockethelperlib )
 add_subdirectory( udpjitterlib )
 add_subdirectory ( src )
 
@@ -35,5 +33,5 @@ if (${Qt5_FOUND})
     MESSAGE(STATUS "Found Qt5")
     add_subdirectory( qtclient)
 else (${Qt5_FOUND})
-    MESSAGE(STATUS "Could not locate Qt5")
+    MESSAGE(STATUS "Could not locate Qt5  - qtclient will NOT be buildt")
 ENDIF (${Qt5_FOUND})

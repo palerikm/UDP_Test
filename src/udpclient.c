@@ -9,10 +9,10 @@
 #include <string.h>
 
 
-#include "udpjitter.h"
+#include <udpjitter.h>
+#include <iphelper.h>
+#include <sockethelper.h>
 
-#include "iphelper.h"
-#include "sockethelper.h"
 #include "clientcommon.h"
 
 

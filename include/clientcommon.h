@@ -11,7 +11,7 @@ extern "C"
 
 
 #include "../udpjitterlib/include/udpjitter.h"
-#include "sockethelper.h"
+#include "../sockethelperlib/include/sockethelper.h"
 #include "../udpjitterlib/include/testrun.h"
 
 

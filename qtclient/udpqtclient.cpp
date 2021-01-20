@@ -1,14 +1,9 @@
-//
-// Created by Pal-Erik Martinsen on 04/01/2021.
-//
-
 #include <getopt.h>
 #include "JitterQChartWidget.h"
 #include <QApplication>
 
-#include "../include/iphelper.h"
-#include "../include/sockethelper.h"
-#include "../udpjitterlib/include/testrun.h"
+#include <iphelper.h>
+
 #include "../include/clientcommon.h"
 
 static struct ListenConfig listenConfig;
@@ -30,8 +25,6 @@ printUsage(char* prgName)
     printf("  -h, --help                Print help text\n");
     exit(0);
 }
-
-
 
 void configure(struct TestRunConfig* config,
                struct ListenConfig* listenConfig,

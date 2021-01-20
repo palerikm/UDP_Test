@@ -126,6 +126,14 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
 
     return 0;
 }
+
+void addTestRun(struct TestRunManager *mng, struct TestRun *tRun) {
+    if( hashmap_set(mng->map, tRun) == NULL){
+        if( hashmap_oom(mng->map) ){
+            printf("System out of memory\n");
+        }
+    };
+}
 void initTestRunManager(struct TestRunManager *testRunManager) {
     (*testRunManager).map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
                                         TestRun_hash, TestRun_compare, NULL);

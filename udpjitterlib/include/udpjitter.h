@@ -21,7 +21,7 @@ extern "C"
 #include <stdbool.h>
 #include <sys/socket.h>
 
-#include <hashmap.h>
+//#include <hashmap.h>
 
 static const uint32_t no_op_cmd = 0;
 static const uint32_t start_test_cmd = 1;
@@ -132,6 +132,7 @@ bool TestRun_bw_iter(const void *item, void *udata);
 
 int freeTestRun(struct TestRun *testRun);
 int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);
+void addTestRun(struct TestRunManager *mng, struct TestRun *tRun);
 int addTestDataFromBuf(struct TestRunManager *mng, struct FiveTuple *fiveTuple, const unsigned char* buf, int buflen, const struct timespec *now);
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);

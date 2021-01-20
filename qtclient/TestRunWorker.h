@@ -3,9 +3,7 @@
 #include <QObject>
 #include <QImage>
 
-#include "../udpjitterlib/include/udpjitter.h"
-#include "sockethelper.h"
-
+#include <udpjitter.h>
 
 
 class TestRunWorker : public QObject {

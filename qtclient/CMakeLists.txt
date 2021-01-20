@@ -26,11 +26,14 @@ add_executable( ${APP_NAME} MACOSX_BUNDLE udpqtclient.cpp
           JitterQChartWidget.cpp JitterQChartWidget.h
         ControlWindow.cpp ControlWindow.h
         TestRunWorker.cpp TestRunWorker.h
-        ../src/iphelper.c ../include/iphelper.h
-         ../src/sockethelper.c ../include/sockethelper.h
         ../src/clientcommon.c ../include/clientcommon.h
         )
-target_link_libraries( ${APP_NAME} PRIVATE sockaddrutil hashmap_c udpjitter Qt5::Widgets Qt5::Charts Qt5::Core)
+target_link_libraries( ${APP_NAME} LINK_PUBLIC
+        sockaddrutil
+        hashmap_c
+        udpjitter
+        sockethelper
+        Qt5::Widgets Qt5::Charts Qt5::Core)
 
 
 

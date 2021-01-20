@@ -1,7 +1,7 @@
 #include <string.h>
 #include <pthread.h>
+
 #include "clientcommon.h"
-#include "sockethelper.h"
 
 
 void printStats(struct TestRunManager *mngr, const struct timespec *now, const struct timespec *startOfTest, int numPkts, int numPktsToSend, int pktSize ) {
@@ -43,7 +43,7 @@ addTxTestRun(const struct TestRunConfig *testRunConfig,
     initTestRun(txTestRun, testRunManager,1, txFiveTuple, &txConfig, liveCSV);
     clock_gettime(CLOCK_MONOTONIC_RAW, &txTestRun->lastPktTime);
     txTestRun->stats.startTest = txTestRun->lastPktTime;
-    hashmap_set((*testRunManager).map, txTestRun);
+    addTestRun(testRunManager, txTestRun);
     free(txFiveTuple);
 
     return txTestRun;
@@ -66,7 +66,7 @@ addRxTestRun(const struct TestRunConfig *testRunConfig,
     clock_gettime(CLOCK_MONOTONIC_RAW, &rxTestRun->lastPktTime);
     rxTestRun->stats.startTest = rxTestRun->lastPktTime;
 
-    hashmap_set((*testRunManager).map, rxTestRun);
+    addTestRun(testRunManager, rxTestRun);
     free(rxFiveTuple);
     return rxTestRun;
 }
