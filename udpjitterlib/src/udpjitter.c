@@ -103,13 +103,13 @@ bool TestRun_loss_iter(const void *item, void *udata) {
 
 
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t seq,
-                   uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp){
+                   uint32_t cmd, int64_t tDiff, struct TestRunResponse *resp){
     testPacket->pktCookie = TEST_PKT_COOKIE;
     testPacket->seq = seq;
     testPacket->cmd = cmd;
-    if(tDiff != NULL){
-        testPacket->txDiff = *tDiff;
-    }
+    //if(tDiff != NULL){
+        testPacket->txDiff = tDiff;
+    //}
     if(resp != NULL) {
         testPacket->resp = *resp;
     }else{
@@ -243,7 +243,8 @@ bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *file
 }
 
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now){
-    struct timespec timeSinceLastPkt;
+    //struct timespec timeSinceLastPkt;
+    int64_t rxDiff;
 
     //printf("Adding Test Data\n");
     if(testRun == NULL){
@@ -271,7 +272,10 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     }
 
     if(testRun->numTestData > 0) {
-        timespec_sub(&timeSinceLastPkt, now, &testRun->lastPktTime);
+        struct timespec ts;
+        timespec_sub(&ts, now, &testRun->lastPktTime);
+        rxDiff = timespec_to_nsec(&ts);
+
         testRun->resp = testPacket->resp;
         //Did we loose any packets? Or out of order?
         struct TestPacket *lastPkt = &testRun->testData[testRun->numTestData-1].pkt;
@@ -295,8 +299,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
                 tPkt.seq = lastPkt->seq + 1 + i;
                 struct TestData d;
                 d.pkt = tPkt;
-                d.rxDiff.tv_sec = 0;
-                d.rxDiff.tv_nsec = 0;
+                d.rxDiff = 0;
                 memcpy((testRun->testData + testRun->numTestData), &d, sizeof(struct TestData));
                 testRun->numTestData++;
             }
@@ -305,8 +308,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
 
     }else{
-        timeSinceLastPkt.tv_sec = 0;
-        timeSinceLastPkt.tv_nsec = 0;
+        rxDiff = 0;
     }
 
     testRun->stats.rcvdPkts++;
@@ -318,11 +320,11 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
     // Calculate jitter based on time since last received packet and the
     // sending variation happening on the client(txDiff)
-    struct timespec jitter = {0,0};
-    timespec_sub(&jitter, &timeSinceLastPkt, &testPacket->txDiff);
-    d.jitter_ns = timespec_to_nsec(&jitter);
+    //struct timespec jitter = {0,0};
+    //timespec_sub(&jitter, &timeSinceLastPkt, &testPacket->txDiff);
+    d.jitter_ns = rxDiff - testPacket->txDiff;
 
-    d.rxDiff = timeSinceLastPkt;
+    d.rxDiff = rxDiff;
 
 
     memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
@@ -358,8 +360,8 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
 
             struct TestPacket tPkt;
             tPkt.seq = respPkt.seq;
-            struct timespec txts = {0, respPkt.txDiff};
-            tPkt.txDiff = txts;
+            //struct timespec txts = {0, respPkt.txDiff};
+            tPkt.txDiff = respPkt.txDiff;
 
 
             run->lastPktTime.tv_sec = 0;
@@ -397,8 +399,8 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
         //respPkt.jitter_ns = tData->jitter_ns;
-        respPkt.txDiff = timespec_to_nsec(&tData->pkt.txDiff);
-        respPkt.rxDiff = timespec_to_nsec(&tData->rxDiff);
+        respPkt.txDiff = tData->pkt.txDiff;
+        respPkt.rxDiff = tData->rxDiff;
 
         memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
 
@@ -516,14 +518,14 @@ int addTestDataFromBuf(struct TestRunManager *mng,
 struct TestPacket getEndTestPacket(int num){
     struct TestPacket pkt;
     fillPacket(&pkt, num, stop_test_cmd,
-               NULL, NULL);
+               0, NULL);
     return pkt;
 }
 
 struct TestPacket getStartTestPacket(){
     struct TestPacket pkt;
     fillPacket(&pkt, 0, start_test_cmd,
-               NULL, NULL);
+               0, NULL);
     return pkt;
 }
 
@@ -604,8 +606,8 @@ int statsToString(char* configStr, const struct TestRunStatistics *stats) {
 }
 
 void saveTestData(const struct TestData *tData, FILE *fptr){
-    int64_t rxDiff = timespec_to_nsec(&tData->rxDiff);
-    int64_t txDiff = timespec_to_nsec(&tData->pkt.txDiff);
+    int64_t rxDiff = tData->rxDiff;
+    int64_t txDiff = tData->pkt.txDiff;
     fprintf(fptr, "%i,", tData->pkt.seq);
     if(rxDiff == 0){
         fprintf(fptr, "%s,","NaN");

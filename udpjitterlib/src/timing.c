@@ -14,7 +14,9 @@ void timeStartTest(struct TimingInfo *tInfo){
 
 void timeSendPacket(struct TimingInfo *tInfo){
     clock_gettime(CLOCK_MONOTONIC_RAW, &tInfo->timeBeforeSendPacket);
-    timespec_sub(&tInfo->timeSinceLastPkt, &tInfo->timeBeforeSendPacket, &tInfo->timeLastPacket);
+    struct timespec ts;
+    timespec_sub(&ts, &tInfo->timeBeforeSendPacket, &tInfo->timeLastPacket);
+    tInfo->txDiff = timespec_to_nsec(&ts);
 }
 
 void timeStartBurst(struct TimingInfo *tInfo){

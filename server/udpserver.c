@@ -78,7 +78,7 @@ startDownStreamTests(void* ptr) {
 
         uint32_t seq = numPkt;
         fillPacket(&pkt, seq , in_progress_test_cmd,
-                   &timingInfo.timeSinceLastPkt, NULL);
+                   timingInfo.txDiff, NULL);
         memcpy(buf, &pkt, sizeof(pkt));
 
         sendPacket(sockfd, (const uint8_t *) buf, sizeof(buf),

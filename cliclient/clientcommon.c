@@ -160,7 +160,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
 
         uint32_t seq = numPkt;
         fillPacket(&pkt, seq, in_progress_test_cmd,
-                   &timingInfo.timeSinceLastPkt, &r);
+                   timingInfo.txDiff, &r);
         memcpy(buf, &pkt, sizeof(pkt));
 
         //printf("Sending packet (%i)\n", seq);

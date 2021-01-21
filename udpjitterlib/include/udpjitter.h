@@ -56,7 +56,8 @@ struct TestPacket{
     uint32_t pktCookie;
     uint32_t seq;
     uint32_t cmd;
-    struct timespec txDiff;
+    //struct timespec txDiff;
+    int64_t txDiff;
     struct TestRunResponse resp;
 };
 
@@ -68,7 +69,7 @@ struct FiveTuple{
 
 struct TestData{
     struct TestPacket pkt;
-    struct timespec rxDiff;
+    int64_t rxDiff;
     int64_t jitter_ns;
 };
 
@@ -129,7 +130,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);
 struct TestPacket getEndTestPacket(int num);
 struct TestPacket getStartTestPacket();
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t seq, uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp);
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t seq, uint32_t cmd, int64_t tDiff, struct TestRunResponse *resp);
 
 
 int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run );
