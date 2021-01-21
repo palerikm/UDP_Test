@@ -16,6 +16,8 @@
 #include <sockethelper.h>
 #include <testrun.h>
 
+#include <logger.h>
+
 #define MAXBUFLEN 1500
 #define MAX_LISTEN_SOCKETS 1
 #define MAX_THREADS 100000
@@ -28,7 +30,6 @@ void sendStarOfTest(struct TestRun *run, int sockfd) {
 
     char newName[MAX_TESTNAME_LEN];
     strncpy(newName, run->config.testName, strlen(run->config.testName));
-   // strncat(newName, "_resp\0", 7);
 
     struct TestPacket startPkt = getStartTestPacket(newName);
 
@@ -45,64 +46,36 @@ void sendStarOfTest(struct TestRun *run, int sockfd) {
         nanosleep(&run->config.pktConfig.delay, &remaining);
     }
 }
-void sendEndOfTest(struct TestRun *run, int num, int sockfd) {
-    //Send End of Test a few times...
-
-    struct TestPacket startPkt = getEndTestPacket(num);
-
-    struct timespec now, remaining;
-    uint8_t endBuf[run->config.pktConfig.pkt_size];
-    memcpy(endBuf, &startPkt, sizeof(struct TestPacket));
-    memcpy(endBuf+sizeof(startPkt), &run->config.pktConfig, sizeof(struct TestRunPktConfig));
-    for(int j=0;j<10;j++){
-        clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-        sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
-                   (const struct sockaddr*)&run->fiveTuple->dst,
-                   0, run->config.pktConfig.dscp, 0 );
-
-        nanosleep(&run->config.pktConfig.delay, &remaining);
-    }
-}
-
-
 
 
 static void*
 startDownStreamTests(void* ptr) {
     struct TestRun *run = ptr;
-
-    //struct timespec startBurst, endBurst, inBurst, timeBeforeSendPacket, timeLastPacket;
     struct TimingInfo timingInfo;
     struct TestPacket pkt;
-
+    char s[200];
+    fiveTupleToString(s, run->fiveTuple);
+    LOG_INFO("Starting Downstream Test ---> %s", s);
+    logger_flush();
 
     int currBurstIdx = 0;
     timeStartTest(&timingInfo);
-    //clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
 
     struct timespec overshoot = {0, 0};
     nap(&run->config.pktConfig.delay, &overshoot);
 
     sendStarOfTest(run, sockfd);
 
-    //clock_gettime(CLOCK_MONOTONIC_RAW, &timeLastPacket);
-
     uint8_t buf[run->config.pktConfig.pkt_size];
 
-
     memset(buf, 67, sizeof(buf));
-   // int numPkts_to_send = run->config.pktConfig.numPktsToSend;
+
     int numPkt = 0;
     bool done = false;
     while(!done){
         numPkt++;
         timeSendPacket(&timingInfo);
-        //clock_gettime(CLOCK_MONOTONIC_RAW, &timeBeforeSendPacket);
-        //struct timespec timeSinceLastPkt;
-        //timespec_sub(&timeSinceLastPkt, &timeBeforeSendPacket, &timeLastPacket);
 
-
-        //uint32_t seq = numPkt>=numPkts_to_send ? numPkts_to_send : numPkt +1;
         uint32_t seq = numPkt;
         fillPacket(&pkt, 0, seq , in_progress_test_cmd,
                    &timingInfo.timeSinceLastPkt, NULL);
@@ -114,12 +87,8 @@ startDownStreamTests(void* ptr) {
 
         //Do I sleep or am I bursting..
         sleepBeforeNextBurst(&timingInfo, run->config.pktConfig.pktsInBurst, &currBurstIdx, &run->config.pktConfig.delay);
-        //struct timespec delay = getBurstDelay(&run->config, &startBurst, &endBurst, &inBurst, &currBurstIdx, &overshoot);
-        //nap(&delay, &overshoot);
-        //Staring a new burst when we start at top of for loop.
+
         timeStartBurst(&timingInfo);
-        //clock_gettime(CLOCK_MONOTONIC_RAW, &startBurst);
-        //timeLastPacket = timeBeforeSendPacket;
 
         //Lets prepare fill the next packet buffer with some usefull txData.
         int written = insertResponseData(buf + sizeof(pkt), sizeof(buf) - sizeof(pkt), seq, run);
@@ -145,10 +114,8 @@ startDownStreamTests(void* ptr) {
         if (elapsed.tv_sec > 1){
             done = true;
         }
-    }//End of main test run. Just some cleanup remaining.
-
-    sendEndOfTest(run, numPkt, sockfd);
-
+    }
+    LOG_INFO("Stopping Downstream Test %s", s);
     return NULL;
 }
 
@@ -168,31 +135,30 @@ packetHandler(struct ListenConfig* config,
                   from_addr,
                   sockaddr_ipPort(from_addr));
 
-
     int res = addTestDataFromBuf(mng, tuple, buf, buflen, &now);
 
     if(res<0){
-        printf("Encountered error while processing incoming UDP packet\n");
+        LOG_ERROR("Encountered error while processing incoming UDP packet");
     }
     if(res == 1){
         pthread_t responseThread;
         struct TestRun *run = findTestRun(mng, tuple);
         if( run != NULL) {
+            LOG_INFO("Starting new Downstream Test");
             pthread_create(&responseThread, NULL, startDownStreamTests, (void *) run);
+
         }else{
-            printf("Could not find corresponding testrun to start downstream tests\n");
+            LOG_ERROR("Could not find corresponding testrun to start downstream tests");
         }
-
     }
-
     free(tuple);
 }
 
 void
 teardown()
 {
+    LOG_INFO("Got SIGINT shutting down");
     close(sockfd);
-    printf("Quitting..\n");
     exit(0);
 }
 
@@ -207,21 +173,25 @@ printUsage()
     printf("  -h, --help                    Print help text\n");
     exit(0);
 }
+
 _Noreturn static void*
-saveAndMoveOn(void* ptr)
+pruneAndPrintStatus(void* ptr)
 {
     struct TestRunManager *mngr = ptr;
-    char filenameEnding[] = "_server_results.txt";
-    for (;; )
-    {
-        //saveAndDeleteFinishedTestRuns(mngr, filenameEnding);
+    FILE *fptr = fopen("udpserver_status.txt", "w");
+
+    for (;;) {
         pruneLingeringTestRuns(mngr);
 
-        printf("\r Running Tests: %i ", getNumberOfActiveTestRuns(mngr));
-        printf(" Mbps : %f ", getActiveBwOnAllTestRuns(mngr)/1000000);
-        printf(" Loss : %i ", getPktLossOnAllTestRuns(mngr));
-        printf(" Max Jitter %f ", (double)getMaxJitterTestRuns(mngr)/NSEC_PER_SEC);
-        usleep(10000);
+        if(fptr !=NULL) {
+        fprintf(fptr, "\r Running Tests: %i  Mbps : %f  Loss : %i Max Jitter %f ",
+                getNumberOfActiveTestRuns(mngr),
+                 getActiveBwOnAllTestRuns(mngr) / 1000000,
+                 getPktLossOnAllTestRuns(mngr),
+                 (double) getMaxJitterTestRuns(mngr) / NSEC_PER_SEC);
+        fflush(fptr);
+        }
+    usleep(10000);
     }
 }
 
@@ -250,6 +220,7 @@ main(int   argc,
             {"port", 1, 0, 'p'},
             {"help", 0, 0, 'h'},
             {"version", 0, 0, 'v'},
+            {"verbose", 0, 0, 'w'},
             {NULL, 0, NULL, 0}
     };
     if (argc < 1)
@@ -258,7 +229,7 @@ main(int   argc,
         exit(0);
     }
     int option_index = 0;
-    while ( ( c = getopt_long(argc, argv, "hvi:p:m:",
+    while ( ( c = getopt_long(argc, argv, "hvwi:p:m:",
                               long_options, &option_index) ) != -1 )
     {
         /* int this_option_optind = optind ? optind : 1; */
@@ -277,10 +248,23 @@ main(int   argc,
                 printf("Version %s\n", "Nothing to see here");
                 exit(0);
                 break;
+            case 'w':
+                logger_initConsoleLogger(stderr);
+                LOG_INFO("Logging to stderr");
+                break;
             default:
                 printf("?? getopt returned character code 0%o ??\n", c);
         }
     }
+    #ifdef __linux__
+    char logfile[] = "/var/log/udpserver.log";
+    #else
+    char logfile[] = "udpserver.log";
+    #endif
+    
+    logger_initFileLogger(logfile, 1024 * 1024, 5);
+    logger_autoFlush(100);
+
 
     if ( !getLocalInterFaceAddrs( (struct sockaddr*)&listenConfig.localAddr,
                                   listenConfig.interface,
@@ -288,7 +272,8 @@ main(int   argc,
                                   IPv6_ADDR_NORMAL,
                                   false ) )
     {
-        printf("Error getting IPaddr on %s\n", listenConfig.interface);
+        fprintf(stderr, "Error getting IPaddr on %s\n", listenConfig.interface);
+        LOG_FATAL("Error getting IPaddr on %s", listenConfig.interface);
         exit(1);
     }
 
@@ -307,13 +292,14 @@ main(int   argc,
 
     listenConfig.tInst = &testRunManager;
 
+    LOG_INFO("Up and running on %s", listenConfig.interface);
+
     pthread_create(&socketListenThread,
                    NULL,
                    socketListenDemux,
                    (void*)&listenConfig);
 
-    pthread_create(&cleanupThread, NULL, saveAndMoveOn, (void*)&testRunManager);
-    pause();
-
+    pthread_create(&cleanupThread, NULL, pruneAndPrintStatus, (void *) &testRunManager);
+    pthread_join(socketListenThread, NULL);
 }
 

@@ -8,13 +8,15 @@ include(FetchContent)
 FetchContent_Declare(
         sockaddrutil
         GIT_REPOSITORY "https://github.com/palerikm/sockaddrutil"
-        # Uncomment and set the following to a specific hash to
-        # lock down to a specific commit and avoid contacting
-        # the remote once we've already cloned/fetched it
+        #GIT_TAG someGitHash
+)
+FetchContent_Declare(
+        clogger
+        GIT_REPOSITORY "https://github.com/palerikm/c-logger"
         #GIT_TAG someGitHash
 )
 
-FetchContent_MakeAvailable(sockaddrutil)
+FetchContent_MakeAvailable(sockaddrutil clogger)
 
 
 
