@@ -20,7 +20,7 @@ createLocalSocket(int                    ai_family,
                   int                    ai_socktype,
                   uint16_t               port)
 {
-    int sockfd;
+    int sockfd = -1;
 
     int             rv;
     struct addrinfo hints, * ai, * p;
@@ -181,7 +181,6 @@ sendPacket(int                    sockHandle,
            int                    dscp,
            uint8_t                ttl)
 {
-    int32_t numbytes;
     /* char addrStr[SOCKADDR_MAX_STRLEN]; */
     uint32_t sock_ttl;
     uint32_t addr_len;
@@ -230,8 +229,7 @@ sendPacket(int                    sockHandle,
                         sizeof(sock_ttl) );
         }
 
-        if ( ( numbytes =
-                       sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) ) == -1 )
+        if (sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) == -1 )
         {
             perror("Stun sendto");
             exit(6);
@@ -248,8 +246,7 @@ sendPacket(int                    sockHandle,
     else
     {
         /*Nothing special, just send the packet*/
-        if ( ( numbytes =
-                       sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) ) == -1 )
+        if (sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) == -1 )
         {
             perror("sendto");
             //(7);

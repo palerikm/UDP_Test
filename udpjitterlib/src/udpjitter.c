@@ -1,3 +1,4 @@
+#include <iso646.h>
 //
 // Created by Pal-Erik Martinsen on 12/11/2020.
 //
@@ -17,7 +18,7 @@ uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     return hashmap_sip(run->fiveTuple, sizeof(struct FiveTuple), seed0, seed1);
 }
 
-int TestRun_compare(const void *a, const void *b, void *udata) {
+int TestRun_compare(const void *a, const void *b, __unused void *udata) {
     const struct TestRun *ua = a;
     const struct TestRun *ub = b;
 
@@ -132,7 +133,7 @@ void addTestRun(struct TestRunManager *mng, struct TestRun *tRun) {
         if( hashmap_oom(mng->map) ){
             printf("System out of memory\n");
         }
-    };
+    }
 }
 void initTestRunManager(struct TestRunManager *testRunManager) {
     (*testRunManager).map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
@@ -213,9 +214,8 @@ void pruneAllTestRuns(struct TestRunManager *mngr){
     }
 }
 uint32_t getPktLossOnAllTestRuns(struct TestRunManager *mngr){
-    //struct TestRun *run;
     uint32_t loss = 0;
-    bool notEarly = hashmap_scan(mngr->map, TestRun_loss_iter, &loss);
+    hashmap_scan(mngr->map, TestRun_loss_iter, &loss);
     return loss;
 }
 
@@ -380,12 +380,12 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
             struct timespec txts = {0, respPkt.txDiff};
             tPkt.txDiff = txts;
 
-           // printf("Seq %i\n", respPkt.seq);
+
             run->lastPktTime.tv_sec = 0;
             run->lastPktTime.tv_nsec = 0;
 
             struct timespec rxts = {0, respPkt.rxDiff};
-            int res = addTestData(run, &tPkt, sizeof(tPkt), &rxts);
+            addTestData(run, &tPkt, sizeof(tPkt), &rxts);
 
 
             currPosition+=sizeof(respPkt);
@@ -395,7 +395,7 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
 
 }
 
-int insertResponseData(uint8_t *buf, size_t bufsize, int seq, struct TestRun *run ) {
+int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
     memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
     if(run->numTestData < 1){
         return 0;

@@ -246,12 +246,12 @@ void waitForResponses(struct TestRunConfig *testRunConfig, struct TestRunManager
 
 void
 packetHandler(struct ListenConfig* config,
-              struct sockaddr*     from_addr,
-              void*                cb,
+              __unused struct sockaddr*     from_addr,
+              __unused void*                cb,
               unsigned char*       buf,
               int                  buflen) {
 
-    struct timespec now, result;
+    struct timespec now;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     struct TestRunManager *mngr = config->tInst;
     struct FiveTuple *tuple;

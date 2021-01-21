@@ -91,7 +91,7 @@ startDownStreamTests(void* ptr) {
         timeStartBurst(&timingInfo);
 
         //Lets prepare fill the next packet buffer with some usefull txData.
-        int written = insertResponseData(buf + sizeof(pkt), sizeof(buf) - sizeof(pkt), seq, run);
+        int written = insertResponseData(buf + sizeof(pkt), sizeof(buf) - sizeof(pkt), run);
         if(written > 0) {
             pthread_mutex_lock(&run->lock);
             //So how much can we move back?
@@ -122,10 +122,10 @@ startDownStreamTests(void* ptr) {
 void
 packetHandler(struct ListenConfig* config,
             struct sockaddr*     from_addr,
-            void*                cb,
+              __unused void*                cb,
             unsigned char*       buf,
             int                  buflen) {
-    struct timespec now, result;
+    struct timespec now;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
 
     struct TestRunManager *mng = config->tInst;

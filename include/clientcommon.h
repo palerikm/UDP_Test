@@ -38,8 +38,8 @@ void waitForResponses(struct TestRunConfig *testRunConfig, struct TestRunManager
 
 void
 packetHandler(struct ListenConfig* config,
-              struct sockaddr*     from_addr,
-              void*                cb,
+              __unused struct sockaddr*     from_addr,
+              __unused __unused  void*                cb,
               unsigned char*       buf,
               int                  buflen);
 

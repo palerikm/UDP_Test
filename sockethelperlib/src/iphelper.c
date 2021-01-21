@@ -56,7 +56,7 @@ getLocalInterFaceAddrs(struct sockaddr* addr,
             continue;
         }
 
-        if ( (strcmp(iface, ifa->ifa_name) != 0) && strcmp(iface, "default\0") )
+        if ( (strcmp(iface, ifa->ifa_name) != 0) && strcmp(iface, "default\0") != 0 )
         {
             continue;
         }

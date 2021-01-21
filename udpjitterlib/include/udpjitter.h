@@ -124,7 +124,7 @@ struct TestRun{
 
 void initTestRunManager(struct TestRunManager *testRunManager);
 uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1);
-int TestRun_compare(const void *a, const void *b, void *udata);
+int TestRun_compare(const void *a, const void *b, __unused void *udata);
 bool TestRun_iter(const void *item, void *udata);
 bool TestRun_bw_iter(const void *item, void *udata);
 
@@ -141,7 +141,7 @@ struct TestPacket getStartTestPacket();
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq, uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp);
 
 
-int insertResponseData(uint8_t *buf, size_t bufsize, int seq, struct TestRun *run );
+int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run );
 int extractRespTestData(const unsigned char *buf, struct TestRun *run);
 
 
