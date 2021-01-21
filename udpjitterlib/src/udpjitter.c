@@ -102,10 +102,9 @@ bool TestRun_loss_iter(const void *item, void *udata) {
 }
 
 
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t seq,
                    uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp){
     testPacket->pktCookie = TEST_PKT_COOKIE;
-    testPacket->srcId = srcId;
     testPacket->seq = seq;
     testPacket->cmd = cmd;
     if(tDiff != NULL){
@@ -397,7 +396,7 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
 
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
-        respPkt.jitter_ns = tData->jitter_ns;
+        //respPkt.jitter_ns = tData->jitter_ns;
         respPkt.txDiff = timespec_to_nsec(&tData->pkt.txDiff);
         respPkt.rxDiff = timespec_to_nsec(&tData->rxDiff);
 
@@ -516,14 +515,14 @@ int addTestDataFromBuf(struct TestRunManager *mng,
 
 struct TestPacket getEndTestPacket(int num){
     struct TestPacket pkt;
-    fillPacket(&pkt, 23, num, stop_test_cmd,
+    fillPacket(&pkt, num, stop_test_cmd,
                NULL, NULL);
     return pkt;
 }
 
 struct TestPacket getStartTestPacket(){
     struct TestPacket pkt;
-    fillPacket(&pkt, 23, 0, start_test_cmd,
+    fillPacket(&pkt, 0, start_test_cmd,
                NULL, NULL);
     return pkt;
 }

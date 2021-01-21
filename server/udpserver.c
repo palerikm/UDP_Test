@@ -77,7 +77,7 @@ startDownStreamTests(void* ptr) {
         timeSendPacket(&timingInfo);
 
         uint32_t seq = numPkt;
-        fillPacket(&pkt, 0, seq , in_progress_test_cmd,
+        fillPacket(&pkt, seq , in_progress_test_cmd,
                    &timingInfo.timeSinceLastPkt, NULL);
         memcpy(buf, &pkt, sizeof(pkt));
 
