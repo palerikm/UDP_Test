@@ -182,13 +182,12 @@ pruneAndPrintStatus(void* ptr)
 
     for (;;) {
         pruneLingeringTestRuns(mngr);
-
+        fptr = freopen(NULL, "w", fptr);
         if(fptr !=NULL) {
-        fprintf(fptr, "\r Running Tests: %i  Mbps : %f  Loss : %i Max Jitter %f ",
+        fprintf(fptr, "Running Tests: %i  Mbps : %f  Loss : %i \n",
                 getNumberOfActiveTestRuns(mngr),
                  getActiveBwOnAllTestRuns(mngr) / 1000000,
-                 getPktLossOnAllTestRuns(mngr),
-                 (double) getMaxJitterTestRuns(mngr) / NSEC_PER_SEC);
+                 getPktLossOnAllTestRuns(mngr));
         fflush(fptr);
         }
     usleep(10000);
@@ -256,12 +255,9 @@ main(int   argc,
                 printf("?? getopt returned character code 0%o ??\n", c);
         }
     }
-    #ifdef __linux__
-    char logfile[] = "/var/log/udpserver.log";
-    #else
+
     char logfile[] = "udpserver.log";
-    #endif
-    
+
     logger_initFileLogger(logfile, 1024 * 1024, 5);
     logger_autoFlush(100);
 
