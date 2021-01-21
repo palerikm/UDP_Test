@@ -116,7 +116,7 @@ struct TestRun{
 
 void initTestRunManager(struct TestRunManager *testRunManager);
 uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1);
-int TestRun_compare(const void *a, const void *b, __unused void *udata);
+int TestRun_compare(const void *a, const void *b, void *udata);
 bool TestRun_iter(const void *item, void *udata);
 bool TestRun_bw_iter(const void *item, void *udata);
 

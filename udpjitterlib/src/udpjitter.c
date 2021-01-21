@@ -18,7 +18,7 @@ uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     return hashmap_sip(run->fiveTuple, sizeof(struct FiveTuple), seed0, seed1);
 }
 
-int TestRun_compare(const void *a, const void *b, __unused void *udata) {
+int TestRun_compare(const void *a, const void *b, void *udata) {
     const struct TestRun *ua = a;
     const struct TestRun *ub = b;
 

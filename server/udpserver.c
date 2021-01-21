@@ -122,7 +122,7 @@ startDownStreamTests(void* ptr) {
 void
 packetHandler(struct ListenConfig* config,
             struct sockaddr*     from_addr,
-              __unused void*                cb,
+            void*                cb,
             unsigned char*       buf,
             int                  buflen) {
     struct timespec now;
