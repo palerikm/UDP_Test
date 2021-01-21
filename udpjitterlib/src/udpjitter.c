@@ -11,7 +11,7 @@
 #include <hashmap.h>
 #include <pthread.h>
 #include "../include/udpjitter.h"
-#include "../include/testrun.h"
+#include "../include/timing.h"
 
 uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     const struct TestRun *run = item;
@@ -101,14 +101,6 @@ bool TestRun_loss_iter(const void *item, void *udata) {
     return true;
 }
 
-bool TestRun_max_jitter_iter(const void *item, void *udata) {
-    const struct TestRun *testRun = item;
-    int64_t *max_jitter = udata;
-    if( llabs(*max_jitter) < llabs(testRun->stats.jitterInfo.maxJitter)) {
-        *max_jitter = testRun->stats.jitterInfo.maxJitter;
-    }
-    return true;
-}
 
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t srcId, uint32_t seq,
                    uint32_t cmd, struct timespec *tDiff, struct TestRunResponse *resp){
@@ -142,6 +134,10 @@ void initTestRunManager(struct TestRunManager *testRunManager) {
     (*testRunManager).TestRun_status_cb = NULL;
     (*testRunManager).TestRun_live_cb = NULL;
 
+}
+
+void saveCsvHeader(FILE *fptr){
+    fprintf(fptr, "seq,txDiff,rxDiff,jitter\n");
 }
 
 int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id,
@@ -224,11 +220,7 @@ double getActiveBwOnAllTestRuns(struct TestRunManager *mngr){
     hashmap_scan(mngr->map, TestRun_bw_iter, &mbits);
     return mbits;
 }
-int64_t getMaxJitterTestRuns(struct TestRunManager *mngr){
-    int64_t maxJitter = 0;
-    hashmap_scan(mngr->map, TestRun_max_jitter_iter, &maxJitter);
-    return maxJitter;
-}
+
 
 
 int getNumberOfActiveTestRuns(struct TestRunManager *mngr){
@@ -345,16 +337,6 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     if(testRun->mngr->TestRun_live_cb != NULL){
         testRun->mngr->TestRun_live_cb(testRun->id, d.pkt.seq, d.jitter_ns);
     }
-
-    if(llabs(d.jitter_ns) > llabs(testRun->stats.jitterInfo.maxJitter)){
-        testRun->stats.jitterInfo.maxJitter = d.jitter_ns;
-    }
-
-    int64_t a = 0;
-    for(int i=0;i < testRun->numTestData;i++){
-        a += ((testRun->testData)+1)->jitter_ns;
-    }
-    testRun->stats.jitterInfo.avgJitter = a/testRun->numTestData;
 
     return 0;
 }
@@ -640,9 +622,7 @@ void saveTestData(const struct TestData *tData, FILE *fptr){
     fprintf(fptr, "%" PRId64, tData->jitter_ns);
     fprintf(fptr, "\n");
 }
-void saveCsvHeader(FILE *fptr){
-    fprintf(fptr, "seq,txDiff,rxDiff,jitter\n");
-}
+
 
 void saveTestRunConfigToFile(const struct TestRun *testRun, FILE *fptr) {
     char fiveTplStr[200];

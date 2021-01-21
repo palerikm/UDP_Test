@@ -14,7 +14,7 @@
 #include <udpjitter.h>
 #include <iphelper.h>
 #include <sockethelper.h>
-#include <testrun.h>
+#include <timing.h>
 
 #include <logger.h>
 

@@ -8,7 +8,7 @@
 
 #include <sockethelper.h>
 #include <iphelper.h>
-#include <testrun.h>
+#include <timing.h>
 #include "ui_JitterQChartWidget.h"
 
 

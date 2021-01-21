@@ -80,19 +80,12 @@ struct TestRunConfig{
     struct TestRunPktConfig pktConfig;
 };
 
-struct JitterInfo{
-    int32_t avgJitter;
-    int32_t maxJitter;
-};
-
-
 struct TestRunStatistics{
     uint32_t lostPkts;
     struct timespec startTest;
     struct timespec endTest;
     uint32_t rcvdPkts;
     uint32_t rcvdBytes;
-    struct JitterInfo jitterInfo;
 };
 
 struct TestRunManager{
@@ -149,14 +142,12 @@ struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTu
 void saveTestRunToFile(const struct TestRun *testRun, const char* filename);
 void saveTestData(const struct TestData *tData, FILE *fptr);
 
-int configToString(char* configStr, const struct TestRunConfig *config);
 
-void saveCsvHeader(FILE *fptr);
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filename);
 bool pruneLingeringTestRuns(struct TestRunManager *mngr);
 double getActiveBwOnAllTestRuns(struct TestRunManager *mngr);
 int getNumberOfActiveTestRuns(struct TestRunManager *mngr);
-int64_t getMaxJitterTestRuns(struct TestRunManager *mngr);
+
 uint32_t getPktLossOnAllTestRuns(struct TestRunManager *mngr);
 void freeTestRunManager(struct TestRunManager *mngr);
 

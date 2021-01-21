@@ -12,7 +12,7 @@ extern "C"
 
 #include "../udpjitterlib/include/udpjitter.h"
 #include "../sockethelperlib/include/sockethelper.h"
-#include "../udpjitterlib/include/testrun.h"
+#include "../udpjitterlib/include/timing.h"
 
 
 

@@ -4,7 +4,7 @@
 
 
 #include <time.h>
-#include "../include/testrun.h"
+#include "../include/timing.h"
 
 
 void timeStartTest(struct TimingInfo *tInfo){
