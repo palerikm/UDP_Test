@@ -113,14 +113,11 @@ void sendStarOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int 
     }
 }
 
-struct TestRunResponse getResponse(const struct TestRun *respRun) {
-    struct TestRunResponse r;
+int32_t getLastSeq(const struct TestRun *respRun) {
     if(respRun->numTestData > 1) {
-        r.lastSeqConfirmed = respRun->testData[respRun->numTestData - 1].pkt.seq;
-    }else{
-        r.lastSeqConfirmed = 0;
+        return respRun->testData[respRun->numTestData - 1].pkt.seq;
     }
-    return r;
+    return 0;
 }
 
 
@@ -152,7 +149,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
     timeStartBurst(&timingInfo);
     while(!testRunManager->done){
         numPkt++;
-        struct TestRunResponse r = getResponse(respRun);
+        int32_t lastSeq = getLastSeq(respRun);
 
         timeSendPacket(&timingInfo);
 
@@ -160,7 +157,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
 
         uint32_t seq = numPkt;
         fillPacket(&pkt, seq, in_progress_test_cmd,
-                   timingInfo.txDiff, &r);
+                   timingInfo.txDiff, lastSeq);
         memcpy(buf, &pkt, sizeof(pkt));
 
         //printf("Sending packet (%i)\n", seq);
@@ -188,7 +185,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
         timeStartBurst(&timingInfo);
 
         if(numPkts_to_send > 0 && numPkt > numPkts_to_send){
-            if(r.lastSeqConfirmed == (*testRunConfig).pktConfig.numPktsToSend) {
+            if(lastSeq == (*testRunConfig).pktConfig.numPktsToSend) {
                 struct TestRun *txrun = findTestRun(testRunManager, txFiveTuple);
                 txrun->done = true;
                 testRunManager->done = true;

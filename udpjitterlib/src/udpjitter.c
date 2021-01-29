@@ -103,18 +103,14 @@ bool TestRun_loss_iter(const void *item, void *udata) {
 
 
 uint32_t fillPacket(struct TestPacket *testPacket, uint32_t seq,
-                   uint32_t cmd, int64_t tDiff, struct TestRunResponse *resp){
+                   uint32_t cmd, int64_t tDiff, int32_t lastSeqConfirmed){
     testPacket->pktCookie = TEST_PKT_COOKIE;
     testPacket->seq = seq;
     testPacket->cmd = cmd;
-    //if(tDiff != NULL){
-        testPacket->txInterval = tDiff;
-    //}
-    if(resp != NULL) {
-        testPacket->resp = *resp;
-    }else{
-        testPacket->resp.lastSeqConfirmed = -1;
-    }
+
+    testPacket->txInterval = tDiff;
+
+    testPacket->lastSeqConfirmed = lastSeqConfirmed;
 
     return 0;
 }
@@ -182,7 +178,7 @@ int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id
         return -1;
     }
 
-    testRun->resp.lastSeqConfirmed = 0;
+    testRun->lastSeqConfirmed = 0;
 
     if (pthread_mutex_init(&testRun->lock, NULL) != 0) {
         printf("\n TestRun mutex init has failed\n");
@@ -276,7 +272,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         timespec_sub(&ts, now, &testRun->lastPktTime);
         rxDiff = timespec_to_nsec(&ts);
 
-        testRun->resp = testPacket->resp;
+        testRun->lastSeqConfirmed = testPacket->lastSeqConfirmed;
         //Did we loose any packets? Or out of order?
         struct TestPacket *lastPkt = &testRun->testData[testRun->numTestData-1].pkt;
         if (testPacket->seq < lastPkt->seq) {
@@ -299,7 +295,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
                 tPkt.seq = lastPkt->seq + 1 + i;
                 struct TestData d;
                 d.pkt = tPkt;
-                d.rxInterval = 0;
+//                d.rxInterval = 0;
                 memcpy((testRun->testData + testRun->numTestData), &d, sizeof(struct TestData));
                 testRun->numTestData++;
             }
@@ -324,7 +320,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     //timespec_sub(&jitter, &timeSinceLastPkt, &testPacket->txInterval);
     d.jitter_ns = rxDiff - testPacket->txInterval;
 
-    d.rxInterval = rxDiff;
+//    d.rxInterval = rxDiff;
 
 
     memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
@@ -361,13 +357,14 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
             struct TestPacket tPkt;
             tPkt.seq = respPkt.seq;
             //struct timespec txts = {0, respPkt.txInterval};
-            tPkt.txInterval = respPkt.txDiff;
+            tPkt.txInterval = 0;
+
 
 
             run->lastPktTime.tv_sec = 0;
             run->lastPktTime.tv_nsec = 0;
 
-            struct timespec rxts = {0, respPkt.rxDiff};
+            struct timespec rxts = {0, respPkt.jitter_ns};
             addTestData(run, &tPkt, sizeof(tPkt), &rxts);
 
 
@@ -384,7 +381,7 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
         return 0;
     }
     int lastSeq = run->testData[run->numTestData-1].pkt.seq;
-    int numRespItemsInQueue =  lastSeq - run->resp.lastSeqConfirmed;
+    int numRespItemsInQueue =  lastSeq - run->lastSeqConfirmed;
     int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
        int currentWritePos = sizeof(int32_t);
     int32_t written = -1;
@@ -398,9 +395,7 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
 
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
-        //respPkt.jitter_ns = tData->jitter_ns;
-        respPkt.txDiff = tData->pkt.txInterval;
-        respPkt.rxDiff = tData->rxInterval;
+        respPkt.jitter_ns = tData->jitter_ns;
 
         memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
 
@@ -606,14 +601,14 @@ int statsToString(char* configStr, const struct TestRunStatistics *stats) {
 }
 
 void saveTestData(const struct TestData *tData, FILE *fptr){
-    int64_t rxDiff = tData->rxInterval;
+//    int64_t rxDiff = tData->rxInterval;
     int64_t txDiff = tData->pkt.txInterval;
     fprintf(fptr, "%i,", tData->pkt.seq);
-    if(rxDiff == 0){
-        fprintf(fptr, "%s,","NaN");
-    }else{
-        fprintf(fptr, "%" PRId64 ",", rxDiff);
-    }
+  //  if(rxDiff == 0){
+  //      fprintf(fptr, "%s,","NaN");
+  //  }else{
+  //      fprintf(fptr, "%" PRId64 ",", rxDiff);
+  //  }
     if(txDiff == 0){
         fprintf(fptr, "%s,","NaN");
     }else{

@@ -41,15 +41,10 @@ struct TestRunPktConfig{
     int pkt_size;
 };
 
-struct TestRunResponse{
-    int32_t lastSeqConfirmed;
-};
-
 struct TestRunPktResponse{
     uint32_t pktCookie;
     uint32_t seq;
-    int64_t txDiff;
-    int64_t rxDiff;
+    int64_t jitter_ns;
 };
 
 struct TestPacket{
@@ -57,7 +52,7 @@ struct TestPacket{
     uint32_t seq;
     uint32_t cmd;
     int64_t txInterval;
-    struct TestRunResponse resp;
+    int32_t lastSeqConfirmed;
 };
 
 struct FiveTuple{
@@ -68,7 +63,6 @@ struct FiveTuple{
 
 struct TestData{
     struct TestPacket pkt;
-    int64_t rxInterval;
     int64_t jitter_ns;
 };
 
@@ -103,9 +97,8 @@ struct TestRun{
     struct timespec lastPktTime;
 
     struct TestRunManager *mngr;
-
     struct TestRunStatistics stats;
-    struct TestRunResponse resp;
+    int32_t lastSeqConfirmed;
     pthread_mutex_t lock;
     FILE *fptr;
     bool done;
@@ -129,7 +122,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 struct TestPacket getNextTestPacket(const struct TestRun *testRun, struct timespec *now);
 struct TestPacket getEndTestPacket(int num);
 struct TestPacket getStartTestPacket();
-uint32_t fillPacket(struct TestPacket *testPacket, uint32_t seq, uint32_t cmd, int64_t tDiff, struct TestRunResponse *resp);
+uint32_t fillPacket(struct TestPacket *testPacket, uint32_t seq, uint32_t cmd, int64_t tDiff, int32_t lastSeqConfirmed);
 
 
 int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run );
