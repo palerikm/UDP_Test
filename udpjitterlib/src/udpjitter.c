@@ -108,7 +108,7 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t seq,
     testPacket->seq = seq;
     testPacket->cmd = cmd;
     //if(tDiff != NULL){
-        testPacket->txDiff = tDiff;
+        testPacket->txInterval = tDiff;
     //}
     if(resp != NULL) {
         testPacket->resp = *resp;
@@ -136,7 +136,7 @@ void initTestRunManager(struct TestRunManager *testRunManager) {
 }
 
 void saveCsvHeader(FILE *fptr){
-    fprintf(fptr, "seq,txDiff,rxDiff,jitter\n");
+    fprintf(fptr, "seq,txInterval,rxInterval,jitter\n");
 }
 
 int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id,
@@ -299,7 +299,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
                 tPkt.seq = lastPkt->seq + 1 + i;
                 struct TestData d;
                 d.pkt = tPkt;
-                d.rxDiff = 0;
+                d.rxInterval = 0;
                 memcpy((testRun->testData + testRun->numTestData), &d, sizeof(struct TestData));
                 testRun->numTestData++;
             }
@@ -319,12 +319,12 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
 
     // Calculate jitter based on time since last received packet and the
-    // sending variation happening on the client(txDiff)
+    // sending variation happening on the client(txInterval)
     //struct timespec jitter = {0,0};
-    //timespec_sub(&jitter, &timeSinceLastPkt, &testPacket->txDiff);
-    d.jitter_ns = rxDiff - testPacket->txDiff;
+    //timespec_sub(&jitter, &timeSinceLastPkt, &testPacket->txInterval);
+    d.jitter_ns = rxDiff - testPacket->txInterval;
 
-    d.rxDiff = rxDiff;
+    d.rxInterval = rxDiff;
 
 
     memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
@@ -360,8 +360,8 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
 
             struct TestPacket tPkt;
             tPkt.seq = respPkt.seq;
-            //struct timespec txts = {0, respPkt.txDiff};
-            tPkt.txDiff = respPkt.txDiff;
+            //struct timespec txts = {0, respPkt.txInterval};
+            tPkt.txInterval = respPkt.txDiff;
 
 
             run->lastPktTime.tv_sec = 0;
@@ -399,8 +399,8 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
         //respPkt.jitter_ns = tData->jitter_ns;
-        respPkt.txDiff = tData->pkt.txDiff;
-        respPkt.rxDiff = tData->rxDiff;
+        respPkt.txDiff = tData->pkt.txInterval;
+        respPkt.rxDiff = tData->rxInterval;
 
         memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
 
@@ -606,8 +606,8 @@ int statsToString(char* configStr, const struct TestRunStatistics *stats) {
 }
 
 void saveTestData(const struct TestData *tData, FILE *fptr){
-    int64_t rxDiff = tData->rxDiff;
-    int64_t txDiff = tData->pkt.txDiff;
+    int64_t rxDiff = tData->rxInterval;
+    int64_t txDiff = tData->pkt.txInterval;
     fprintf(fptr, "%i,", tData->pkt.seq);
     if(rxDiff == 0){
         fprintf(fptr, "%s,","NaN");
