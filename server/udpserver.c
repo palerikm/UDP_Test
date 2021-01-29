@@ -78,7 +78,7 @@ startDownStreamTests(void* ptr) {
 
         uint32_t seq = numPkt;
         fillPacket(&pkt, seq , in_progress_test_cmd,
-                   timingInfo.txDiff, NULL);
+                   timingInfo.txDiff, 0);
         memcpy(buf, &pkt, sizeof(pkt));
 
         sendPacket(sockfd, (const uint8_t *) buf, sizeof(buf),
@@ -98,7 +98,7 @@ startDownStreamTests(void* ptr) {
             //Find the packet with the last conf seq
             int idx = run->numTestData - written;
             for(int i = 0; i < written; i++){
-                if( run->testData[idx+i].pkt.seq == run->resp.lastSeqConfirmed){
+                if( run->testData[idx+i].pkt.seq == run->lastSeqConfirmed){
                     memcpy(run->testData, &run->testData[idx+i], sizeof(struct TestData)*i);
                     run->numTestData = i;
                     break;

@@ -513,14 +513,14 @@ int addTestDataFromBuf(struct TestRunManager *mng,
 struct TestPacket getEndTestPacket(int num){
     struct TestPacket pkt;
     fillPacket(&pkt, num, stop_test_cmd,
-               0, NULL);
+               0, 0);
     return pkt;
 }
 
 struct TestPacket getStartTestPacket(){
     struct TestPacket pkt;
     fillPacket(&pkt, 0, start_test_cmd,
-               0, NULL);
+               0, 0);
     return pkt;
 }
 
