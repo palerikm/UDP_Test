@@ -70,6 +70,8 @@ set(CPACK_PACKAGE_NAME ${APP_NAME})
 set(CPACK_PACKAGE_VENDOR "CMake.org")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Simple UDP Testing tool")
 set(CPACK_BUNDLE_NAME ${APP_NAME})
+set(CPACK_BUNDLE_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/Info.plist)
+set(CPACK_BUNDLE_ICON ${CMAKE_CURRENT_SOURCE_DIR}/someIcon.ics)
 
 
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/qt.conf"
@@ -83,8 +85,6 @@ install(TARGETS ${APP_NAME}
         BUNDLE DESTINATION . COMPONENT Runtime
         RUNTIME DESTINATION bin COMPONENT Runtime
         )
-
-
 
 # Note Mac specific extension .app
 #set(APPS "\${CMAKE_INSTALL_PREFIX}/${APP_NAME}.app")

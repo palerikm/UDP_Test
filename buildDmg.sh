@@ -6,4 +6,4 @@ create-dmg \
   --window-size 800 400 \
   --icon-size 100 \
   "UDPTest-Installer.dmg" \
-  "build/qtclient/udpqtclient.app/Contents/MacOS/udpqtclient"
+  "release/qtclient/udpqtclient.app/Contents/MacOS/udpqtclient"
