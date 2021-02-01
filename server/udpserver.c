@@ -15,6 +15,7 @@
 #include <iphelper.h>
 #include <sockethelper.h>
 #include <timing.h>
+#include <fivetuple.h>
 
 #include <logger.h>
 
@@ -78,7 +79,7 @@ startDownStreamTests(void* ptr) {
 
         uint32_t seq = numPkt;
         fillPacket(&pkt, seq , in_progress_test_cmd,
-                   timingInfo.txDiff, 0);
+                   timingInfo.txInterval, 0);
         memcpy(buf, &pkt, sizeof(pkt));
 
         sendPacket(sockfd, (const uint8_t *) buf, sizeof(buf),

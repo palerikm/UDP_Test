@@ -21,8 +21,7 @@ struct TimingInfo{
     struct timespec inBurst;
     struct timespec timeBeforeSendPacket;
     struct timespec timeLastPacket;
-    //struct timespec timeSinceLastPkt;
-    int64_t txDiff;
+    int64_t txInterval;
     struct timespec overshoot;
 };
 

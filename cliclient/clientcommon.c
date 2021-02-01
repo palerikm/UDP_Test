@@ -1,6 +1,6 @@
 #include <string.h>
 #include <pthread.h>
-
+#include <fivetuple.h>
 #include "clientcommon.h"
 
 
@@ -157,7 +157,7 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
 
         uint32_t seq = numPkt;
         fillPacket(&pkt, seq, in_progress_test_cmd,
-                   timingInfo.txDiff, lastSeq);
+                   timingInfo.txInterval, lastSeq);
         memcpy(buf, &pkt, sizeof(pkt));
 
         //printf("Sending packet (%i)\n", seq);

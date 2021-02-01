@@ -3,6 +3,8 @@ project(UDP_tests CXX C)
 
 set(CMAKE_C_STANDARD 99)
 
+enable_testing()
+
 include(FetchContent)
 
 FetchContent_Declare(
@@ -16,7 +18,7 @@ FetchContent_Declare(
         #GIT_TAG someGitHash
 )
 
-FetchContent_MakeAvailable(sockaddrutil clogger)
+FetchContent_MakeAvailable(sockaddrutil clogger )
 
 
 

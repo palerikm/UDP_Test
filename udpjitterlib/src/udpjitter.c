@@ -10,8 +10,13 @@
 #include <sockaddrutil.h>
 #include <hashmap.h>
 #include <pthread.h>
-#include "../include/udpjitter.h"
-#include "../include/timing.h"
+#include "udpjitter.h"
+#include "timing.h"
+#include "fivetuple.h"
+
+
+void saveTestRunToFile(const struct TestRun *testRun, const char* filename);
+void saveTestData(const struct TestData *tData, FILE *fptr);
 
 uint64_t TestRun_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     const struct TestRun *run = item;
@@ -59,9 +64,6 @@ bool TestRun_complete_iter(const void *item, void *udata) {
 bool TestRun_lingering_iter(const void *item, void *udata) {
     const struct TestRun *testRun = item;
 
-    //if(testRun->done){
-    //    return true;
-   // }
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC_RAW, &now);
     struct timespec elapsed = {0,0};
@@ -167,7 +169,6 @@ int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id
     testRun->numTestData = 0;
 
     memcpy(&testRun->config, config, sizeof(struct TestRunConfig));
-//    sockaddr_copy((struct sockaddr*)&testRun->config.remoteAddr, (struct sockaddr*)&fiveTuple->dst);
     testRun->stats.lostPkts = 0;
     testRun->stats.rcvdPkts = 0;
     testRun->stats.rcvdBytes =0;
@@ -239,17 +240,14 @@ bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *file
 }
 
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now){
-    //struct timespec timeSinceLastPkt;
-    int64_t rxDiff;
+    int64_t rxLocalInterval;
 
-    //printf("Adding Test Data\n");
     if(testRun == NULL){
        // printf("  TestRun is NULL");
         return -1;
     }
-   // printf("  Name: %s (%i)\n", testRun->config.testName,testRun->numTestData);
+
     if(testRun->numTestData >= testRun->maxNumTestData){
-        //testRun->testData = malloc(sizeof(struct TestData)* testRun->maxNumTestData);
         testRun->maxNumTestData+= TEST_DATA_INCREMENT_SIZE;
         testRun->testData = realloc(testRun->testData, sizeof(struct TestData)* testRun->maxNumTestData );
         if(testRun->testData == NULL ) {
@@ -270,7 +268,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     if(testRun->numTestData > 0) {
         struct timespec ts;
         timespec_sub(&ts, now, &testRun->lastPktTime);
-        rxDiff = timespec_to_nsec(&ts);
+        rxLocalInterval = timespec_to_nsec(&ts);
 
         testRun->lastSeqConfirmed = testPacket->lastSeqConfirmed;
         //Did we loose any packets? Or out of order?
@@ -295,16 +293,13 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
                 tPkt.seq = lastPkt->seq + 1 + i;
                 struct TestData d;
                 d.pkt = tPkt;
-//                d.rxInterval = 0;
                 memcpy((testRun->testData + testRun->numTestData), &d, sizeof(struct TestData));
                 testRun->numTestData++;
             }
             testRun->stats.lostPkts += lostPkts;
         }
-
-
     }else{
-        rxDiff = 0;
+        rxLocalInterval = 0;
     }
 
     testRun->stats.rcvdPkts++;
@@ -313,15 +308,9 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     struct TestData d;
     d.pkt = *testPacket;
 
-
     // Calculate jitter based on time since last received packet and the
     // sending variation happening on the client(txInterval)
-    //struct timespec jitter = {0,0};
-    //timespec_sub(&jitter, &timeSinceLastPkt, &testPacket->txInterval);
-    d.jitter_ns = rxDiff - testPacket->txInterval;
-
-//    d.rxInterval = rxDiff;
-
+    d.jitter_ns = rxLocalInterval - testPacket->txInterval;
 
     memcpy((testRun->testData+testRun->numTestData), &d, sizeof(struct TestData));
     testRun->numTestData++;
@@ -334,7 +323,6 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
     if(testRun->mngr->TestRun_live_cb != NULL){
         testRun->mngr->TestRun_live_cb(testRun->id, d.pkt.seq, d.jitter_ns);
     }
-
     return 0;
 }
 
@@ -353,21 +341,15 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
                 break;
             }
 
-
             struct TestPacket tPkt;
             tPkt.seq = respPkt.seq;
-            //struct timespec txts = {0, respPkt.txInterval};
             tPkt.txInterval = 0;
-
-
 
             run->lastPktTime.tv_sec = 0;
             run->lastPktTime.tv_nsec = 0;
 
             struct timespec rxts = {0, respPkt.jitter_ns};
             addTestData(run, &tPkt, sizeof(tPkt), &rxts);
-
-
             currPosition+=sizeof(respPkt);
         }
     }
@@ -410,37 +392,7 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
 }
 
 
-struct FiveTuple* makeFiveTuple(const struct sockaddr* src,
-                                const struct sockaddr* dst,
-                                int port){
-    struct FiveTuple *fiveTuple;
-    fiveTuple = (struct FiveTuple*)malloc(sizeof(struct FiveTuple));
-    memset(fiveTuple, 0, sizeof(struct FiveTuple));
-    sockaddr_copy((struct sockaddr *)&fiveTuple->src, src);
-    sockaddr_copy((struct sockaddr *)&fiveTuple->dst, dst);
-    fiveTuple->port = port;
-    return fiveTuple;
-}
 
-char  *fiveTupleToString(char *str, const struct FiveTuple *tuple){
-
-    char              addrStr[SOCKADDR_MAX_STRLEN];
-    sockaddr_toString( (struct sockaddr*)&tuple->src,
-                       addrStr,
-                       sizeof(addrStr),
-                       false );
-    strncpy(str, addrStr, sizeof(addrStr));
-    strncat(str, " \0", 1);
-    sockaddr_toString( (struct sockaddr*)&tuple->dst,
-                       addrStr,
-                       sizeof(addrStr),
-                       false );
-    strncat(str, addrStr, strlen(addrStr));
-    char result[50];
-    sprintf(result, " %i", tuple->port);
-    strncat(str, result, strlen(result));
-    return str;
-}
 
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple){
     return hashmap_get(mng->map, &(struct TestRun){ .fiveTuple=fiveTuple });
@@ -539,22 +491,6 @@ int freeTestRun(struct TestRun *testRun){
 }
 
 int configToString(char* configStr, const struct TestRunConfig *config){
-
-//    char              addrStr[SOCKADDR_MAX_STRLEN];
-//    sockaddr_toString( (struct sockaddr*)&config->localAddr,
-//                               addrStr,
-//                               sizeof(addrStr),
-//                               false );
-//    strncpy(configStr, addrStr, sizeof(addrStr));
-//    strncat(configStr, " (\0", 4);
-//    strncat(configStr, config->interface, strlen(config->interface));
-//    strncat(configStr, ") -> \0", 6);
-//
-//    sockaddr_toString( (struct sockaddr*)&config->remoteAddr,
-//                       addrStr,
-//                       sizeof(addrStr),
-//                       true );
-//    strncat(configStr, addrStr, strlen(addrStr));
     char result[100];
     memset(result, 0, sizeof(result));
     sprintf(result, " PktSize: %i", config->pktConfig.pkt_size);
@@ -570,7 +506,6 @@ int configToString(char* configStr, const struct TestRunConfig *config){
     strncat(configStr, result, strlen(result));
 
     return 0;
-
 }
 
 int statsToString(char* configStr, const struct TestRunStatistics *stats) {
@@ -601,14 +536,9 @@ int statsToString(char* configStr, const struct TestRunStatistics *stats) {
 }
 
 void saveTestData(const struct TestData *tData, FILE *fptr){
-//    int64_t rxDiff = tData->rxInterval;
     int64_t txDiff = tData->pkt.txInterval;
     fprintf(fptr, "%i,", tData->pkt.seq);
-  //  if(rxDiff == 0){
-  //      fprintf(fptr, "%s,","NaN");
-  //  }else{
-  //      fprintf(fptr, "%" PRId64 ",", rxDiff);
-  //  }
+
     if(txDiff == 0){
         fprintf(fptr, "%s,","NaN");
     }else{
