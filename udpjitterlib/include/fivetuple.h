@@ -5,7 +5,6 @@ extern "C"
 {
 #endif
 
-
 #include <sockaddrutil.h>
 
 struct FiveTuple{
@@ -19,6 +18,8 @@ struct FiveTuple{
 struct FiveTuple* makeFiveTuple(const struct sockaddr* from_addr,
                                 const struct sockaddr* to_addr,
                                 int port);
+
+bool fiveTupleAlike(const struct FiveTuple* a, const struct FiveTuple* b);
 
 char  *fiveTupleToString(char *str, const struct FiveTuple *tuple);
 

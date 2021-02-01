@@ -1,10 +1,8 @@
-//
-// Created by Pal-Erik Martinsen on 01/02/2021.
-//
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "fivetuple.h"
+
 
 struct FiveTuple* makeFiveTuple(const struct sockaddr* src,
                                 const struct sockaddr* dst,
@@ -17,6 +15,21 @@ struct FiveTuple* makeFiveTuple(const struct sockaddr* src,
     fiveTuple->port = port;
     return fiveTuple;
 }
+
+bool fiveTupleAlike(const struct FiveTuple* a, const struct FiveTuple* b){
+    if( ! sockaddr_alike((const struct sockaddr *)&a->src,
+                         (const struct sockaddr *)&b->src)){
+        return false;
+    }
+
+    if( ! sockaddr_alike((const struct sockaddr *)&a->dst,
+                         (const struct sockaddr *)&b->dst)){
+        return false;
+    }
+
+    return a->port != b->port ? false : true;
+}
+
 
 char  *fiveTupleToString(char *str, const struct FiveTuple *tuple){
 

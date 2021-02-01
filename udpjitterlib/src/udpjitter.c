@@ -27,17 +27,7 @@ int TestRun_compare(const void *a, const void *b, void *udata) {
     const struct TestRun *ua = a;
     const struct TestRun *ub = b;
 
-    if( ! sockaddr_alike((const struct sockaddr *)&ua->fiveTuple->src,
-                   (const struct sockaddr *)&ub->fiveTuple->src)){
-        return 1;
-    }
-
-    if( ! sockaddr_alike((const struct sockaddr *)&ua->fiveTuple->dst,
-                         (const struct sockaddr *)&ub->fiveTuple->dst)){
-        return 1;
-    }
-
-    if( ua->fiveTuple->port !=  ub->fiveTuple->port){
+    if ( !fiveTupleAlike(ua->fiveTuple, ub->fiveTuple)) {
         return 1;
     }
     return 0;
