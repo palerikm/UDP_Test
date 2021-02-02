@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdarg.h>
+#include <sys/errno.h>
 
 #include <poll.h>
 #include <pthread.h>
@@ -122,14 +123,17 @@ socketListenDemux(void* ptr)
 
     while (config->running)
     {
-        rv = poll(ufds, config->numSockets, 500);
+        fflush(stdout);
+        rv = poll(ufds, config->numSockets, config->timeout_ms);
         if (rv == -1)
         {
             perror("poll");       /* error occurred in poll() */
         }
         else if (rv == 0)
         {
-            continue;
+            //break;
+            config->running = false;
+            //continue;
            // printf("Timeout occurred! (Should not happen)\n");
         }
         else
@@ -164,7 +168,6 @@ socketListenDemux(void* ptr)
     {
         close(config->socketConfig[i].sockfd);
         config->numSockets = 0;
-
     }
     return 0;
 }
@@ -172,7 +175,7 @@ socketListenDemux(void* ptr)
 
 
 
-void
+int
 sendPacket(int                    sockHandle,
            const uint8_t*         buf,
            int                    bufLen,
@@ -231,7 +234,7 @@ sendPacket(int                    sockHandle,
 
         if (sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) == -1 )
         {
-            perror("Stun sendto");
+            perror("sendto (ttl)");
             exit(6);
         }
         if (dstAddr->sa_family == AF_INET)
@@ -248,8 +251,12 @@ sendPacket(int                    sockHandle,
         /*Nothing special, just send the packet*/
         if (sendto(sockHandle, buf, bufLen, 0, dstAddr, addr_len) == -1 )
         {
+            if(errno == EBADF){
+                //Socket is closed by listening thread due to inactivity.
+                return -1;
+            }
             perror("sendto");
-            //(7);
         }
     }
+    return 0;
 }

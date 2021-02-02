@@ -66,11 +66,12 @@ void configure(struct TestRunConfig* config,
     int iseed = (unsigned int)time(NULL);
     srand(iseed);
 
+    memset(config->testName, 0, MAX_TESTNAME_LEN);
     static const int a='a', z='z';
-    for(int i=0; i<MAX_TESTNAME_LEN; i++) {
+    for(int i=0; i<MAX_TESTNAME_LEN-10; i++) {
         config->testName[i] = rand() % (z - a + 1) + a;
     }
-    config->testName[MAX_TESTNAME_LEN-1] = '\0';
+    config->testName[MAX_TESTNAME_LEN-10] = '\0';
 
     static struct option long_options[] = {
         {"interface", 1, 0, 'i'},
@@ -182,16 +183,23 @@ main(int   argc,
            sizeof(addrStr),
                        true ) );
 
-    struct TestRunManager testRunManager;
-    initTestRunManager(&testRunManager);
+    struct TestRunManager *testRunManager = newTestRunManager();
 
-    addTxAndRxTests(&testRunConfig, &testRunManager, &listenConfig, true);
-    int sockfd = startListenThread(&testRunManager, &listenConfig);
-    runAllTests(sockfd, &testRunConfig, &testRunManager, &listenConfig);
-    printf("\n");
-    waitForResponses(&testRunConfig, &testRunManager);
-    pruneLingeringTestRuns(&testRunManager);
-    freeTestRunManager(&testRunManager);
+    addTxAndRxTests(&testRunConfig, testRunManager, &listenConfig, true);
+    int sockfd = startListenThread(testRunManager, &listenConfig);
+    if ( runAllTests(sockfd, &testRunConfig, testRunManager, &listenConfig) != -1){
+        printf("\n");
+        //waitForResponses(&testRunConfig, testRunManager);
+        pruneLingeringTestRuns(testRunManager);
+        freeTestRunManager(&testRunManager);
+    }else{
+        printf("\nNo response from server!");
+        pruneLingeringTestRuns(testRunManager);
+        freeTestRunManager(&testRunManager);
+        exit(1);
+    }
+
+
     return 0;
 }
 

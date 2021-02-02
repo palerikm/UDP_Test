@@ -32,7 +32,7 @@ void addTxAndRxTests(struct TestRunConfig *testRunConfig,
                      struct ListenConfig *listenConfig,
                      bool liveCSV);
 
-void runAllTests(int sockfd, struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager, struct ListenConfig *listenConfig);
+int runAllTests(int sockfd, struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager, struct ListenConfig *listenConfig);
 
 void waitForResponses(struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager);
 

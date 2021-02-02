@@ -117,7 +117,7 @@ int32_t getLastSeq(const struct TestRun *respRun) {
     if(respRun->numTestData > 1) {
         return respRun->testData[respRun->numTestData - 1].pkt.seq;
     }
-    return 0;
+    return -1;
 }
 
 
@@ -130,8 +130,6 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
 
     struct TestPacket pkt;
     int currBurstIdx = 0;
-
-
 
     struct TestRun *respRun = findTestRun(testRunManager, txFiveTuple);
     if(respRun == NULL){
@@ -162,9 +160,15 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
 
         //printf("Sending packet (%i)\n", seq);
 
-        sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
+        if( sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
                    (const struct sockaddr *) &txFiveTuple->dst,
-                   0, (*testRunConfig).pktConfig.dscp, 0);
+                   0, (*testRunConfig).pktConfig.dscp, 0) == -1){
+            //Socket is closed by listening thread due to to inactivity.
+            struct TestRun *txrun = findTestRun(testRunManager, txFiveTuple);
+            txrun->done = true;
+            testRunManager->done = true;
+            return -1;
+        }
 
         if(testRunManager->TestRun_status_cb != NULL){
             struct timespec elapsed = {0,0};
@@ -185,11 +189,12 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
         timeStartBurst(&timingInfo);
 
         if(numPkts_to_send > 0 && numPkt > numPkts_to_send){
-            if(lastSeq == (*testRunConfig).pktConfig.numPktsToSend) {
+            if(lastSeq > (*testRunConfig).pktConfig.numPktsToSend) {
                 struct TestRun *txrun = findTestRun(testRunManager, txFiveTuple);
                 txrun->done = true;
                 testRunManager->done = true;
             }
+
         }
 
     }//End of main test run. Just some cleanup remaining.
@@ -213,7 +218,7 @@ void sendEndOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int n
     }
 }
 
-void runAllTests(int sockfd, struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager,
+int runAllTests(int sockfd, struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager,
                  struct ListenConfig *listenConfig) {
     struct FiveTuple *txFiveTuple;
     txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig->localAddr,
@@ -221,8 +226,11 @@ void runAllTests(int sockfd, struct TestRunConfig *testRunConfig, struct TestRun
 
     sendStarOfTest(testRunConfig, txFiveTuple , sockfd);
     int numPkt = runTests(sockfd, txFiveTuple, testRunConfig, testRunManager);
-    sendEndOfTest(testRunConfig, txFiveTuple, numPkt, sockfd);
+    if( numPkt > 0) {
+        sendEndOfTest(testRunConfig, txFiveTuple, numPkt, sockfd);
+    }
     free(txFiveTuple);
+    return numPkt;
 }
 
 void waitForResponses(struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager) {
@@ -231,6 +239,7 @@ void waitForResponses(struct TestRunConfig *testRunConfig, struct TestRunManager
 
     while(!done){
         int num = getNumberOfActiveTestRuns(testRunManager);
+        printf("Active testruns: %i\n", num);
         if(  num > 0 ){
             saveAndDeleteFinishedTestRuns(testRunManager, fileEnding);
             struct timespec overshoot = {0,0};
@@ -255,7 +264,6 @@ packetHandler(struct ListenConfig* config,
     tuple = makeFiveTuple((const struct sockaddr *)&config->remoteAddr,
                           (const struct sockaddr *)&config->localAddr,
                           config->port);
-
 
     int pos = addTestDataFromBuf(mngr, tuple, buf, buflen, &now);
 
@@ -299,6 +307,7 @@ int startListenThread(struct TestRunManager *testRunManager, struct ListenConfig
 
     listenConfig->pkt_handler          = packetHandler;
     listenConfig->tInst = testRunManager;
+    listenConfig->timeout_ms = 2000;
     pthread_create(&listenConfig->socketListenThread,
                    NULL,
                    socketListenDemux,

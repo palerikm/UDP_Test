@@ -114,6 +114,8 @@ void addTestRun(struct TestRunManager *mng, struct TestRun *tRun) {
         }
     }
 }
+
+
 void initTestRunManager(struct TestRunManager *testRunManager) {
     (*testRunManager).map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
                                         TestRun_hash, TestRun_compare, NULL);
@@ -123,6 +125,13 @@ void initTestRunManager(struct TestRunManager *testRunManager) {
 
 }
 
+struct TestRunManager* newTestRunManager(struct TestRunManager *testRunManager) {
+    struct TestRunManager *mng = malloc(sizeof(struct TestRunManager));
+
+    initTestRunManager(mng);
+    return mng;
+
+}
 void saveCsvHeader(FILE *fptr){
     fprintf(fptr, "seq,txInterval,rxInterval,jitter\n");
 }
@@ -136,7 +145,7 @@ int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id
         char fileEnding[] = "_live.csv\0";
         strncpy(filename, config->testName, sizeof(filename));
         strncat(filename, fileEnding, strlen(fileEnding));
-        printf("Trying to open: %s", filename);
+        printf("Saving results in: %s\n", filename);
         testRun->fptr = fopen(filename,"w");
         if(testRun->fptr == NULL)
         {
@@ -213,9 +222,14 @@ int getNumberOfActiveTestRuns(struct TestRunManager *mngr){
     return hashmap_count(mngr->map);
 }
 
-void freeTestRunManager(struct TestRunManager *mngr){
-  pruneAllTestRuns(mngr);
+void freeTestRunManager(struct TestRunManager **mngr) {
+    if(*mngr!=NULL) {
+        pruneAllTestRuns(*mngr);
+        free(*mngr);
+        *mngr = NULL;
+    }
 }
+
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filenameEnding){
     struct TestRun *run;
     bool notEarly = hashmap_scan(mngr->map, TestRun_complete_iter, &run);

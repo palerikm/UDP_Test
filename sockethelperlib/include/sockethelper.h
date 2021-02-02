@@ -26,6 +26,7 @@ struct ListenConfig {
     struct sockaddr_storage remoteAddr;
     int                      port;
     char                    interface[10];
+    int                 timeout_ms;
 
     void (* pkt_handler)(struct ListenConfig*,
                           struct sockaddr*,
@@ -46,7 +47,7 @@ createLocalSocket(int                    ai_family,
 void*
 socketListenDemux(void* ptr);
 
-void
+int
 sendPacket(int                    sockHandle,
            const uint8_t*         buf,
            int                    bufLen,

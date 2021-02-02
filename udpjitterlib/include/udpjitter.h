@@ -93,8 +93,9 @@ struct TestRun{
 
 
 
-void initTestRunManager(struct TestRunManager *testRunManager);
-void freeTestRunManager(struct TestRunManager *mngr);
+//void initTestRunManager(struct TestRunManager *testRunManager);
+struct TestRunManager* newTestRunManager();
+void freeTestRunManager(struct TestRunManager **mngr);
 
 
 int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);

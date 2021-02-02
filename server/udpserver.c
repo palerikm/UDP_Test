@@ -282,12 +282,13 @@ main(int   argc,
     listenConfig.socketConfig[0].sockfd = sockfd;
     listenConfig.pkt_handler          = packetHandler;
     listenConfig.numSockets             = 1;
+    listenConfig.timeout_ms = -1;
 
-    struct TestRunManager testRunManager;
+    struct TestRunManager *testRunManager = newTestRunManager();
 
-    initTestRunManager(&testRunManager);
+    //initTestRunManager(&testRunManager);
 
-    listenConfig.tInst = &testRunManager;
+    listenConfig.tInst = testRunManager;
 
     LOG_INFO("Up and running on %s", listenConfig.interface);
 
@@ -296,7 +297,11 @@ main(int   argc,
                    socketListenDemux,
                    (void*)&listenConfig);
 
-    pthread_create(&cleanupThread, NULL, pruneAndPrintStatus, (void *) &testRunManager);
+    pthread_create(&cleanupThread, NULL, pruneAndPrintStatus, (void *) testRunManager);
     pthread_join(socketListenThread, NULL);
+    freeTestRunManager(&testRunManager);
+    LOG_INFO("Done!");
+    return 0;
+
 }
 

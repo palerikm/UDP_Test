@@ -38,16 +38,16 @@ TestRunWorker::TestRunWorker(QObject *parent,
     this->testRunConfig = tConfig;
     this->listenConfig = listenConfig;
     setupSocket(this->listenConfig);
-
-    initTestRunManager(&testRunManager);
+    testRunManager = newTestRunManager();
+    //initTestRunManager(&testRunManager);
 
     Callback<void(int, uint32_t, int64_t)>::func = std::bind(&TestRunWorker::testRunDataCb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
     TestRun_live_cb func = static_cast<TestRun_live_cb>(Callback<void(int, uint32_t, int64_t)>::callback);
-    testRunManager.TestRun_live_cb = func;
+    testRunManager->TestRun_live_cb = func;
 
     Callback<void(double,double)>::func = std::bind(&TestRunWorker::testRunStatusCB, this, std::placeholders::_1, std::placeholders::_2);
     TestRun_status_cb status_cb = static_cast<TestRun_status_cb>(Callback<void(double, double)>::callback);
-    testRunManager.TestRun_status_cb = status_cb;
+    testRunManager->TestRun_status_cb = status_cb;
 
     //memcpy( &this->listenConfig, listenConfig, sizeof(struct ListenConfig));
     /* Setting up UDP socket  */
@@ -58,7 +58,7 @@ TestRunWorker::TestRunWorker(QObject *parent,
 TestRunWorker::~TestRunWorker()
 {
     std::cout<<"I am dying---"<<std::endl;
-
+    freeTestRunManager(&testRunManager);
     //testRunManager.TestRun_status_cb = nullptr;
     //testRunManager.TestRun_live_cb = nullptr;
    // mp = nullptr;
@@ -80,11 +80,11 @@ void TestRunWorker::startTests()
 {
     /* Setting up UDP socket  */
     setupSocket(listenConfig);
-    addTxAndRxTests(testRunConfig, &testRunManager, listenConfig, false);
-    int sockfd = startListenThread(&testRunManager, listenConfig);
-    runAllTests(sockfd, testRunConfig, &testRunManager, listenConfig);
+    addTxAndRxTests(testRunConfig, testRunManager, listenConfig, false);
+    int sockfd = startListenThread(testRunManager, listenConfig);
+    runAllTests(sockfd, testRunConfig, testRunManager, listenConfig);
     //waitForResponses(testRunConfig, &testRunManager);
-    pruneLingeringTestRuns(&testRunManager);
+    pruneLingeringTestRuns(testRunManager);
     freeTestRunManager(&testRunManager);
 
 
@@ -101,6 +101,6 @@ void TestRunWorker::startTests()
 void TestRunWorker::stopTests()
 {
     std::cout<<"Stopping tests.."<<std::endl;
-    testRunManager.done = true;
+    testRunManager->done = true;
 }
 

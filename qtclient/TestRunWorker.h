@@ -12,7 +12,7 @@ Q_OBJECT
 private:
     struct TestRunConfig *testRunConfig;
     struct ListenConfig *listenConfig;
-    struct TestRunManager testRunManager;
+    struct TestRunManager *testRunManager;
 
     void testRunDataCb(int i, uint32_t, int64_t);
     void testRunStatusCB(double mpbs, double ps);
