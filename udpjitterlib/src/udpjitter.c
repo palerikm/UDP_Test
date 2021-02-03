@@ -341,19 +341,22 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
             struct TestRunPktResponse respPkt;
             memcpy(&respPkt, buf + currPosition, sizeof(respPkt));
             if(respPkt.pktCookie != TEST_RESP_PKT_COOKIE) {
-                //printf("Not a valid RSP COOKIE\n");
                 break;
             }
 
             struct TestPacket tPkt;
             tPkt.seq = respPkt.seq;
-            tPkt.txInterval = 0;
+            tPkt.txInterval = respPkt.txInterval_ns;
 
+            //To reuse the addTestDataFunction for response data
+            //we set lastPktTime in the testrun to 0 and set "now"
+            //to transmitInterval + the jitter value.
             run->lastPktTime.tv_sec = 0;
             run->lastPktTime.tv_nsec = 0;
 
-            struct timespec rxts = {0, respPkt.jitter_ns};
-            addTestData(run, &tPkt, sizeof(tPkt), &rxts);
+            struct timespec now;
+            timespec_from_nsec(&now, respPkt.jitter_ns + respPkt.txInterval_ns);
+            addTestData(run, &tPkt, sizeof(tPkt), &now);
             currPosition+=sizeof(respPkt);
         }
     }
@@ -382,6 +385,7 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
         respPkt.jitter_ns = tData->jitter_ns;
+        respPkt.txInterval_ns = tData->pkt.txInterval;
 
         memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
 

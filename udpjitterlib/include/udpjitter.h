@@ -38,6 +38,7 @@ struct TestRunPktResponse{
     uint32_t pktCookie;
     uint32_t seq;
     int64_t jitter_ns;
+    int64_t txInterval_ns;
 };
 
 struct TestPacket{
