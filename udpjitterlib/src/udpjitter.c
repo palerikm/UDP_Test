@@ -291,10 +291,25 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         if (testPacket->seq > lastPkt->seq + 1) {
             int lostPkts = (testPacket->seq - lastPkt->seq) - 1;
             printf("Lost packets: %i (%i,%i)\n", lostPkts, testPacket->seq, lastPkt->seq);
+            if(testRun->numTestData + lostPkts >= testRun->maxNumTestData){
+                testRun->maxNumTestData+= TEST_DATA_INCREMENT_SIZE;
+                if( lostPkts > TEST_DATA_INCREMENT_SIZE){
+                    printf("Ouch, number of lost packets increasing faster than I can handle (%i)", lostPkts);
+                    exit(1);
+                }
+                testRun->testData = realloc(testRun->testData, sizeof(struct TestData)* testRun->maxNumTestData );
+                if(testRun->testData == NULL ) {
+                    testRun->stats.endTest = *now;
+                    printf("  To much testData %i out of %i Bailing..\n",testRun->numTestData, testRun->maxNumTestData);
+                    return -2;
+                }
+            }
+
             for (int i = 0; i < lostPkts; i++) {
                 struct TestPacket tPkt;
                 memset(&tPkt, 0, sizeof(tPkt));
                 tPkt.seq = lastPkt->seq + 1 + i;
+                tPkt.txInterval = -1;
                 struct TestData d;
                 d.pkt = tPkt;
                 memcpy((testRun->testData + testRun->numTestData), &d, sizeof(struct TestData));
@@ -303,6 +318,7 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
             testRun->stats.lostPkts += lostPkts;
         }
     }else{
+        printf("Heeeyyyy\n");
         rxLocalInterval = 0;
     }
 
@@ -341,9 +357,14 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
             struct TestRunPktResponse respPkt;
             memcpy(&respPkt, buf + currPosition, sizeof(respPkt));
             if(respPkt.pktCookie != TEST_RESP_PKT_COOKIE) {
+               // currPosition+=sizeof(respPkt);
                 break;
             }
-
+            if(respPkt.txInterval_ns < 0){
+                printf("Got pkt loss on while extracting TX data (%i)\n", respPkt.seq);
+                currPosition+=sizeof(respPkt);
+               continue;
+            }
             struct TestPacket tPkt;
             tPkt.seq = respPkt.seq;
             tPkt.txInterval = respPkt.txInterval_ns;
