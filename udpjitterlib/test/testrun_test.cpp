@@ -11,25 +11,6 @@
 
 
 using namespace std;
-template <typename T>
-struct Callback;
-
-template <typename Ret, typename... Params>
-struct Callback<Ret(Params...)> {
-    template <typename... Args>
-    static Ret callback(Args... args) {
-        return func(args...);
-    }
-    static std::function<Ret(Params...)> func;
-};
-
-
-template <typename Ret, typename... Params>
-std::function<Ret(Params...)> Callback<Ret(Params...)>::func;
-
-typedef void (*TestRun_live_cb)(int, uint32_t, int64_t);
-typedef void (*TestRun_status_cb)(double, double);
-
 
 
 uint32_t current_seq = 0;
