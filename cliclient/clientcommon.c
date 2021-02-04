@@ -120,7 +120,7 @@ int32_t getLastSeq(const struct TestRun *respRun) {
     if(respRun->numTestData > 1) {
         return respRun->testData[respRun->numTestData - 1].pkt.seq;
     }
-    return -1;
+    return 0;
 }
 
 

@@ -388,12 +388,15 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
 }
 
 int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
+
+
     memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
-    if(run->numTestData < 1){
+    if(run->numTestData < 1 ){
         int zero = 0;
         memcpy(buf, &zero, sizeof(int32_t));
         return 0;
     }
+
     int lastSeq = run->testData[run->numTestData-1].pkt.seq;
     int numRespItemsInQueue =  lastSeq - run->lastSeqConfirmed;
     int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
@@ -406,19 +409,15 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
         struct TestRunPktResponse respPkt;
         idx = run->numTestData-numRespItemsInQueue+written;
         struct TestData *tData = &run->testData[idx];
-
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
         respPkt.jitter_ns = tData->jitter_ns;
         respPkt.txInterval_ns = tData->pkt.txInterval;
-
-        printf("RespPkt jitter: %lli\n", respPkt.jitter_ns);
         memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
 
         if(written>=numRespItemsThatFitInBuffer || written>=numRespItemsInQueue){
             done = true;
         }
-
     }
     memcpy(buf, &written, sizeof(written));
 
