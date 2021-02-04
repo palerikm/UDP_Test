@@ -70,7 +70,7 @@ struct TestRunStatistics{
 
 struct TestRunManager{
     struct hashmap *map;
-    void (* TestRun_live_cb)(int, uint32_t seq, int64_t);
+    //void (* TestRun_live_cb)(int, uint32_t seq, int64_t);
     void (* TestRun_status_cb)(double mbps, double ps);
     bool done;
 };
@@ -84,11 +84,13 @@ struct TestRun{
     uint32_t maxNumTestData;
     struct timespec lastPktTime;
 
-    struct TestRunManager *mngr;
+    //struct TestRunManager *mngr;
     struct TestRunStatistics stats;
     int32_t lastSeqConfirmed;
     pthread_mutex_t lock;
     FILE *fptr;
+
+    void (* TestRun_live_cb)(int, uint32_t seq, int64_t);
     bool done;
 };
 
@@ -99,12 +101,18 @@ struct TestRunManager* newTestRunManager();
 void freeTestRunManager(struct TestRunManager **mngr);
 
 
-int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id, const struct FiveTuple *fiveTuple, struct TestRunConfig *config, bool liveUpdate);
+int initTestRun(struct TestRun *testRun, int32_t id, const struct FiveTuple *fiveTuple,
+        struct TestRunConfig *config, void (*liveCb)(int, uint32_t seq, int64_t), bool liveUpdate);
 int freeTestRun(struct TestRun *testRun);
 void addTestRun(struct TestRunManager *mng, struct TestRun *tRun);
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filename);
 bool pruneLingeringTestRuns(struct TestRunManager *mngr);
+
+
+//Make these available for tests
+int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);
+int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run );
 
 double getActiveBwOnAllTestRuns(struct TestRunManager *mngr);
 int getNumberOfActiveTestRuns(struct TestRunManager *mngr);

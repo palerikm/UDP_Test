@@ -93,20 +93,7 @@ startDownStreamTests(void* ptr) {
 
         //Lets prepare fill the next packet buffer with some usefull txData.
         int written = insertResponseData(buf + sizeof(pkt), sizeof(buf) - sizeof(pkt), run);
-        if(written > 0) {
-            pthread_mutex_lock(&run->lock);
-            //So how much can we move back?
-            //Find the packet with the last conf seq
-            int idx = run->numTestData - written;
-            for(int i = 0; i < written; i++){
-                if( run->testData[idx+i].pkt.seq == run->lastSeqConfirmed){
-                    memcpy(run->testData, &run->testData[idx+i], sizeof(struct TestData)*i);
-                    run->numTestData = i;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&run->lock);
-        }
+
 
         //Bail out if we have not recieved a packet the last second.
         //Todo: Make this a function of the delay in the config?

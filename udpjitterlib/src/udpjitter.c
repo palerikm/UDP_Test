@@ -121,7 +121,7 @@ void initTestRunManager(struct TestRunManager *testRunManager) {
                                         TestRun_hash, TestRun_compare, NULL);
     (*testRunManager).done = false;
     (*testRunManager).TestRun_status_cb = NULL;
-    (*testRunManager).TestRun_live_cb = NULL;
+    //(*testRunManager).TestRun_live_cb = NULL;
 
 }
 
@@ -136,10 +136,12 @@ void saveCsvHeader(FILE *fptr){
     fprintf(fptr, "seq,txInterval,rxInterval,jitter\n");
 }
 
-int initTestRun(struct TestRun *testRun, struct TestRunManager *mngr, int32_t id,
+int initTestRun(struct TestRun *testRun,int32_t id,
                 const struct FiveTuple *fiveTuple,
-                struct TestRunConfig *config, bool liveUpdate){
-    testRun->mngr = mngr;
+                struct TestRunConfig *config,
+                void (*liveCb)(int, uint32_t seq, int64_t),
+                bool liveUpdate){
+    testRun->TestRun_live_cb = liveCb;
     if(liveUpdate){
         char filename[100];
         char fileEnding[] = "_live.csv\0";
@@ -318,7 +320,6 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
             testRun->stats.lostPkts += lostPkts;
         }
     }else{
-        printf("Heeeyyyy\n");
         rxLocalInterval = 0;
     }
 
@@ -340,8 +341,8 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         saveTestData(&d, testRun->fptr);
         fflush(testRun->fptr);
     }
-    if(testRun->mngr->TestRun_live_cb != NULL){
-        testRun->mngr->TestRun_live_cb(testRun->id, d.pkt.seq, d.jitter_ns);
+    if(testRun->TestRun_live_cb != NULL){
+        testRun->TestRun_live_cb(testRun->id, d.pkt.seq, d.jitter_ns);
     }
     return 0;
 }
@@ -372,9 +373,10 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
             //To reuse the addTestDataFunction for response data
             //we set lastPktTime in the testrun to 0 and set "now"
             //to transmitInterval + the jitter value.
-            run->lastPktTime.tv_sec = 0;
-            run->lastPktTime.tv_nsec = 0;
+            struct timespec last = {0,0};
+            run->lastPktTime = last;
 
+           // printf("(TX) RespPkt jitter: %lli (%lli)\n", respPkt.jitter_ns, respPkt.txInterval_ns);
             struct timespec now;
             timespec_from_nsec(&now, respPkt.jitter_ns + respPkt.txInterval_ns);
             addTestData(run, &tPkt, sizeof(tPkt), &now);
@@ -388,12 +390,14 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
 int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
     memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
     if(run->numTestData < 1){
+        int zero = 0;
+        memcpy(buf, &zero, sizeof(int32_t));
         return 0;
     }
     int lastSeq = run->testData[run->numTestData-1].pkt.seq;
     int numRespItemsInQueue =  lastSeq - run->lastSeqConfirmed;
     int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
-       int currentWritePos = sizeof(int32_t);
+    int currentWritePos = sizeof(int32_t);
     int32_t written = -1;
     bool done = false;
     int idx = 0;
@@ -408,6 +412,7 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
         respPkt.jitter_ns = tData->jitter_ns;
         respPkt.txInterval_ns = tData->pkt.txInterval;
 
+        //printf("RespPkt jitter: %lli\n", respPkt.jitter_ns);
         memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
 
         if(written>=numRespItemsThatFitInBuffer || written>=numRespItemsInQueue){
@@ -417,6 +422,25 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
     }
     memcpy(buf, &written, sizeof(written));
 
+    if(written > 0) {
+        pthread_mutex_lock(&run->lock);
+        //So how much can we move back?
+        //Find the packet with the last conf seq
+        int lastConfSeqIdx = 0;
+        for(int i = 0; i < run->numTestData; i++){
+            int seq = run->testData[i].pkt.seq;
+            if (seq == run->lastSeqConfirmed){
+                lastConfSeqIdx = i;
+                break;
+            }
+        }
+
+        if (lastConfSeqIdx > 0){
+            memmove(run->testData, &run->testData[lastConfSeqIdx+1], sizeof(struct TestData)*(run->numTestData-lastConfSeqIdx+1));
+            run->numTestData -= lastConfSeqIdx+1;
+        }
+        pthread_mutex_unlock(&run->lock);
+    }
     return  written;
 }
 
@@ -480,7 +504,7 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
         newConf.pktConfig = pktConfig;
 
-        initTestRun(&testRun, mng, 0, fiveTuple, &newConf, false);
+        initTestRun(&testRun, 0, fiveTuple, &newConf, NULL, false);
 
         testRun.lastPktTime = *now;
         testRun.stats.startTest = *now;
