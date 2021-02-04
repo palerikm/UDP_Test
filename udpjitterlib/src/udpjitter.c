@@ -412,7 +412,7 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
         respPkt.jitter_ns = tData->jitter_ns;
         respPkt.txInterval_ns = tData->pkt.txInterval;
 
-        //printf("RespPkt jitter: %lli\n", respPkt.jitter_ns);
+        printf("RespPkt jitter: %lli\n", respPkt.jitter_ns);
         memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
 
         if(written>=numRespItemsThatFitInBuffer || written>=numRespItemsInQueue){
