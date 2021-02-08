@@ -93,8 +93,6 @@ void TestRunWorker::startTests()
     Callback<void(int, uint32_t, uint32_t)>::func = std::bind(&TestRunWorker::testRunPktLossCb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
     TestRun_pktloss_cb pktLossFunc = static_cast<TestRun_pktloss_cb>(Callback<void(int, uint32_t, uint32_t)>::callback);
 
-
-
     addTxAndRxTests(testRunConfig, testRunManager, listenConfig, func, pktLossFunc, false);
 
     int sockfd = startListenThread(testRunManager, listenConfig);
@@ -109,7 +107,7 @@ void TestRunWorker::startTests()
     pthread_join(listenConfig->socketListenThread, nullptr);
 
 
-     std::cout<<"\nMy work is done emiting finished\n"<<std::endl;
+     std::cout<<"\nMy work is done emitting finished\n"<<std::endl;
     emit finished();
 
 }

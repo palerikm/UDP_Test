@@ -57,7 +57,7 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     rxChart = new QChart();
     rxChart->setDropShadowEnabled(false);
     rxChart->addSeries(rxLineSeries);
-    txChart->addSeries(rxPacketLoss);
+    rxChart->addSeries(rxPacketLoss);
     rxChart->legend()->hide();
     rxChart->setTitle("RX Jitter");
     rxChart->createDefaultAxes();
@@ -140,7 +140,6 @@ void JitterQChartWidget::receivePktLoss(int id, unsigned int start, unsigned int
     }
     if( id == 2){
         for(int i=start;i<=stop;i++){
-          //  std::cout<<"Adding rx loss "<<start+i<<std::endl;
             JitterData d(start+1, 0, true);
             rxData.append(d);
         }
@@ -188,9 +187,6 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
 
     if (isVisible()) {
 
-        //if(id != 2){
-        //    return;
-        //}
 
         if(msSinceLastUpdate < 120){
             msSinceLastUpdate+=ctrlWindow->getDelay();
