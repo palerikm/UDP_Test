@@ -22,21 +22,19 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
 
     ctrlWindow = new ControlWindow(this, ui, tConfig, listenConfig);
     ui->gridLayout->addWidget(ctrlWindow, 0, 0);
-    //ctrlWindow->show();
-    //ctrlWindow->raise();
-    //ctrlWindow->activateWindow();
 
 
-    maxSize = 101; // Only store the latest 31 txData
-    maxX = 100;
-    maxY = 100;
+    maxX = 300;
+    maxY = 10;
     txLineSeries = new QSplineSeries();
     txLineSeries->setUseOpenGL(true);
 
     txPacketLoss = new QScatterSeries();
     txPacketLoss->setUseOpenGL(true);
+    txPacketLoss->setColor(Qt::red);
 
     txChart = new QChart();
+    txChart->setDropShadowEnabled(false);
     txChart->addSeries(txLineSeries);
     txChart->addSeries(txPacketLoss);
 
@@ -51,8 +49,15 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
 
     rxLineSeries = new QSplineSeries();
     rxLineSeries->setUseOpenGL(true);
+
+    rxPacketLoss = new QScatterSeries();
+    rxPacketLoss->setUseOpenGL(true);
+    rxPacketLoss->setColor(Qt::red);
+
     rxChart = new QChart();
+    rxChart->setDropShadowEnabled(false);
     rxChart->addSeries(rxLineSeries);
+    txChart->addSeries(rxPacketLoss);
     rxChart->legend()->hide();
     rxChart->setTitle("RX Jitter");
     rxChart->createDefaultAxes();
@@ -75,26 +80,7 @@ JitterQChartWidget::~JitterQChartWidget()
     delete ui;
 }
 
-//void JitterQChartWidget::setup(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig)
-//{
-//    thread = new QThread();
-//    TestRunWorker *worker = new TestRunWorker(nullptr, tConfig, listenConfig);
-//
-//    connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
-//    connect(this, SIGNAL(sendStartTestWorker()), worker, SLOT(startTests()));
-//
-//    connect(worker, SIGNAL(sendData(int, unsigned int, long)), this, SLOT(receiveData(int, unsigned int, long)));
-//    connect(worker, SIGNAL(sendPktStatus(double, double)), this, SLOT(updatePktStatus(double, double)));
-//
-//
-//    connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
-//    worker->moveToThread(thread);
-//
-//
-//    thread->start();
-//
-//    emit sendStartTestWorker();
-//}
+
 
 void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig){
     txData.clear();
@@ -143,19 +129,29 @@ void JitterQChartWidget::updatePktStatus(double mbps, double ps){
     ui->lcdPs->display(ps);
 }
 void JitterQChartWidget::receivePktLoss(int id, unsigned int start, unsigned int stop){
-    std::cout<<"Chart Pkt loss "<<id<<"  "<<start << "->"<<stop<<std::endl;
+    //std::cout<<"Chart Pkt loss "<<id<<"  "<<start << "->"<<stop<<std::endl;
+    QApplication::beep();
     if( id == 1){
         for(int i=0;i<=stop-start;i++){
-            std::cout<<"Adding tx loss "<<start+i<<std::endl;
-            txPktLoss.append(start+i);
+           // std::cout<<"Adding tx loss "<<start+i<<std::endl;
+            JitterData d(start+1, 0, true);
+            txData.append(d);
         }
     }
     if( id == 2){
         for(int i=start;i<=stop;i++){
-            std::cout<<"Adding rx loss "<<start+i<<std::endl;
-            rxPktLoss.append(start+i);
+          //  std::cout<<"Adding rx loss "<<start+i<<std::endl;
+            JitterData d(start+1, 0, true);
+            rxData.append(d);
         }
     }
+    while (txData.size() > maxX) {
+        txData.removeFirst();
+    }
+    while (rxData.size() > maxX) {
+        rxData.removeFirst();
+    }
+
 
 }
 
@@ -165,55 +161,57 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         return;
     }
 
-    if(txPktLoss.count() > 0){
-        double max = *std::max_element(txPktLoss.begin(), txPktLoss.end());
-        int minSeq = seq-maxSize;
-        if(max<minSeq){
-            std::cout<<"Clearing pkt loss (no longer visible)"<<std::endl;
-            txPktLoss.clear();
-        }
-
-    }
-
     if (id == 1) {
-        txData << (double) jitter / 1000000;
-        while (txData.size() > maxSize) {
-            txData.removeFirst();
-        }
+        //txData << (double) jitter / 1000000;
+        JitterData d(seq, jitter / 1000000, false);
+        txData << d;
 
+        return;
     }
-
 
     if (id == 2) {
-        rxData << (double) jitter / 1000000;
-        while (rxData.size() > maxSize) {
-            rxData.removeFirst();
-        }
+        //rxData << (double) jitter / 1000000;
+        JitterData d(seq, jitter / 1000000, false);
+        rxData << d;
+
+        //return;
         if (txData.size() < 2) {
             return;
         }
     }
+    while (txData.size() > maxX) {
+        txData.removeFirst();
+    }
+    while (rxData.size() > maxX) {
+        rxData.removeFirst();
+    }
+
     if (isVisible()) {
-        if (nth % 25 != 0) {
-            nth++;
+
+        //if(id != 2){
+        //    return;
+        //}
+
+        if(msSinceLastUpdate < 120){
+            msSinceLastUpdate+=ctrlWindow->getDelay();
             return;
         }
+        msSinceLastUpdate = 0;
 
-        nth = 1;
         txLineSeries->clear();
         rxLineSeries->clear();
 
         txPacketLoss->clear();
-        //rxPacketLoss->clear();
+        rxPacketLoss->clear();
 
-        int dx = maxX / (maxSize - 1);
-        int txLess = maxSize - txData.size();
-        int rxLess = maxSize - txData.size();
+        double txMax = std::max_element(txData.begin(), txData.end(),
+        [] (JitterData const& lhs, JitterData const& rhs) {return lhs.getJitterMs() < rhs.getJitterMs();})->getJitterMs();
 
-       // double txMin = *std::min_element(txData.begin(), txData.end());
-        double txMax = *std::max_element(txData.begin(), txData.end());
-       // double rxMin = *std::min_element(rxData.begin(), rxData.end());
-        double rxMax = *std::max_element(rxData.begin(), rxData.end());
+
+        double rxMax = std::max_element(rxData.begin(), rxData.end(),
+                                        [] (JitterData const& lhs, JitterData const& rhs) {return lhs.getJitterMs() < rhs.getJitterMs();})->getJitterMs();
+
+
         double maxY = txMax > rxMax ? txMax : rxMax;
        // double minY = txMin < rxMin ? txMin : rxMin;
         maxY *= 1.1;
@@ -225,34 +223,62 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         //txChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
         txChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
 
+
+
+        int currX= std::min(maxX,  txData.size()) * -1;
+       // std::cout<<"Updating TX graph!"<<std::endl;
         for (int i = 0; i < txData.size(); ++i) {
 
-            int currX = (txLess * dx + i * dx) - maxX;
+           // int currX = (txLess * dx + i * dx) - maxX;
+           currX ++;
+          // std::cout<<"Tx currX : "<<currX<<" i: "<< i<<"size(): "<<txData.size()<<std::endl;
             //Do we have pkt loss we need to show?
-            for (int j = 0; i < txPktLoss.size(); ++i) {
-                    std::cout<<"Should att  loss at: "<< seq-txPktLoss.at(j)<<std::endl;
-                    std::cout<<"seq: "<<seq<<"  paketloss seq:"<<txPktLoss.at(j)<<std::endl;
-                //    txPacketLoss->append( seq-txPktLoss.at(j), 0);
+            if(txData.at(i).isLostPkt()){
+                txPacketLoss->append(currX, 0);
+            }else{
+                txLineSeries->append(currX, txData.at(i).getJitterMs());
             }
-
-            txLineSeries->append(currX, txData.at(i));
-
-           // std::cout<<i<<std::endl;
-            //for (int j = 0; i < txPktLoss.size(); ++i) {
-            //    std::cout<<"Adding loss at: "<< seq-txPktLoss.at(j)<<std::endl;
-            //    std::cout<<"seq: "<<seq<<"  paketloss seq:"<<txPktLoss.at(j)<<std::endl;
-            //    txPacketLoss->append( seq-txPktLoss.at(j), 0);
-            //}
-            txPacketLoss->append( (txLess * dx + i * dx) - maxX, 0);
         }
-
+       // std::cout<<"Updating TX graph  (stop)!"<<std::endl;
 
         //rxChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
         rxChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
 
+        currX= std::min(maxX,  rxData.size()) * -1;
         for (int i = 0; i < rxData.size(); ++i) {
-            int currX = (rxLess * dx + i * dx) - maxX;
-            rxLineSeries->append( currX, rxData.at(i));
+            //int currX = (rxLess * dx + i * dx) - maxX;
+            currX ++;
+            if(rxData.at(i).isLostPkt()){
+                rxPacketLoss->append(currX, 0);
+            }else{
+                rxLineSeries->append(currX, rxData.at(i).getJitterMs());
+            }
         }
     }
 }
+
+int JitterData::getSeq() const {
+    return seq;
+}
+
+void JitterData::setSeq(int seq) {
+    JitterData::seq = seq;
+}
+
+double JitterData::getJitterMs() const {
+    return jitter_ms;
+}
+
+void JitterData::setJitterMs(double jitterMs) {
+    jitter_ms = jitterMs;
+}
+
+bool JitterData::isLostPkt() const {
+    return lostPkt;
+}
+
+void JitterData::setLostPkt(bool lostPkt) {
+    JitterData::lostPkt = lostPkt;
+}
+
+JitterData::JitterData(int seq, double jitterMs, bool lostPkt) : seq(seq), jitter_ms(jitterMs), lostPkt(lostPkt) {}

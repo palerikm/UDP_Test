@@ -379,7 +379,7 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
             struct timespec last = {0,0};
             run->lastPktTime = last;
 
-           // printf("(TX) RespPkt jitter: %lli (%lli)\n", respPkt.jitter_ns, respPkt.txInterval_ns);
+           // printf("(TX) RespPkt jitter: %lli (%lli)\n", respPkt.jitter_ms, respPkt.txInterval_ns);
             struct timespec now;
             timespec_from_nsec(&now, respPkt.jitter_ns + respPkt.txInterval_ns);
             addTestData(run, &tPkt, sizeof(tPkt), &now);

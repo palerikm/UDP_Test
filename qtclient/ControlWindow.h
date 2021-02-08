@@ -22,6 +22,7 @@ public:
                            Ui::JitterQChartWidget *ui = nullptr,
                            struct TestRunConfig *tConfig = nullptr,
                            struct ListenConfig *listenConfig = nullptr);
+    int getDelay();
 private slots:
     void handleStartButton();
     void handleStopButton();

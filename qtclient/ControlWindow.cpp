@@ -66,7 +66,11 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
     connect(this, SIGNAL(stopTest()), parent, SLOT(stopTest()));
 }
 
+int ControlWindow::getDelay(){
+    //tConfig->pktConfig.delay
+    return (int)timespec_to_msec( &tConfig->pktConfig.delay);
 
+}
 void ControlWindow::handleStartButton()
 {
     emit startTest(tConfig, listenConfig);

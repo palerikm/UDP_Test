@@ -69,13 +69,11 @@ TestRunWorker::~TestRunWorker()
 
 void TestRunWorker::testRunDataCb(int i, uint32_t seq, int64_t jitter)
 {
-    //cout<<"TestRun: "<<i<<"  seg:"<<seq<<"  jitter: "<<jitter<<endl;
     emit sendData(i, seq, jitter);
 }
 
 void TestRunWorker::testRunPktLossCb(int i, uint32_t start, uint32_t end)
 {
-    cout<<"TestRun: "<<i<<"  start"<<start<<"  end: "<<end<<endl;
     emit sendPktLoss(i, start, end);
 }
 
