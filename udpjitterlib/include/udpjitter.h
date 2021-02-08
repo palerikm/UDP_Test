@@ -70,7 +70,7 @@ struct TestRunStatistics{
 
 struct TestRunManager{
     struct hashmap *map;
-    //void (* TestRun_live_cb)(int, uint32_t seq, int64_t);
+    //void (* TestRunLiveJitterCb)(int, uint32_t seq, int64_t);
     void (* TestRun_status_cb)(double mbps, double ps);
     bool done;
 };
@@ -90,7 +90,8 @@ struct TestRun{
     pthread_mutex_t lock;
     FILE *fptr;
 
-    void (* TestRun_live_cb)(int, uint32_t seq, int64_t);
+    void (* TestRunLiveJitterCb)(int, uint32_t seq, int64_t);
+    void (* TestRunLivePktLossCb)(int, uint32_t start, uint32_t end);
     bool done;
 };
 
@@ -101,8 +102,13 @@ struct TestRunManager* newTestRunManager();
 void freeTestRunManager(struct TestRunManager **mngr);
 
 
-int initTestRun(struct TestRun *testRun, int32_t id, const struct FiveTuple *fiveTuple,
-        struct TestRunConfig *config, void (*liveCb)(int, uint32_t seq, int64_t), bool liveUpdate);
+int initTestRun(struct TestRun *testRun, int32_t id,
+                const struct FiveTuple *fiveTuple,
+                struct TestRunConfig *config,
+                void (*jitterCb)(int, uint32_t seq, int64_t),
+                void (*pktLossCb)(int, uint32_t, uint32_t),
+                bool liveUpdate);
+
 int freeTestRun(struct TestRun *testRun);
 void addTestRun(struct TestRunManager *mng, struct TestRun *tRun);
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);

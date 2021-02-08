@@ -121,7 +121,7 @@ void initTestRunManager(struct TestRunManager *testRunManager) {
                                         TestRun_hash, TestRun_compare, NULL);
     (*testRunManager).done = false;
     (*testRunManager).TestRun_status_cb = NULL;
-    //(*testRunManager).TestRun_live_cb = NULL;
+    //(*testRunManager).TestRunLiveJitterCb = NULL;
 
 }
 
@@ -139,9 +139,11 @@ void saveCsvHeader(FILE *fptr){
 int initTestRun(struct TestRun *testRun,int32_t id,
                 const struct FiveTuple *fiveTuple,
                 struct TestRunConfig *config,
-                void (*liveCb)(int, uint32_t seq, int64_t),
+                void (*jitterCb)(int, uint32_t, int64_t),
+                void (*pktLossCb)(int, uint32_t, uint32_t),
                 bool liveUpdate){
-    testRun->TestRun_live_cb = liveCb;
+    testRun->TestRunLiveJitterCb = jitterCb;
+    testRun->TestRunLivePktLossCb = pktLossCb;
     if(liveUpdate){
         char filename[100];
         char fileEnding[] = "_live.csv\0";
@@ -292,7 +294,6 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
 
         if (testPacket->seq > lastPkt->seq + 1) {
             int lostPkts = (testPacket->seq - lastPkt->seq) - 1;
-            printf("Lost packets: %i (%i,%i)\n", lostPkts, testPacket->seq, lastPkt->seq);
             if(testRun->numTestData + lostPkts >= testRun->maxNumTestData){
                 testRun->maxNumTestData+= TEST_DATA_INCREMENT_SIZE;
                 if( lostPkts > TEST_DATA_INCREMENT_SIZE){
@@ -318,6 +319,9 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
                 testRun->numTestData++;
             }
             testRun->stats.lostPkts += lostPkts;
+            if(testRun->TestRunLivePktLossCb != NULL){
+                testRun->TestRunLivePktLossCb(testRun->id, lastPkt->seq+1, testPacket->seq-1);
+            }
         }
     }else{
         rxLocalInterval = 0;
@@ -341,8 +345,8 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
         saveTestData(&d, testRun->fptr);
         fflush(testRun->fptr);
     }
-    if(testRun->TestRun_live_cb != NULL){
-        testRun->TestRun_live_cb(testRun->id, d.pkt.seq, d.jitter_ns);
+    if(testRun->TestRunLiveJitterCb != NULL){
+        testRun->TestRunLiveJitterCb(testRun->id, d.pkt.seq, d.jitter_ns);
     }
     return 0;
 }
@@ -362,7 +366,6 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
                 break;
             }
             if(respPkt.txInterval_ns < 0){
-                printf("Got pkt loss on while extracting TX data (%i)\n", respPkt.seq);
                 currPosition+=sizeof(respPkt);
                continue;
             }
@@ -503,7 +506,7 @@ int addTestDataFromBuf(struct TestRunManager *mng,
         memcpy(&pktConfig, buf+sizeof(struct TestPacket), sizeof(struct TestRunPktConfig));
         newConf.pktConfig = pktConfig;
 
-        initTestRun(&testRun, 0, fiveTuple, &newConf, NULL, false);
+        initTestRun(&testRun, 0, fiveTuple, &newConf, NULL, NULL, false);
 
         testRun.lastPktTime = *now;
         testRun.stats.startTest = *now;

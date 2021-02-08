@@ -33,6 +33,10 @@ private:
     int nth;
     QList<double> txData;
     QList<double> rxData;
+
+    QList<int> txPktLoss;
+    QList<int> rxPktLoss;
+
     QChart *txChart;
     QChart *rxChart;
     QChartView *txChartView;
@@ -40,9 +44,8 @@ private:
 
     QLineSeries *txLineSeries;
     QLineSeries *rxLineSeries;
-
-
-
+    QScatterSeries *txPacketLoss;
+    QScatterSeries *rxPacketLoss;
     int lcdNth;
 
 
@@ -66,6 +69,7 @@ signals:
 
 private slots:
     void receiveData(int, unsigned int, long);
+    void receivePktLoss(int, unsigned int, unsigned int);
     void updatePktStatus(double mbs, double ps);
 
     void startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);

@@ -32,7 +32,8 @@ struct TestRun *
 addTxTestRun(const struct TestRunConfig *testRunConfig,
              struct TestRunManager *testRunManager,
              struct ListenConfig *listenConfig,
-             void (*liveCb)(int, uint32_t seq, int64_t),
+             void (*jitterCb)(int, uint32_t seq, int64_t),
+             void (*pktLossCb)(int, uint32_t, uint32_t),
                      bool liveCSV) {
     struct FiveTuple *txFiveTuple;
     txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig->localAddr,
@@ -41,7 +42,7 @@ addTxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig txConfig;
     memcpy(&txConfig, testRunConfig, sizeof(txConfig));
     strncat(txConfig.testName, "_tx\0", 5);
-    initTestRun(txTestRun,1, txFiveTuple, &txConfig, liveCb, liveCSV);
+    initTestRun(txTestRun,1, txFiveTuple, &txConfig, jitterCb, pktLossCb, liveCSV);
     clock_gettime(CLOCK_MONOTONIC_RAW, &txTestRun->lastPktTime);
     txTestRun->stats.startTest = txTestRun->lastPktTime;
     addTestRun(testRunManager, txTestRun);
@@ -54,8 +55,9 @@ struct TestRun *
 addRxTestRun(const struct TestRunConfig *testRunConfig,
              struct TestRunManager *testRunManager,
              struct ListenConfig *listenConfig,
-             void (*liveCb)(int, uint32_t seq, int64_t),
-                     bool liveCSV){
+             void (*jitterCb)(int, uint32_t seq, int64_t),
+             void (*pktLossCb)(int, uint32_t, uint32_t),
+             bool liveCSV){
     struct FiveTuple *rxFiveTuple;
     rxFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig->remoteAddr,
                                 (struct sockaddr *)&listenConfig->localAddr, listenConfig->port);
@@ -64,7 +66,7 @@ addRxTestRun(const struct TestRunConfig *testRunConfig,
     struct TestRunConfig rxConfig;
     memcpy(&rxConfig, testRunConfig, sizeof(rxConfig));
     strncat(rxConfig.testName, "_rx\0", 5);
-    initTestRun(rxTestRun, 2, rxFiveTuple, &rxConfig, liveCb, liveCSV);
+    initTestRun(rxTestRun, 2, rxFiveTuple, &rxConfig, jitterCb, pktLossCb, liveCSV);
     clock_gettime(CLOCK_MONOTONIC_RAW, &rxTestRun->lastPktTime);
     rxTestRun->stats.startTest = rxTestRun->lastPktTime;
 
@@ -77,13 +79,14 @@ addRxTestRun(const struct TestRunConfig *testRunConfig,
 void addTxAndRxTests(struct TestRunConfig *testRunConfig,
                     struct TestRunManager *testRunManager,
                     struct ListenConfig *listenConfig,
-                    void (*liveCb)(int, uint32_t seq, int64_t),
+                    void (*jitterCb)(int, uint32_t seq, int64_t),
+                    void (*pktLossCb)(int, uint32_t, uint32_t),
                     bool liveCSV) {
 
     //addTestRun(1, testRunConfig, testRunManager, listenConfig, true);
     //addTestRun(2, testRunConfig, testRunManager, listenConfig, true);
-    struct TestRun *txTestRun = addTxTestRun(testRunConfig, testRunManager, listenConfig, liveCb, liveCSV);
-    struct TestRun *rxTestRun = addRxTestRun(testRunConfig, testRunManager, listenConfig, liveCb, liveCSV);
+    struct TestRun *txTestRun = addTxTestRun(testRunConfig, testRunManager, listenConfig, jitterCb, pktLossCb, liveCSV);
+    struct TestRun *rxTestRun = addRxTestRun(testRunConfig, testRunManager, listenConfig, jitterCb, pktLossCb, liveCSV);
     free(rxTestRun);
     free(txTestRun);
 }

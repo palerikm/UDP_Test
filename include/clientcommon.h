@@ -18,21 +18,24 @@ extern "C"
 
 
 struct TestRun* addRxTestRun(const struct TestRunConfig *testRunConfig,
-             struct TestRunManager *testRunManager,
-             struct ListenConfig *listenConfig,
-             void (*liveCb)(int, uint32_t seq, int64_t),
-             bool liveCSV);
+                             struct TestRunManager *testRunManager,
+                             struct ListenConfig *listenConfig,
+                             void (*jitterCb)(int, uint32_t seq, int64_t),
+                             void (*pktLossCb)(int, uint32_t, uint32_t),
+                             bool liveCSV);
 
 struct TestRun* addTxTestRun(const struct TestRunConfig *testRunConfig,
-                        struct TestRunManager *testRunManager,
-                        struct ListenConfig *listenConfig,
-                        void (*liveCb)(int, uint32_t seq, int64_t),
-                        bool liveCSV);
+                             struct TestRunManager *testRunManager,
+                             struct ListenConfig *listenConfig,
+                             void (*liveCb)(int, uint32_t seq, int64_t),
+                             void (*pktLossCb)(int, uint32_t, uint32_t),
+                             bool liveCSV);
 
 void addTxAndRxTests(struct TestRunConfig *testRunConfig,
                      struct TestRunManager *testRunManager,
                      struct ListenConfig *listenConfig,
                      void (*liveCb)(int, uint32_t seq, int64_t),
+                     void (*pktLossCb)(int, uint32_t, uint32_t),
                      bool liveCSV);
 
 int runAllTests(int sockfd, struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager, struct ListenConfig *listenConfig);

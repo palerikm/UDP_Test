@@ -28,14 +28,17 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
 
 
     maxSize = 101; // Only store the latest 31 txData
-    maxX = 300;
+    maxX = 100;
     maxY = 100;
     txLineSeries = new QSplineSeries();
     txLineSeries->setUseOpenGL(true);
 
+    txPacketLoss = new QScatterSeries();
+    txPacketLoss->setUseOpenGL(true);
 
     txChart = new QChart();
     txChart->addSeries(txLineSeries);
+    txChart->addSeries(txPacketLoss);
 
     txChart->legend()->hide();
     txChart->setTitle("TX Jitter");
@@ -104,6 +107,7 @@ void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenC
     connect(this, SIGNAL(sendStopTestWorker()), worker, SLOT(stopTests()), Qt::DirectConnection);
 
     connect(worker, SIGNAL(sendData(int, unsigned int, long)), this, SLOT(receiveData(int, unsigned int, long)));
+    connect(worker, SIGNAL(sendPktLoss(int, unsigned int, unsigned int)), this, SLOT(receivePktLoss(int, unsigned int, unsigned int)));
     connect(worker, SIGNAL(sendPktStatus(double, double)), this, SLOT(updatePktStatus(double, double)));
 
 
@@ -138,13 +142,39 @@ void JitterQChartWidget::updatePktStatus(double mbps, double ps){
     ui->lcdMps->display(mbps);
     ui->lcdPs->display(ps);
 }
+void JitterQChartWidget::receivePktLoss(int id, unsigned int start, unsigned int stop){
+    std::cout<<"Chart Pkt loss "<<id<<"  "<<start << "->"<<stop<<std::endl;
+    if( id == 1){
+        for(int i=0;i<=stop-start;i++){
+            std::cout<<"Adding tx loss "<<start+i<<std::endl;
+            txPktLoss.append(start+i);
+        }
+    }
+    if( id == 2){
+        for(int i=start;i<=stop;i++){
+            std::cout<<"Adding rx loss "<<start+i<<std::endl;
+            rxPktLoss.append(start+i);
+        }
+    }
 
+}
 
 void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
 
     if (seq < 2) {
         return;
     }
+
+    if(txPktLoss.count() > 0){
+        double max = *std::max_element(txPktLoss.begin(), txPktLoss.end());
+        int minSeq = seq-maxSize;
+        if(max<minSeq){
+            std::cout<<"Clearing pkt loss (no longer visible)"<<std::endl;
+            txPktLoss.clear();
+        }
+
+    }
+
     if (id == 1) {
         txData << (double) jitter / 1000000;
         while (txData.size() > maxSize) {
@@ -173,10 +203,12 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         txLineSeries->clear();
         rxLineSeries->clear();
 
+        txPacketLoss->clear();
+        //rxPacketLoss->clear();
+
         int dx = maxX / (maxSize - 1);
         int txLess = maxSize - txData.size();
         int rxLess = maxSize - txData.size();
-
 
        // double txMin = *std::min_element(txData.begin(), txData.end());
         double txMax = *std::max_element(txData.begin(), txData.end());
@@ -194,14 +226,33 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         txChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
 
         for (int i = 0; i < txData.size(); ++i) {
-            txLineSeries->append((txLess * dx + i * dx) - maxX, txData.at(i));
+
+            int currX = (txLess * dx + i * dx) - maxX;
+            //Do we have pkt loss we need to show?
+            for (int j = 0; i < txPktLoss.size(); ++i) {
+                    std::cout<<"Should att  loss at: "<< seq-txPktLoss.at(j)<<std::endl;
+                    std::cout<<"seq: "<<seq<<"  paketloss seq:"<<txPktLoss.at(j)<<std::endl;
+                //    txPacketLoss->append( seq-txPktLoss.at(j), 0);
+            }
+
+            txLineSeries->append(currX, txData.at(i));
+
+           // std::cout<<i<<std::endl;
+            //for (int j = 0; i < txPktLoss.size(); ++i) {
+            //    std::cout<<"Adding loss at: "<< seq-txPktLoss.at(j)<<std::endl;
+            //    std::cout<<"seq: "<<seq<<"  paketloss seq:"<<txPktLoss.at(j)<<std::endl;
+            //    txPacketLoss->append( seq-txPktLoss.at(j), 0);
+            //}
+            txPacketLoss->append( (txLess * dx + i * dx) - maxX, 0);
         }
+
 
         //rxChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
         rxChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
 
         for (int i = 0; i < rxData.size(); ++i) {
-            rxLineSeries->append((rxLess * dx + i * dx) - maxX, rxData.at(i));
+            int currX = (rxLess * dx + i * dx) - maxX;
+            rxLineSeries->append( currX, rxData.at(i));
         }
     }
 }

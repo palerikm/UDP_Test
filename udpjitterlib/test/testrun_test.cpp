@@ -21,9 +21,6 @@ void testrunCB(int id, uint32_t seq, int64_t jitter){
     current_id = id;
     current_seq = seq;
     current_jitter = jitter;
-    //if(id == 2){
-    //    cout<<"tx Jitter: "<<jitter<<" ("<<seq<<") "<<endl;
-   // }
 }
 
 
@@ -47,9 +44,9 @@ TEST_CASE("adding tests to TestRun") {
     struct TestRun run;
     struct FiveTuple *tuple = makeFiveTuple((struct sockaddr*)&src, (struct sockaddr*)&src, 5004);
 
-    initTestRun(&run, 1, tuple, &tConf, testrunCB, false);
+    initTestRun(&run, 1, tuple, &tConf, testrunCB, NULL, false);
     free(tuple);
-    //run.TestRun_live_cb = testrunCB;
+    //run.TestRunLiveJitterCb = testrunCB;
 
     for(int i=1; i < 100000; i++) {
         struct TestPacket tPkt;
@@ -93,8 +90,8 @@ TEST_CASE("downstream tests (Insert Response data)"){
     struct TestRun run, txRun;
     struct FiveTuple *tuple = makeFiveTuple((struct sockaddr*)&src, (struct sockaddr*)&src, 5004);
 
-    initTestRun(&run, 1, tuple, &tConf, testrunCB, false);
-    initTestRun(&txRun, 2, tuple, &tConf, testrunCB, false);
+    initTestRun(&run, 1, tuple, &tConf, testrunCB, NULL, false);
+    initTestRun(&txRun, 2, tuple, &tConf, testrunCB, NULL, false);
     free(tuple);
 
 

@@ -15,6 +15,7 @@ private:
     struct TestRunManager *testRunManager;
 
     void testRunDataCb(int i, uint32_t, int64_t);
+    void testRunPktLossCb(int i, uint32_t start, uint32_t end);
     void testRunStatusCB(double mpbs, double ps);
 
 public:
@@ -28,6 +29,7 @@ public:
 signals:
 
    void sendData(int, unsigned int, long);
+   void sendPktLoss(int, unsigned int, unsigned int);
    void sendPktStatus(double, double );
    void finished();
 
