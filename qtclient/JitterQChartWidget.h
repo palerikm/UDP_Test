@@ -52,6 +52,7 @@ private:
     ControlWindow *ctrlWindow;
 
     QThread *thread;
+    QTimer *timer;
 
     //int maxSize; // txData stores at most maxSize elements
     int maxX;
@@ -97,6 +98,8 @@ private slots:
     void receiveData(int, unsigned int, long);
     void receivePktLoss(int, unsigned int, unsigned int);
     void updatePktStatus(double mbs, double ps);
+
+    void updateCharts();
 
     void startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
     void stopTest();
