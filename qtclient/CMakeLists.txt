@@ -27,7 +27,7 @@ add_executable( ${APP_NAME} MACOSX_BUNDLE udpqtclient.cpp
         ControlWindow.cpp ControlWindow.h
         TestRunWorker.cpp TestRunWorker.h
         ../cliclient/clientcommon.c ../include/clientcommon.h
-        )
+        JitterData.cpp JitterData.h)
 target_link_libraries( ${APP_NAME} LINK_PUBLIC
         sockaddrutil
         hashmap_c

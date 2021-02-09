@@ -138,13 +138,13 @@ void JitterQChartWidget::receivePktLoss(int id, unsigned int start, unsigned int
     QApplication::beep();
     if( id == 1){
         for(int i=0;i<=stop-start;i++){
-            JitterData d(start+1, 0, true);
+            JitterData d(id, start+1, 0, true);
             txData.append(d);
         }
     }
     if( id == 2){
         for(int i=start;i<=stop;i++){
-            JitterData d(start+1, 0, true);
+            JitterData d(id, start+1, 0, true);
             rxData.append(d);
         }
     }
@@ -163,7 +163,7 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
     }
 
     if (id == 1) {
-        JitterData d(seq, jitter / 1000000, false);
+        JitterData d(id, seq, jitter / 1000000, false);
         txData << d;
         while (txData.size() > maxX) {
             txData.removeFirst();
@@ -171,7 +171,7 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
     }
 
     if (id == 2) {
-        JitterData d(seq, jitter / 1000000, false);
+        JitterData d(id, seq, jitter / 1000000, false);
         rxData << d;
         while (rxData.size() > maxX) {
             rxData.removeFirst();
@@ -237,29 +237,3 @@ void JitterQChartWidget::updateCharts(){
         }
     }
 }
-
-int JitterData::getSeq() const {
-    return seq;
-}
-
-void JitterData::setSeq(int seq) {
-    JitterData::seq = seq;
-}
-
-double JitterData::getJitterMs() const {
-    return jitter_ms;
-}
-
-void JitterData::setJitterMs(double jitterMs) {
-    jitter_ms = jitterMs;
-}
-
-bool JitterData::isLostPkt() const {
-    return lostPkt;
-}
-
-void JitterData::setLostPkt(bool lostPkt) {
-    JitterData::lostPkt = lostPkt;
-}
-
-JitterData::JitterData(int seq, double jitterMs, bool lostPkt) : seq(seq), jitter_ms(jitterMs), lostPkt(lostPkt) {}

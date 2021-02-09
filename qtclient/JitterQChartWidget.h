@@ -9,6 +9,7 @@
 #include <QChartView>
 
 #include "ControlWindow.h"
+#include "JitterData.h"
 
 using namespace QtCharts;
 
@@ -16,31 +17,6 @@ namespace Ui {
     class JitterQChartWidget;
 }
 
-
-class JitterData{
-
-public:
-    JitterData(int seq, double jitterMs, bool lostPkt);
-
-    int getSeq() const;
-
-    void setSeq(int seq);
-
-    double getJitterMs() const;
-
-    void setJitterMs(double jitterNs);
-
-    bool isLostPkt() const;
-
-    void setLostPkt(bool lostPkt);
-
-    bool cmpJitter(const JitterData &a, const JitterData &b);
-
-private:
-    int seq;
-    double jitter_ms;
-    bool lostPkt;
-};
 
 class JitterQChartWidget : public QWidget
 {
