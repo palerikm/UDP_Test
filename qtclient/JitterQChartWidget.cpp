@@ -26,9 +26,10 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     ui->gridLayout->addWidget(ctrlWindow, 0, 0);
 
 
-    maxX = 300;
+    maxX = 1000;
     maxY = 10;
-    txLineSeries = new QSplineSeries();
+    //txLineSeries = new QSplineSeries();
+    txLineSeries = new QLineSeries();
     txLineSeries->setUseOpenGL(true);
 
     txPacketLoss = new QScatterSeries();
@@ -49,7 +50,9 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     txChartView->setRenderHint(QPainter::Antialiasing);
     ui->gridLayout->addWidget(txChartView, 1, 1);
 
-    rxLineSeries = new QSplineSeries();
+    //rxLineSeries = new QSplineSeries();
+    rxLineSeries = new QLineSeries();
+
     rxLineSeries->setUseOpenGL(true);
 
     rxPacketLoss = new QScatterSeries();
@@ -105,7 +108,7 @@ void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenC
 
 
     connect(timer, SIGNAL(timeout()), this, SLOT(updateCharts()));
-    timer->start(400);
+    timer->start(50);
 
     emit sendStartTestWorker();
 }
@@ -126,7 +129,7 @@ void JitterQChartWidget::stopTest()
 
 void JitterQChartWidget::updatePktStatus(double mbps, double ps){
     //std::cout<<"mbps: "<<mbps<<" ps: "<<ps<<std::endl;
-    if (lcdNth % 50 != 0) {
+    if (lcdNth % 100 != 0) {
         lcdNth++;
         return;
     }
@@ -177,6 +180,13 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
             rxData.removeFirst();
         }
     }
+
+    if( !txData.isEmpty()) {
+        int seqDiff = abs(rxData.last().getSeq() - txData.last().getSeq());
+        if( seqDiff > 100)
+            std::cout << "SeqDiff :" << seqDiff << std::endl;
+    }
+
 }
 
 
