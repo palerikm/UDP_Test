@@ -209,9 +209,9 @@ void JitterQChartWidget::updateCharts(){
                                         [] (JitterData const& lhs, JitterData const& rhs) {return lhs.getJitterMs() < rhs.getJitterMs();})->getJitterMs();
 
 
-        double maxY = txMax > rxMax ? txMax : rxMax;
+        maxY = txMax > rxMax ? txMax : rxMax;
 
-        maxY *= 1.1;
+       // maxY *= 1.1;
 
         txChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
         

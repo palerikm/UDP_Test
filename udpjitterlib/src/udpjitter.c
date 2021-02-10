@@ -392,7 +392,6 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
 
 int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
 
-
     memset(buf+sizeof(struct TestPacket), 0, bufsize - sizeof(struct TestPacket));
     if(run->numTestData < 1 ){
         int zero = 0;
@@ -403,28 +402,26 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
     int lastSeq = run->testData[run->numTestData-1].pkt.seq;
     int numRespItemsInQueue =  lastSeq - run->lastSeqConfirmed;
     int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
+    //TODO: How to deal with growing resps in queue...
+    //if( numRespItemsInQueue > numRespItemsThatFitInBuffer){
+    //    printf("Resprun overflowww..\n");
+    //}
+    int toWrite = numRespItemsInQueue < numRespItemsThatFitInBuffer ? numRespItemsInQueue : numRespItemsThatFitInBuffer;
     int currentWritePos = sizeof(int32_t);
-    int32_t written = -1;
-    bool done = false;
-    int idx = 0;
-    while(!done){
-        written++;
+
+    for(int i=0; i<toWrite;i++){
         struct TestRunPktResponse respPkt;
-        idx = run->numTestData-numRespItemsInQueue+written;
-        struct TestData *tData = &run->testData[idx];
+        struct TestData *tData = &run->testData[run->numTestData-toWrite+i];
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
         respPkt.seq = tData->pkt.seq;
         respPkt.jitter_ns = tData->jitter_ns;
         respPkt.txInterval_ns = tData->pkt.txInterval;
-        memcpy(buf+currentWritePos+sizeof(respPkt)*written, &respPkt, sizeof(respPkt));
-
-        if(written>=numRespItemsThatFitInBuffer || written>=numRespItemsInQueue){
-            done = true;
-        }
+        memcpy(buf+currentWritePos+sizeof(respPkt)*i, &respPkt, sizeof(respPkt));
     }
-    memcpy(buf, &written, sizeof(written));
 
-    if(written > 0) {
+    memcpy(buf, &toWrite, sizeof(toWrite));
+
+    if(toWrite > 0) {
         pthread_mutex_lock(&run->lock);
         //So how much can we move back?
         //Find the packet with the last conf seq
@@ -441,9 +438,21 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
             memmove(run->testData, &run->testData[lastConfSeqIdx+1], sizeof(struct TestData)*(run->numTestData-lastConfSeqIdx+1));
             run->numTestData -= lastConfSeqIdx+1;
         }
+
+        //We do not want to grow into eternity...
+        if( numRespItemsThatFitInBuffer < run->numTestData ){
+            if( numRespItemsThatFitInBuffer > 0){
+                int idx = numRespItemsThatFitInBuffer/2;
+                memmove(run->testData, &run->testData[idx], sizeof(struct TestData)*(run->numTestData-idx));
+                run->numTestData -= idx;
+            }else{
+              //Heh no responses possible.. Sender should increase buffer size...
+            }
+
+        }
         pthread_mutex_unlock(&run->lock);
     }
-    return  written;
+    return  toWrite;
 }
 
 
