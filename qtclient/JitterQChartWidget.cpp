@@ -94,6 +94,7 @@ void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenC
 
     TestRunWorker *worker = new TestRunWorker(nullptr, tConfig, listenConfig);
     connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
+    connect(thread, SIGNAL(finished()), this, SLOT(workerDone()));
     connect(this, SIGNAL(sendStartTestWorker()), worker, SLOT(startTests()));
     connect(this, SIGNAL(sendStopTestWorker()), worker, SLOT(stopTests()), Qt::DirectConnection);
 
@@ -125,6 +126,10 @@ void JitterQChartWidget::stopTest()
     std::cout<<"Thread wait done"<<std::endl;
    // thread->terminate();
 
+}
+
+void JitterQChartWidget::workerDone() {
+    std::cout<<"Worker is done.. Byt why? Did I do it or did the server crash?"<<std::endl;
 }
 
 void JitterQChartWidget::updatePktStatus(double mbps, double ps){

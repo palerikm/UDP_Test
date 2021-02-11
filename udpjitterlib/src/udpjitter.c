@@ -399,17 +399,34 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
         return 0;
     }
 
+    int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
+    //We do not want to grow into eternity...
+    if( numRespItemsThatFitInBuffer < run->numTestData ){
+        if( numRespItemsThatFitInBuffer > 0){
+            int idx = numRespItemsThatFitInBuffer/2;
+            memmove(run->testData, &run->testData[idx], sizeof(struct TestData)*(run->numTestData-idx));
+            run->numTestData -= idx;
+        }else{
+            //Heh no responses possible.. Sender should increase buffer size...
+        }
+
+    }
+
+
+
     int lastSeq = run->testData[run->numTestData-1].pkt.seq;
     int numRespItemsInQueue =  lastSeq - run->lastSeqConfirmed;
-    int numRespItemsThatFitInBuffer = bufsize/sizeof(struct TestRunPktResponse);
+
     //TODO: How to deal with growing resps in queue...
-    //if( numRespItemsInQueue > numRespItemsThatFitInBuffer){
-    //    printf("Resprun overflowww..\n");
-    //}
-    int toWrite = numRespItemsInQueue < numRespItemsThatFitInBuffer ? numRespItemsInQueue : numRespItemsThatFitInBuffer;
+    if( numRespItemsInQueue > numRespItemsThatFitInBuffer){
+        printf("Resprun overflowww..\n");
+    }
+    int wantToWrite = numRespItemsInQueue < numRespItemsThatFitInBuffer ? numRespItemsInQueue : numRespItemsThatFitInBuffer;
+
+    int toWrite = wantToWrite < run->numTestData ? wantToWrite : run->numTestData;
     int currentWritePos = sizeof(int32_t);
 
-    for(int i=0; i<toWrite;i++){
+    for(int i=0; i<toWrite-1;i++){
         struct TestRunPktResponse respPkt;
         struct TestData *tData = &run->testData[run->numTestData-toWrite+i];
         respPkt.pktCookie = TEST_RESP_PKT_COOKIE;
@@ -439,17 +456,7 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
             run->numTestData -= lastConfSeqIdx+1;
         }
 
-        //We do not want to grow into eternity...
-        if( numRespItemsThatFitInBuffer < run->numTestData ){
-            if( numRespItemsThatFitInBuffer > 0){
-                int idx = numRespItemsThatFitInBuffer/2;
-                memmove(run->testData, &run->testData[idx], sizeof(struct TestData)*(run->numTestData-idx));
-                run->numTestData -= idx;
-            }else{
-              //Heh no responses possible.. Sender should increase buffer size...
-            }
 
-        }
         pthread_mutex_unlock(&run->lock);
     }
     return  toWrite;

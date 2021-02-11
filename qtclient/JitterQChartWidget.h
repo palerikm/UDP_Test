@@ -76,6 +76,7 @@ private slots:
     void updatePktStatus(double mbs, double ps);
 
     void updateCharts();
+    void workerDone();
 
     void startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
     void stopTest();
