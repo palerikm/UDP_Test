@@ -9,6 +9,7 @@
 #include <sockethelper.h>
 #include <iphelper.h>
 #include <timing.h>
+#include <QMenu>
 #include "ui_JitterQChartWidget.h"
 
 
@@ -57,8 +58,11 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
     ui->burst->setValue( this->tConfig->pktConfig.pktsInBurst);
     connect(ui->burst, SIGNAL(valueChanged(int)), this, SLOT(changeBurst(int)));
 
-    ui->dscp->setText( "0x"+ QString::number( this->tConfig->pktConfig.dscp, 16));
-    connect(ui->dscp, SIGNAL(editingFinished()), this, SLOT(changeDscp()));
+
+    ui->dscp_combo->addItems(dscp_names);
+//    ui->tos->setText( "0x"+ QString::number( this->tConfig->pktConfig.tos, 16));
+//
+    connect(ui->dscp_combo, SIGNAL(currentTextChanged(const QString &)), this, SLOT(changeDscp(const QString &)));
     // Connect button signal to appropriate slot
     connect(ui->startBtn, &QPushButton::released, this, &ControlWindow::handleStartButton);
     connect(ui->stopBtn, &QPushButton::released, this, &ControlWindow::handleStopButton);
@@ -96,10 +100,62 @@ void ControlWindow::changeBurst(int value){
     tConfig->pktConfig.pktsInBurst = value;
 }
 
-void ControlWindow::changeDscp(){
+void ControlWindow::changeDscp(const QString &s){
     emit stopTest();
-    QString s = ui->dscp->text();
-    tConfig->pktConfig.dscp = s.toInt(nullptr,16);
+    std::cout<<s.toStdString()<<std::endl;
+//    QString s = ui->tos->text();
+//    tConfig->pktConfig.tos = s.toInt(nullptr,16);
+    QStringList dscp_names = { "none", "CS0", "CS1", "AF11", "AF12", "AF13", "CS2", "AF21", "AF22", "AF23"
+            , "CS3", "AF31", "AF32", "CS4", "AF41", "AF42", "AF43", "CS5", "EF", "CS6", "CS7"};
+    int tos = 0;
+    if(s == "none"){
+       tos = 0;
+    }else if(s == "CS0"){
+        tos = 0;
+    }else if(s == "CS1"){
+        tos = 32;
+    }
+    else if(s == "AF11"){
+        tos = 40;
+    }else if(s == "AF12"){
+        tos = 48;
+    }else if(s == "AF13"){
+        tos = 56;
+    }else if(s == "CS2"){
+        tos = 64;
+    }else if(s == "AF21"){
+        tos = 72;
+    }else if(s == "AF22"){
+        tos = 80;
+    }else if(s == "AF23"){
+        tos = 88;
+    }else if(s == "CS3"){
+        tos = 96;
+    }else if(s == "AF31"){
+        tos = 104;
+    }else if(s == "AF32"){
+        tos = 112;
+    }else if(s == "AF33"){
+        tos = 120;
+    }else if(s == "CS4"){
+        tos = 128;
+    }else if(s == "AF41"){
+        tos = 136;
+    }else if(s == "AF42"){
+        tos = 144;
+    }else if(s == "AF43"){
+        tos = 152;
+    }else if(s == "CS5"){
+        tos = 160;
+    }else if(s == "EF"){
+        tos = 184;
+    }else if(s == "CS6"){
+        tos = 192;
+    }else if(s == "CS7"){
+        tos = 224;
+    }
+
+    tConfig->pktConfig.tos = tos;
 }
 
 void ControlWindow::changeDestination(){

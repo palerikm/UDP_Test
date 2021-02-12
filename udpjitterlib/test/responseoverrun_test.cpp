@@ -48,7 +48,7 @@ TEST_CASE("response overrun") {
 
     struct TestRunConfig tConf;
     strncpy(tConf.testName, "Doctest\n", MAX_TESTNAME_LEN);
-    tConf.pktConfig.dscp = 0;
+    tConf.pktConfig.tos = 0;
     tConf.pktConfig.pktsInBurst = 0;
     tConf.pktConfig.numPktsToSend = 0;
     tConf.pktConfig.delay = timespec_from_ms(10);
@@ -83,12 +83,12 @@ TEST_CASE("response overrun") {
     }
 
     int written = insertResponseData(buf, sizeof(buf), &run);
-    CHECK( written == 50);
+    CHECK( written == 45);
     CHECK( run.numTestData == 45 );
     int recvd = extractRespTestData(buf, &txRun);
-    CHECK( txRun.numTestData == 50 );
+    CHECK( txRun.numTestData == 44 );
 
-    CHECK(recvd == 50);
+    CHECK(recvd == 45);
 
     for(int i=0; i < 20; i++) {
         seq++;

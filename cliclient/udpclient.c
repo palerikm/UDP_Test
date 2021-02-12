@@ -38,7 +38,7 @@ printUsage(char* prgName)
   printf("  -p <port>, --port <port>  Destination port\n");
   printf("  -d <ms>, --delay <ms>     Delay after each sendto\n");
   printf("  -b <num>, --burst <num>   Packets to send in each burst\n");
-  printf("  -t <0xNN> --dscp <0xNN>   DSCP/Diffserv value\n");
+  printf("  -t <0xNN> --tos <0xNN>   DSCP/Diffserv value\n");
   printf("  -s <bytes> --size <bytes> Size of packet payload in bytes\n");
   printf("  -v, --version             Print version number\n");
   printf("  -h, --help                Print help text\n");
@@ -59,7 +59,7 @@ void configure(struct TestRunConfig* config,
     config->pktConfig.delay.tv_sec = 0;
     config->pktConfig.delay.tv_nsec = 20000000L;
     config->pktConfig.pktsInBurst = 1;
-    config->pktConfig.dscp = 0;
+    config->pktConfig.tos = 0;
     config->pktConfig.pkt_size = 1200;
 
 
@@ -80,7 +80,7 @@ void configure(struct TestRunConfig* config,
         {"pkts", 1, 0, 'n'},
         {"delay", 1, 0, 'd'},
         {"burst", 1, 0, 'b'},
-        {"dscp", 1, 0, 't'},
+        {"tos", 1, 0, 't'},
         {"size", 1, 0, 's'},
         {"help", 0, 0, 'h'},
         {"version", 0, 0, 'v'},
@@ -114,7 +114,7 @@ void configure(struct TestRunConfig* config,
             config->pktConfig.pktsInBurst = atoi(optarg);
             break;
         case 't':
-            config->pktConfig.dscp = strtoul(optarg, NULL, 16);
+            config->pktConfig.tos = strtoul(optarg, NULL, 16);
         case 's':
             config->pktConfig.pkt_size = atoi(optarg);
             break;

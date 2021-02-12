@@ -47,7 +47,7 @@ TEST_CASE("packet loss handling") {
 
     struct TestRunConfig tConf;
     strncpy(tConf.testName, "Doctest\n", MAX_TESTNAME_LEN);
-    tConf.pktConfig.dscp = 0;
+    tConf.pktConfig.tos = 0;
     tConf.pktConfig.pktsInBurst = 0;
     tConf.pktConfig.numPktsToSend = 0;
     tConf.pktConfig.delay = timespec_from_ms(10);
@@ -89,7 +89,7 @@ TEST_CASE("packet loss handling") {
     written = insertResponseData(buf, sizeof(buf), &run);
     recvd = extractRespTestData(buf, &txRun);
     REQUIRE( pktLoss_current_id == 2);
-    REQUIRE(pktLoss_current_jitter == 9);
+    REQUIRE(pktLoss_current_jitter == 8);
 
     //Introduce a lost pkt
     seq++;
@@ -147,8 +147,8 @@ TEST_CASE("packet loss handling") {
     pktLoss_curr_start = 0;
     pktLoss_curr_end = 0;
     recvd = extractRespTestData(buf, &txRun);
-    REQUIRE( pktLoss_curr_start == 16);
-    REQUIRE( pktLoss_curr_end == 25);
+    REQUIRE( pktLoss_curr_start == 0);
+    REQUIRE( pktLoss_curr_end == 0);
 
     freeTestRun(&run);
 

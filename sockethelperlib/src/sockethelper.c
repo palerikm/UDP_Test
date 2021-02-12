@@ -181,7 +181,7 @@ sendPacket(int                    sockHandle,
            int                    bufLen,
            const struct sockaddr* dstAddr,
            int                    proto,
-           int                    dscp,
+           int                    tos,
            uint8_t                ttl)
 {
     /* char addrStr[SOCKADDR_MAX_STRLEN]; */
@@ -199,7 +199,7 @@ sendPacket(int                    sockHandle,
         addr_len = sizeof(struct sockaddr_in6);
     }
 
-    setsockopt(sockHandle, IPPROTO_IP, IP_TOS,  &dscp, sizeof(dscp));
+    setsockopt(sockHandle, IPPROTO_IP, IP_TOS,  &tos, sizeof(tos));
 
     if (ttl > 0)
     {

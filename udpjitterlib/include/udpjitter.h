@@ -30,7 +30,7 @@ struct TestRunPktConfig{
     int numPktsToSend;
     struct timespec delay;
     int pktsInBurst;
-    int dscp;
+    int tos;
     int pkt_size;
 };
 
@@ -64,8 +64,8 @@ struct TestRunStatistics{
     uint32_t lostPkts;
     struct timespec startTest;
     struct timespec endTest;
-    uint32_t rcvdPkts;
-    uint32_t rcvdBytes;
+    uint64_t rcvdPkts;
+    uint64_t rcvdBytes;
 };
 
 struct TestRunManager{

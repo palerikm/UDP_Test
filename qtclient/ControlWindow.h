@@ -18,6 +18,10 @@ namespace Ui {
 class ControlWindow : public QDialog{
 Q_OBJECT
 public:
+
+    QStringList dscp_names = { "none", "CS0", "CS1", "AF11", "AF12", "AF13", "CS2", "AF21", "AF22", "AF23"
+, "CS3", "AF31", "AF32", "CS4", "AF41", "AF42", "AF43", "CS5", "EF", "CS6", "CS7"};
+
     explicit ControlWindow(QWidget *parent = nullptr,
                            Ui::JitterQChartWidget *ui = nullptr,
                            struct TestRunConfig *tConfig = nullptr,
@@ -31,7 +35,7 @@ private slots:
     void changeDelay(int);
     void changeDestination();
     void changeBurst(int value);
-    void changeDscp();
+    void changeDscp(const QString &s);
 private:
     Ui::JitterQChartWidget *ui;
     struct TestRunConfig *tConfig;

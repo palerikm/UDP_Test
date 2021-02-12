@@ -418,9 +418,9 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
     int numRespItemsInQueue =  lastSeq - run->lastSeqConfirmed;
 
     //TODO: How to deal with growing resps in queue...
-    if( numRespItemsInQueue > numRespItemsThatFitInBuffer){
-        printf("Resprun overflowww..\n");
-    }
+    //if( numRespItemsInQueue > numRespItemsThatFitInBuffer){
+    //    printf("Resprun overflowww..\n");
+    //}
     int wantToWrite = numRespItemsInQueue < numRespItemsThatFitInBuffer ? numRespItemsInQueue : numRespItemsThatFitInBuffer;
 
     int toWrite = wantToWrite < run->numTestData ? wantToWrite : run->numTestData;
@@ -567,7 +567,7 @@ int configToString(char* configStr, const struct TestRunConfig *config){
     sprintf(result, " PktSize: %i", config->pktConfig.pkt_size);
     strncpy(configStr, result, strlen(result)+1);
 
-    sprintf(result, " DSCP: %#x", config->pktConfig.dscp);
+    sprintf(result, " DSCP: %#x", config->pktConfig.tos);
     strncat(configStr, result, strlen(result));
 
     sprintf(result, " Delay: %ld", config->pktConfig.delay.tv_nsec/1000000L);
@@ -582,13 +582,13 @@ int configToString(char* configStr, const struct TestRunConfig *config){
 int statsToString(char* configStr, const struct TestRunStatistics *stats) {
     configStr[0] = '\0';
     char result[50];
-    sprintf(result, "Pkts: %i", stats->rcvdPkts);
+    sprintf(result, "Pkts: %llu", stats->rcvdPkts);
     strncat(configStr, result, strlen(result));
 
     sprintf(result, " Lost pkts: %i", stats->lostPkts);
     strncat(configStr, result, strlen(result));
 
-    sprintf(result, " Bytes rcvd: %i", stats->rcvdBytes);
+    sprintf(result, " Bytes rcvd: %llu", stats->rcvdBytes);
     strncat(configStr, result, strlen(result));
 
     struct timespec elapsed;

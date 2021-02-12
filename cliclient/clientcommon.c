@@ -113,7 +113,7 @@ void sendStarOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int 
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
                    (const struct sockaddr*)&fiveTuple->dst,
-                   0, cfg->pktConfig.dscp, 0 );
+                   0, cfg->pktConfig.tos, 0 );
 
         nanosleep(&cfg->pktConfig.delay, &remaining);
     }
@@ -166,9 +166,9 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
 
         //printf("Sending packet (%i)\n", seq);
 
-        if( sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
-                   (const struct sockaddr *) &txFiveTuple->dst,
-                   0, (*testRunConfig).pktConfig.dscp, 0) == -1){
+        if(sendPacket(sockfd, (const uint8_t *) &buf, sizeof(buf),
+                      (const struct sockaddr *) &txFiveTuple->dst,
+                      0, (*testRunConfig).pktConfig.tos, 0) == -1){
             //Socket is closed by listening thread due to to inactivity.
             struct TestRun *txrun = findTestRun(testRunManager, txFiveTuple);
             txrun->done = true;
@@ -218,7 +218,7 @@ void sendEndOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int n
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
                    (const struct sockaddr*)&fiveTuple->dst,
-                   0, cfg->pktConfig.dscp, 0 );
+                   0, cfg->pktConfig.tos, 0 );
 
         nanosleep(&cfg->pktConfig.delay, &remaining);
     }

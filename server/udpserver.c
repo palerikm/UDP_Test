@@ -42,7 +42,7 @@ void sendStarOfTest(struct TestRun *run, int sockfd) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &now);
         sendPacket(sockfd, (const uint8_t *)&endBuf, sizeof(endBuf),
                    (const struct sockaddr*)&run->fiveTuple->dst,
-                   0, run->config.pktConfig.dscp, 0 );
+                   0, run->config.pktConfig.tos, 0 );
 
         nanosleep(&run->config.pktConfig.delay, &remaining);
     }
@@ -84,7 +84,7 @@ startDownStreamTests(void* ptr) {
 
         sendPacket(sockfd, (const uint8_t *) buf, sizeof(buf),
                    (const struct sockaddr *) &run->fiveTuple->dst,
-                   0, run->config.pktConfig.dscp, 0);
+                   0, run->config.pktConfig.tos, 0);
 
         //Do I sleep or am I bursting..
         sleepBeforeNextBurst(&timingInfo, run->config.pktConfig.pktsInBurst, &currBurstIdx, &run->config.pktConfig.delay);

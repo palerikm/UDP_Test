@@ -34,7 +34,7 @@ TEST_CASE("adding tests to TestRun") {
 
     struct TestRunConfig tConf;
     strncpy(tConf.testName, "Doctest\n", MAX_TESTNAME_LEN);
-    tConf.pktConfig.dscp = 0;
+    tConf.pktConfig.tos = 0;
     tConf.pktConfig.pktsInBurst = 0;
     tConf.pktConfig.numPktsToSend = 0;
     tConf.pktConfig.delay = timespec_from_ms(10);
@@ -80,7 +80,7 @@ TEST_CASE("downstream tests (Insert Response data)"){
 
     struct TestRunConfig tConf;
     strncpy(tConf.testName, "Doctest\n", MAX_TESTNAME_LEN);
-    tConf.pktConfig.dscp = 0;
+    tConf.pktConfig.tos = 0;
     tConf.pktConfig.pktsInBurst = 0;
     tConf.pktConfig.numPktsToSend = 0;
     tConf.pktConfig.delay = timespec_from_ms(10);
@@ -123,9 +123,9 @@ TEST_CASE("downstream tests (Insert Response data)"){
     CHECK(run.numTestData == 10);
     recvd = extractRespTestData(buf, &txRun);
     CHECK(recvd == written);
-    CHECK( txRun.numTestData == 10);
+    CHECK( txRun.numTestData == 9);
     CHECK( current_id == 2);
-    CHECK(current_jitter == 9);
+    CHECK(current_jitter == 8);
 
 
     for(int i=0; i < 4; i++) {
