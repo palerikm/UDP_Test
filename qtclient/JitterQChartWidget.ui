@@ -184,7 +184,6 @@
                         </item>
                         <item row="8" column="1">
                             <widget class="QComboBox" name="dscp_combo">
-
                             </widget>
                         </item>
                     </layout>
@@ -226,7 +225,7 @@
                     <property name="frameShadow">
                         <enum>QFrame::Raised</enum>
                     </property>
-                    <layout class="QHBoxLayout" name="horizontalLayout">
+                    <layout class="QHBoxLayout" name="statusInfo">
                         <item alignment="Qt::AlignRight">
                             <widget class="QLabel" name="label">
                                 <property name="text">

@@ -26,7 +26,7 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
     this->listenConfig = listenConfig;
 
     ui->interface->setText(this->listenConfig->interface);
-    connect(ui->interface, SIGNAL(editingFinished()), this, SLOT(changeInterface()));
+    connect(ui->interface, SIGNAL(textChanged(const QString &)), this, SLOT(changeInterface(const QString &)));
 
     char              addrStr[SOCKADDR_MAX_STRLEN];
     sockaddr_toString( (struct sockaddr*)&listenConfig->localAddr,
@@ -42,7 +42,7 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
                        sizeof(addrStr),
                        false );
     ui->destination->setText(addrStr);
-    connect(ui->destination, SIGNAL(editingFinished()), this, SLOT(changeDestination()));
+    connect(ui->destination, SIGNAL(textChanged(const QString &)), this, SLOT(changeDestination(const QString &)));
 
 
     int64_t delay = timespec_to_msec( &this->tConfig->pktConfig.delay );
@@ -60,8 +60,7 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
 
 
     ui->dscp_combo->addItems(dscp_names);
-//    ui->tos->setText( "0x"+ QString::number( this->tConfig->pktConfig.tos, 16));
-//
+
     connect(ui->dscp_combo, SIGNAL(currentTextChanged(const QString &)), this, SLOT(changeDscp(const QString &)));
     // Connect button signal to appropriate slot
     connect(ui->startBtn, &QPushButton::released, this, &ControlWindow::handleStartButton);
@@ -71,7 +70,6 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
 }
 
 int ControlWindow::getDelay(){
-    //tConfig->pktConfig.delay
     return (int)timespec_to_msec( &tConfig->pktConfig.delay);
 
 }
@@ -102,11 +100,6 @@ void ControlWindow::changeBurst(int value){
 
 void ControlWindow::changeDscp(const QString &s){
     emit stopTest();
-    std::cout<<s.toStdString()<<std::endl;
-//    QString s = ui->tos->text();
-//    tConfig->pktConfig.tos = s.toInt(nullptr,16);
-    QStringList dscp_names = { "none", "CS0", "CS1", "AF11", "AF12", "AF13", "CS2", "AF21", "AF22", "AF23"
-            , "CS3", "AF31", "AF32", "CS4", "AF41", "AF42", "AF43", "CS5", "EF", "CS6", "CS7"};
     int tos = 0;
     if(s == "none"){
        tos = 0;
@@ -158,9 +151,9 @@ void ControlWindow::changeDscp(const QString &s){
     tConfig->pktConfig.tos = tos;
 }
 
-void ControlWindow::changeDestination(){
+void ControlWindow::changeDestination(const QString &s){
     emit stopTest();
-    QString s = ui->destination->text();
+    //QString s = ui->destination->text();
     if ( !getRemoteIpAddr( (struct sockaddr*)&listenConfig->remoteAddr,
                            const_cast<char *>(s.toStdString().c_str()),
                            listenConfig->port ) ){
@@ -168,9 +161,9 @@ void ControlWindow::changeDestination(){
     }
 }
 
-void ControlWindow::changeInterface(){
+void ControlWindow::changeInterface(const QString &s){
     emit stopTest();
-    QString s = ui->interface->text();
+
     strncpy(listenConfig->interface, s.toStdString().c_str(), sizeof(listenConfig->interface));
     if ( !getLocalInterFaceAddrs( (struct sockaddr*)&listenConfig->localAddr,
                                   listenConfig->interface,
@@ -191,5 +184,4 @@ void ControlWindow::changeInterface(){
         ui->source->setText(addrStr);
         ui->source->setReadOnly(true);
     }
-
 }

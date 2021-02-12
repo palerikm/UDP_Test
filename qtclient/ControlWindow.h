@@ -30,10 +30,10 @@ public:
 private slots:
     void handleStartButton();
     void handleStopButton();
-    void changeInterface();
+    void changeInterface(const QString &);
     void changePktSize(int);
     void changeDelay(int);
-    void changeDestination();
+    void changeDestination(const QString &);
     void changeBurst(int value);
     void changeDscp(const QString &s);
 private:

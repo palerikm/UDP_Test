@@ -14,11 +14,6 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
         ui(new Ui::JitterQChartWidget)
 {
     ui->setupUi(this);
-    //ui->labelView->setScaledContents(true);
-    //ui->rxJitter->setScaledContents(true);
-    //ui->txJitter->setScaledContents(true);
-    //ControlWindow
-    //
 
     timer = new QTimer(this);
 
@@ -91,7 +86,6 @@ void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenC
     txData.clear();
     rxData.clear();
 
-
     TestRunWorker *worker = new TestRunWorker(nullptr, tConfig, listenConfig);
     connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
     connect(thread, SIGNAL(finished()), this, SLOT(workerDone()));
@@ -102,12 +96,8 @@ void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenC
     connect(worker, SIGNAL(sendPktLoss(int, unsigned int, unsigned int)), this, SLOT(receivePktLoss(int, unsigned int, unsigned int)));
     connect(worker, SIGNAL(sendPktStatus(double, double)), this, SLOT(updatePktStatus(double, double)));
 
-
     worker->moveToThread(thread);
-
     thread->start();
-
-
     connect(timer, SIGNAL(timeout()), this, SLOT(updateCharts()));
     timer->start(50);
 
@@ -124,7 +114,6 @@ void JitterQChartWidget::stopTest()
 
     thread->wait();
     std::cout<<"Thread wait done"<<std::endl;
-   // thread->terminate();
 
 }
 
@@ -133,7 +122,6 @@ void JitterQChartWidget::workerDone() {
 }
 
 void JitterQChartWidget::updatePktStatus(double mbps, double ps){
-    //std::cout<<"mbps: "<<mbps<<" ps: "<<ps<<std::endl;
     if (lcdNth % 100 != 0) {
         lcdNth++;
         return;
@@ -191,7 +179,6 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         if( seqDiff > 100)
             std::cout << "SeqDiff :" << seqDiff << std::endl;
     }
-
 }
 
 
@@ -206,43 +193,29 @@ void JitterQChartWidget::updateCharts(){
         txPacketLoss->clear();
         rxPacketLoss->clear();
 
-        double txMax = std::max_element(txData.begin(), txData.end(),
-                                        [] (JitterData const& lhs, JitterData const& rhs) {return lhs.getJitterMs() < rhs.getJitterMs();})->getJitterMs();
+        double txMaxY = std::max_element(txData.begin(), txData.end(),
+                                         [] (JitterData const& lhs, JitterData const& rhs) {return lhs.getJitterMs() < rhs.getJitterMs();})->getJitterMs();
 
+        double rxMaxY = std::max_element(rxData.begin(), rxData.end(),
+                                         [] (JitterData const& lhs, JitterData const& rhs) {return lhs.getJitterMs() < rhs.getJitterMs();})->getJitterMs();
 
-        double rxMax = std::max_element(rxData.begin(), rxData.end(),
-                                        [] (JitterData const& lhs, JitterData const& rhs) {return lhs.getJitterMs() < rhs.getJitterMs();})->getJitterMs();
-
-
-        maxY = txMax > rxMax ? txMax : rxMax;
-
-       // maxY *= 1.1;
-
+        maxY = txMaxY > rxMaxY ? txMaxY : rxMaxY;
         txChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
         
 
         int currX= std::min(maxX,  txData.size()) * -1;
-        // std::cout<<"Updating TX graph!"<<std::endl;
-        for (int i = 0; i < txData.size(); ++i) {
-
-            // int currX = (txLess * dx + i * dx) - maxX;
+        for(int i = 0; i < txData.size(); ++i) {
             currX ++;
-            // std::cout<<"Tx currX : "<<currX<<" i: "<< i<<"size(): "<<txData.size()<<std::endl;
-            //Do we have pkt loss we need to show?
             if(txData.at(i).isLostPkt()){
                 txPacketLoss->append(currX, 0);
             }else{
                 txLineSeries->append(currX, txData.at(i).getJitterMs());
             }
         }
-        // std::cout<<"Updating TX graph  (stop)!"<<std::endl;
-
-        //rxChart->axes(Qt::Vertical).first()->setRange(minY, maxY);
         rxChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
 
         currX= std::min(maxX,  rxData.size()) * -1;
-        for (int i = 0; i < rxData.size(); ++i) {
-            //int currX = (rxLess * dx + i * dx) - maxX;
+        for(int i = 0; i < rxData.size(); ++i) {
             currX ++;
             if(rxData.at(i).isLostPkt()){
                 rxPacketLoss->append(currX, 0);
