@@ -39,16 +39,7 @@ TestRunWorker::TestRunWorker(QObject *parent,
     this->testRunConfig = tConfig;
     this->listenConfig = listenConfig;
     setupSocket(this->listenConfig);
-    testRunManager = newTestRunManager();
-    //initTestRunManager(&testRunManager);
-
-    //Callback<void(int, uint32_t, int64_t)>::func = std::bind(&TestRunWorker::testRunDataCb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
-    //TestRunLiveJitterCb func = static_cast<TestRunLiveJitterCb>(Callback<void(int, uint32_t, int64_t)>::callback);
-    //testRunManager->TestRunLiveJitterCb = func;
-
-    Callback<void(double,double)>::func = std::bind(&TestRunWorker::testRunStatusCB, this, std::placeholders::_1, std::placeholders::_2);
-    TestRun_status_cb status_cb = static_cast<TestRun_status_cb>(Callback<void(double, double)>::callback);
-    testRunManager->TestRun_status_cb = status_cb;
+    testRunManager = NULL;
 
     //memcpy( &this->listenConfig, listenConfig, sizeof(struct ListenConfig));
     /* Setting up UDP socket  */
@@ -83,6 +74,25 @@ void TestRunWorker::testRunStatusCB(double mbps, double ps){
 
 void TestRunWorker::startTests()
 {
+    if(testRunManager != NULL){
+        std::cout<<"Tests running. Ignoring..."<<std::endl;
+        return;
+    }
+
+    freeTestRunManager(&testRunManager);
+    testRunManager = newTestRunManager();
+    //initTestRunManager(&testRunManager);
+
+    //Callback<void(int, uint32_t, int64_t)>::func = std::bind(&TestRunWorker::testRunDataCb, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3);
+    //TestRunLiveJitterCb func = static_cast<TestRunLiveJitterCb>(Callback<void(int, uint32_t, int64_t)>::callback);
+    //testRunManager->TestRunLiveJitterCb = func;
+
+    Callback<void(double,double)>::func = std::bind(&TestRunWorker::testRunStatusCB, this, std::placeholders::_1, std::placeholders::_2);
+    TestRun_status_cb status_cb = static_cast<TestRun_status_cb>(Callback<void(double, double)>::callback);
+    testRunManager->TestRun_status_cb = status_cb;
+
+
+
     /* Setting up UDP socket  */
     setupSocket(listenConfig);
 

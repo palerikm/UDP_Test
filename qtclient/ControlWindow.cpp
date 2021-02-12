@@ -25,6 +25,8 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
     this->tConfig = tConfig;
     this->listenConfig = listenConfig;
 
+    ui->stopBtn->setDisabled((true));
+
     ui->interface->setText(this->listenConfig->interface);
     connect(ui->interface, SIGNAL(textChanged(const QString &)), this, SLOT(changeInterface(const QString &)));
 
@@ -75,11 +77,15 @@ int ControlWindow::getDelay(){
 }
 void ControlWindow::handleStartButton()
 {
+    ui->startBtn->setDisabled((true));
+    ui->stopBtn->setDisabled((false));
     emit startTest(tConfig, listenConfig);
 }
 
 void ControlWindow::handleStopButton()
 {
+    ui->startBtn->setDisabled((false));
+    ui->stopBtn->setDisabled((true));
     emit stopTest();
 }
 

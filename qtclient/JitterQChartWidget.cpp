@@ -114,6 +114,8 @@ void JitterQChartWidget::stopTest()
 
     thread->wait();
     std::cout<<"Thread wait done"<<std::endl;
+    ui->startBtn->setDisabled((false));
+    ui->stopBtn->setDisabled((true));
 
 }
 
