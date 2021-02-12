@@ -14,6 +14,7 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
         ui(new Ui::JitterQChartWidget)
 {
     ui->setupUi(this);
+    errorMessageDialog = new QErrorMessage(this);
 
     timer = new QTimer(this);
 
@@ -88,7 +89,8 @@ void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenC
 
     TestRunWorker *worker = new TestRunWorker(nullptr, tConfig, listenConfig);
     connect(thread, SIGNAL(finished()), worker, SLOT(deleteLater()));
-    connect(thread, SIGNAL(finished()), this, SLOT(workerDone()));
+    connect(worker, SIGNAL(testRunFinished(int)), this, SLOT(workerDone(int)));
+    //connect(worker, SIGNAL(testrunFailed()), this, SLOT(testRunFailed()));
     connect(this, SIGNAL(sendStartTestWorker()), worker, SLOT(startTests()));
     connect(this, SIGNAL(sendStopTestWorker()), worker, SLOT(stopTests()), Qt::DirectConnection);
 
@@ -106,21 +108,40 @@ void JitterQChartWidget::startTest(struct TestRunConfig *tConfig, struct ListenC
 
 void JitterQChartWidget::stopTest()
 {
-    std::cout<<"Trying to stop it.."<<std::endl;
     timer->stop();
     emit sendStopTestWorker();
-
     thread->quit();
-
     thread->wait();
-    std::cout<<"Thread wait done"<<std::endl;
     ui->startBtn->setDisabled((false));
     ui->stopBtn->setDisabled((true));
 
 }
 
-void JitterQChartWidget::workerDone() {
-    std::cout<<"Worker is done.. Byt why? Did I do it or did the server crash?"<<std::endl;
+void JitterQChartWidget::workerDone(int status) {
+    if(status < 0){
+        if(rxData.count() > 0){
+            errorMessageDialog->showMessage(
+                    tr("No answer from server. "
+                       "Check console for sendoto errors.."
+                       "There is a big chance the server crashed.. "
+                       "It wil restart automatically. So just try again. "
+                    ));
+        }else {
+            errorMessageDialog->showMessage(
+                    tr("No answer from server. "
+                       "Check your FW settings "
+                       "There might be a slight chance that the developers "
+                       "forgot to start the service,"
+                       "but that is highly unlikely.. ;-)"
+                    ));
+        }
+        thread->quit();
+
+        thread->wait();
+
+        ui->startBtn->setDisabled((false));
+        ui->stopBtn->setDisabled((true));
+    }
 }
 
 void JitterQChartWidget::updatePktStatus(double mbps, double ps){
@@ -176,11 +197,21 @@ void JitterQChartWidget::receiveData(int id, unsigned int seq, long jitter) {
         }
     }
 
-    if( !txData.isEmpty()) {
-        int seqDiff = abs(rxData.last().getSeq() - txData.last().getSeq());
-        if( seqDiff > 100)
-            std::cout << "SeqDiff :" << seqDiff << std::endl;
-    }
+    //if( txData.count() > 100 ) {
+    //
+    //    int seqDiff = abs(rxData.last().getSeq() - txData.last().getSeq());
+    //    std::cout << "SeqDiff :" << seqDiff << std::endl;
+    //    if( seqDiff > 100)
+    //        stopTest();
+    //
+    //        errorMessageDialog->showMessage(
+    //                tr("Sequence numbers tx and rx to far apart "
+    //                   "It is likely that the server cant keep up."
+    //                   "Increase packet delay or increase pkt size "
+    //                ));
+    //
+    //        //
+    //}
 }
 
 

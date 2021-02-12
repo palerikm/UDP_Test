@@ -31,8 +31,7 @@ signals:
    void sendData(int, unsigned int, long);
    void sendPktLoss(int, unsigned int, unsigned int);
    void sendPktStatus(double, double );
-   void finished();
-
+   void testRunFinished(int);
 
 public slots:
     void startTests();

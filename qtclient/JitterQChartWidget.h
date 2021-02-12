@@ -7,6 +7,7 @@
 #include <QScatterSeries>
 #include <QChart>
 #include <QChartView>
+#include <QErrorMessage>
 
 #include "ControlWindow.h"
 #include "JitterData.h"
@@ -25,6 +26,7 @@ Q_OBJECT
 private:
     Ui::JitterQChartWidget *ui;
 
+    QErrorMessage *errorMessageDialog;
     ControlWindow *ctrlWindow;
 
     QThread *thread;
@@ -76,7 +78,7 @@ private slots:
     void updatePktStatus(double mbs, double ps);
 
     void updateCharts();
-    void workerDone();
+    void workerDone(int status);
 
     void startTest(struct TestRunConfig *tConfig, struct ListenConfig *listenConfig);
     void stopTest();
