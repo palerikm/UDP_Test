@@ -63,12 +63,29 @@ ControlWindow::ControlWindow(QWidget *parent, Ui::JitterQChartWidget *ui,
 
     ui->dscp_combo->addItems(dscp_names);
 
+    ui->dynamicY->setChecked(true);
+    ui->maxYAxis->setEnabled(false);
+    ui->maxYAxis->setValue(20);
+
+
     connect(ui->dscp_combo, SIGNAL(currentTextChanged(const QString &)), this, SLOT(changeDscp(const QString &)));
     // Connect button signal to appropriate slot
     connect(ui->startBtn, &QPushButton::released, this, &ControlWindow::handleStartButton);
     connect(ui->stopBtn, &QPushButton::released, this, &ControlWindow::handleStopButton);
     connect(this, SIGNAL(startTest(struct TestRunConfig *, struct ListenConfig *)), parent, SLOT(startTest(struct TestRunConfig *, struct ListenConfig *)));
     connect(this, SIGNAL(stopTest()), parent, SLOT(stopTest()));
+
+    connect(ui->dynamicY, &QCheckBox::stateChanged, this, &ControlWindow::dynamicYAxisChange);
+
+}
+
+
+void ControlWindow::dynamicYAxisChange(int state){
+    if(ui->dynamicY->isChecked()){
+        ui->maxYAxis->setEnabled(false);
+    }else{
+        ui->maxYAxis->setEnabled(true);
+    }
 }
 
 int ControlWindow::getDelay(){

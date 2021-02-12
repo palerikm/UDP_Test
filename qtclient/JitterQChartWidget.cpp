@@ -16,6 +16,8 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     ui->setupUi(this);
     errorMessageDialog = new QErrorMessage(this);
 
+
+
     timer = new QTimer(this);
 
     ctrlWindow = new ControlWindow(this, ui, tConfig, listenConfig);
@@ -23,7 +25,7 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
 
 
     maxX = 1000;
-    maxY = 10;
+    maxY = 20;
     //txLineSeries = new QSplineSeries();
     txLineSeries = new QLineSeries();
     txLineSeries->setUseOpenGL(true);
@@ -41,7 +43,7 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     txChart->setTitle("TX Jitter");
     txChart->createDefaultAxes();
     txChart->axes(Qt::Horizontal).first()->setRange(0 - maxX, 0);
-    txChart->axes(Qt::Vertical).first()->setRange(-30, maxY);
+    txChart->axes(Qt::Vertical).first()->setRange(0 - maxY, maxY);
     txChartView = new QChartView(txChart);
     txChartView->setRenderHint(QPainter::Antialiasing);
     ui->gridLayout->addWidget(txChartView, 1, 1);
@@ -63,7 +65,7 @@ JitterQChartWidget::JitterQChartWidget(QWidget *parent, struct TestRunConfig *tC
     rxChart->setTitle("RX Jitter");
     rxChart->createDefaultAxes();
     rxChart->axes(Qt::Horizontal).first()->setRange(0 - maxX, 0);
-    rxChart->axes(Qt::Vertical).first()->setRange(-30, maxY);
+    rxChart->axes(Qt::Vertical).first()->setRange(0 - maxY, maxY);
     rxChartView = new QChartView(rxChart);
     rxChartView->setRenderHint(QPainter::Antialiasing);
     ui->gridLayout->addWidget(rxChartView, 2, 1);
@@ -226,15 +228,24 @@ void JitterQChartWidget::updateCharts(){
         txPacketLoss->clear();
         rxPacketLoss->clear();
 
-        double txMaxY = std::max_element(txData.begin(), txData.end(),
-                                         [] (JitterData const& lhs, JitterData const& rhs) {return lhs.getJitterMs() < rhs.getJitterMs();})->getJitterMs();
+        if(ui->dynamicY->isChecked()) {
+            double txMaxY = std::max_element(txData.begin(), txData.end(),
+                                             [](JitterData const &lhs, JitterData const &rhs) {
+                                                 return lhs.getJitterMs() < rhs.getJitterMs();
+                                             })->getJitterMs();
 
-        double rxMaxY = std::max_element(rxData.begin(), rxData.end(),
-                                         [] (JitterData const& lhs, JitterData const& rhs) {return lhs.getJitterMs() < rhs.getJitterMs();})->getJitterMs();
+            double rxMaxY = std::max_element(rxData.begin(), rxData.end(),
+                                             [](JitterData const &lhs, JitterData const &rhs) {
+                                                 return lhs.getJitterMs() < rhs.getJitterMs();
+                                             })->getJitterMs();
 
-        maxY = txMaxY > rxMaxY ? txMaxY : rxMaxY;
+            maxY = txMaxY > rxMaxY ? txMaxY : rxMaxY;
+
+        }else{
+            maxY = ui->maxYAxis->value();
+        }
+
         txChart->axes(Qt::Vertical).first()->setRange(-maxY, maxY);
-        
 
         int currX= std::min(maxX,  txData.size()) * -1;
         for(int i = 0; i < txData.size(); ++i) {

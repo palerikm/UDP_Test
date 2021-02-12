@@ -36,6 +36,7 @@ private slots:
     void changeDestination(const QString &);
     void changeBurst(int value);
     void changeDscp(const QString &s);
+    void dynamicYAxisChange(int state);
 private:
     Ui::JitterQChartWidget *ui;
     struct TestRunConfig *tConfig;
