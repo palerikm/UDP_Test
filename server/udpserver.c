@@ -174,7 +174,7 @@ pruneAndPrintStatus(void* ptr)
         if(fptr !=NULL) {
         fprintf(fptr, "Running Tests: %i  Mbps : %f  Loss : %i \n",
                 getNumberOfActiveTestRuns(mngr),
-                 getActiveBwOnAllTestRuns(mngr) / 1000000,
+                 getActiveBwOnAllTestRuns(mngr),
                  getPktLossOnAllTestRuns(mngr));
         fflush(fptr);
         }
@@ -271,7 +271,7 @@ main(int   argc,
     listenConfig.numSockets             = 1;
     listenConfig.timeout_ms = -1;
 
-    struct TestRunManager *testRunManager = newTestRunManager();
+    struct TestRunManager *testRunManager = newTestRunManager(NULL);
 
     //initTestRunManager(&testRunManager);
 

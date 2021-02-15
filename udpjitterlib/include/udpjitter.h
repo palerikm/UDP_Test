@@ -98,7 +98,7 @@ struct TestRun{
 
 
 //void initTestRunManager(struct TestRunManager *testRunManager);
-struct TestRunManager* newTestRunManager();
+struct TestRunManager* newTestRunManager(void (*statusCb)(double, double));
 void freeTestRunManager(struct TestRunManager **mngr);
 
 
@@ -110,11 +110,13 @@ int initTestRun(struct TestRun *testRun, int32_t id,
                 bool liveUpdate);
 
 int freeTestRun(struct TestRun *testRun);
-void addTestRun(struct TestRunManager *mng, struct TestRun *tRun);
+struct TestRun* addTestRun(struct TestRunManager *mng, struct TestRun *tRun);
 struct TestRun* findTestRun(struct TestRunManager *mng, struct FiveTuple *fiveTuple);
 bool saveAndDeleteFinishedTestRuns(struct TestRunManager *mngr, const char *filename);
 bool pruneLingeringTestRuns(struct TestRunManager *mngr);
 
+double TestRunGetBw(const struct TestRun *run);
+double TestRunGetPs(const struct TestRun *run);
 
 //Make these available for tests
 int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, int pktSize, const struct timespec *now);

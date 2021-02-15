@@ -73,6 +73,7 @@ TEST_CASE("response overrun") {
         tPkt.seq = seq;
         tPkt.txInterval = 10000;
         tPkt.lastSeqConfirmed = 0;
+        tPkt.cmd = in_progress_test_cmd;
         run.lastPktTime.tv_sec = 0;
         run.lastPktTime.tv_nsec = 0;
 
@@ -96,6 +97,7 @@ TEST_CASE("response overrun") {
         tPkt.seq = seq;
         tPkt.txInterval = 10000;
         tPkt.lastSeqConfirmed = 50;
+        tPkt.cmd = in_progress_test_cmd;
         run.lastPktTime.tv_sec = 0;
         run.lastPktTime.tv_nsec = 0;
 

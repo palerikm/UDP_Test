@@ -43,6 +43,18 @@ static inline void timespec_sub(struct timespec *result, const struct timespec *
     }
 }
 
+static inline void timespec_add(struct timespec *result, const struct timespec *a, const struct timespec *b)
+{
+    result->tv_sec = a->tv_sec + b->tv_sec;
+    result->tv_nsec = a->tv_nsec + b->tv_nsec;
+
+    if (result->tv_nsec >= NSEC_PER_SEC) {
+        result->tv_nsec -= NSEC_PER_SEC;
+        result->tv_sec++;
+    }
+}
+
+
 static inline int64_t
 timespec_to_msec(const struct timespec *a)
 {

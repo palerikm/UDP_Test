@@ -74,15 +74,25 @@ bool TestRun_all_iter(const void *item, void *udata) {
     return false;
 }
 
+
+double TestRunGetBw(const struct TestRun *run){
+    struct timespec elapsed = {0,0};
+    timespec_sub(&elapsed, &run->lastPktTime, &run->stats.startTest);
+    double sec = (double)elapsed.tv_sec + ((double)elapsed.tv_nsec / 1000000000);
+    return (((double)(run->stats.rcvdBytes * 8) / sec))/ 1000000;
+}
+
+double TestRunGetPs(const struct TestRun *run){
+    struct timespec elapsed = {0,0};
+    timespec_sub(&elapsed, &run->lastPktTime, &run->stats.startTest);
+    double sec = (double)elapsed.tv_sec + ((double)elapsed.tv_nsec / 1000000000);
+    return ((double)(run->stats.rcvdPkts) / sec);
+}
+
 bool TestRun_bw_iter(const void *item, void *udata) {
     const struct TestRun *testRun = item;
     double *mbits = udata;
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
-    struct timespec elapsed = {0,0};
-    timespec_sub(&elapsed, &now, &(*testRun).stats.startTest);
-    double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
-    *mbits += (((*testRun).stats.rcvdBytes * 8) / sec);
+    *mbits += TestRunGetBw(testRun);
     return true;
 }
 
@@ -107,28 +117,29 @@ uint32_t fillPacket(struct TestPacket *testPacket, uint32_t seq,
     return 0;
 }
 
-void addTestRun(struct TestRunManager *mng, struct TestRun *tRun) {
+struct TestRun* addTestRun(struct TestRunManager *mng, struct TestRun *tRun) {
     if( hashmap_set(mng->map, tRun) == NULL){
         if( hashmap_oom(mng->map) ){
             printf("System out of memory\n");
         }
     }
+    return findTestRun(mng, tRun->fiveTuple);
 }
 
 
-void initTestRunManager(struct TestRunManager *testRunManager) {
+void initTestRunManager(struct TestRunManager *testRunManager, void (*statusCb)(double, double)) {
     (*testRunManager).map = hashmap_new(sizeof(struct TestRun), 0, 0, 0,
                                         TestRun_hash, TestRun_compare, NULL);
     (*testRunManager).done = false;
-    (*testRunManager).TestRun_status_cb = NULL;
+    (*testRunManager).TestRun_status_cb = statusCb;
     //(*testRunManager).TestRunLiveJitterCb = NULL;
 
 }
 
-struct TestRunManager* newTestRunManager(struct TestRunManager *testRunManager) {
+struct TestRunManager* newTestRunManager(void (*statusCb)(double, double)) {
     struct TestRunManager *mng = malloc(sizeof(struct TestRunManager));
 
-    initTestRunManager(mng);
+    initTestRunManager(mng, statusCb);
     return mng;
 
 }
@@ -254,6 +265,9 @@ int addTestData(struct TestRun *testRun, const struct TestPacket *testPacket, in
        // printf("  TestRun is NULL");
         return -1;
     }
+    if(testPacket == NULL){
+        return -1;
+    }
 
     if(testRun->numTestData >= testRun->maxNumTestData){
         testRun->maxNumTestData+= TEST_DATA_INCREMENT_SIZE;
@@ -372,6 +386,7 @@ int extractRespTestData(const unsigned char *buf, struct TestRun *run) {
             struct TestPacket tPkt;
             tPkt.seq = respPkt.seq;
             tPkt.txInterval = respPkt.txInterval_ns;
+            tPkt.cmd = in_progress_test_cmd;
 
             //To reuse the addTestDataFunction for response data
             //we set lastPktTime in the testrun to 0 and set "now"
@@ -409,18 +424,11 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
         }else{
             //Heh no responses possible.. Sender should increase buffer size...
         }
-
     }
-
-
 
     int lastSeq = run->testData[run->numTestData-1].pkt.seq;
     int numRespItemsInQueue =  lastSeq - run->lastSeqConfirmed;
 
-    //TODO: How to deal with growing resps in queue...
-    //if( numRespItemsInQueue > numRespItemsThatFitInBuffer){
-    //    printf("Resprun overflowww..\n");
-    //}
     int wantToWrite = numRespItemsInQueue < numRespItemsThatFitInBuffer ? numRespItemsInQueue : numRespItemsThatFitInBuffer;
 
     int toWrite = wantToWrite < run->numTestData ? wantToWrite : run->numTestData;
@@ -455,8 +463,6 @@ int insertResponseData(uint8_t *buf, size_t bufsize, struct TestRun *run ) {
             memmove(run->testData, &run->testData[lastConfSeqIdx+1], sizeof(struct TestData)*(run->numTestData-lastConfSeqIdx+1));
             run->numTestData -= lastConfSeqIdx+1;
         }
-
-
         pthread_mutex_unlock(&run->lock);
     }
     return  toWrite;
@@ -548,7 +554,6 @@ struct TestPacket getStartTestPacket(){
 }
 
 int freeTestRun(struct TestRun *testRun){
-
     if(testRun != NULL){
         pthread_mutex_destroy(&testRun->lock);
         if(testRun->testData != NULL) {

@@ -52,6 +52,7 @@ TEST_CASE("adding tests to TestRun") {
         struct TestPacket tPkt;
         tPkt.seq = i;
         tPkt.txInterval = 10000;
+        tPkt.cmd = in_progress_test_cmd;
 
         run.lastPktTime.tv_sec = 0;
         run.lastPktTime.tv_nsec = 0;
@@ -109,6 +110,7 @@ TEST_CASE("downstream tests (Insert Response data)"){
         struct TestPacket tPkt;
         tPkt.seq = seq;
         tPkt.txInterval = 10000;
+        tPkt.cmd = in_progress_test_cmd;
         tPkt.lastSeqConfirmed = 0;
         run.lastPktTime.tv_sec = 0;
         run.lastPktTime.tv_nsec = 0;
@@ -134,6 +136,7 @@ TEST_CASE("downstream tests (Insert Response data)"){
         tPkt.seq = seq;
         tPkt.txInterval = 10000;
         tPkt.lastSeqConfirmed = 7;
+        tPkt.cmd = in_progress_test_cmd;
         run.lastPktTime.tv_sec = 0;
         run.lastPktTime.tv_nsec = 0;
 
@@ -149,6 +152,7 @@ TEST_CASE("downstream tests (Insert Response data)"){
         tPkt.seq = seq;
         tPkt.txInterval = 10000;
         tPkt.lastSeqConfirmed = seq-1;
+        tPkt.cmd = in_progress_test_cmd;
         run.lastPktTime.tv_sec = 0;
         run.lastPktTime.tv_nsec = 0;
 

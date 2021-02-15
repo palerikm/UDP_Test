@@ -38,17 +38,18 @@ addTxTestRun(const struct TestRunConfig *testRunConfig,
     struct FiveTuple *txFiveTuple;
     txFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig->localAddr,
                                 (struct sockaddr *)&listenConfig->remoteAddr, listenConfig->port);
-    struct TestRun *txTestRun = malloc(sizeof(struct TestRun));
+    //struct TestRun *txTestRun = malloc(sizeof(struct TestRun));
+    struct TestRun txTestRun;
     struct TestRunConfig txConfig;
     memcpy(&txConfig, testRunConfig, sizeof(txConfig));
     strncat(txConfig.testName, "_tx\0", 5);
-    initTestRun(txTestRun,1, txFiveTuple, &txConfig, jitterCb, pktLossCb, liveCSV);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &txTestRun->lastPktTime);
-    txTestRun->stats.startTest = txTestRun->lastPktTime;
-    addTestRun(testRunManager, txTestRun);
+    initTestRun(&txTestRun,1, txFiveTuple, &txConfig, jitterCb, pktLossCb, liveCSV);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &txTestRun.lastPktTime);
+    txTestRun.stats.startTest = txTestRun.lastPktTime;
+    struct TestRun *rRun = addTestRun(testRunManager, &txTestRun);
     free(txFiveTuple);
 
-    return txTestRun;
+    return rRun;
 }
 
 struct TestRun *
@@ -62,17 +63,18 @@ addRxTestRun(const struct TestRunConfig *testRunConfig,
     rxFiveTuple = makeFiveTuple((struct sockaddr *)&listenConfig->remoteAddr,
                                 (struct sockaddr *)&listenConfig->localAddr, listenConfig->port);
 
-    struct TestRun *rxTestRun = malloc(sizeof(struct TestRun));
+    //struct TestRun *rxTestRun = malloc(sizeof(struct TestRun));
+    struct TestRun rxTestRun;
     struct TestRunConfig rxConfig;
     memcpy(&rxConfig, testRunConfig, sizeof(rxConfig));
     strncat(rxConfig.testName, "_rx\0", 5);
-    initTestRun(rxTestRun, 2, rxFiveTuple, &rxConfig, jitterCb, pktLossCb, liveCSV);
-    clock_gettime(CLOCK_MONOTONIC_RAW, &rxTestRun->lastPktTime);
-    rxTestRun->stats.startTest = rxTestRun->lastPktTime;
+    initTestRun(&rxTestRun, 2, rxFiveTuple, &rxConfig, jitterCb, pktLossCb, liveCSV);
+    clock_gettime(CLOCK_MONOTONIC_RAW, &rxTestRun.lastPktTime);
+    rxTestRun.stats.startTest = rxTestRun.lastPktTime;
 
-    addTestRun(testRunManager, rxTestRun);
+    struct TestRun *rRun = addTestRun(testRunManager, &rxTestRun);
     free(rxFiveTuple);
-    return rxTestRun;
+    return rRun;
 }
 
 
@@ -87,8 +89,8 @@ void addTxAndRxTests(struct TestRunConfig *testRunConfig,
     //addTestRun(2, testRunConfig, testRunManager, listenConfig, true);
     struct TestRun *txTestRun = addTxTestRun(testRunConfig, testRunManager, listenConfig, jitterCb, pktLossCb, liveCSV);
     struct TestRun *rxTestRun = addRxTestRun(testRunConfig, testRunManager, listenConfig, jitterCb, pktLossCb, liveCSV);
-    free(rxTestRun);
-    free(txTestRun);
+    //free(rxTestRun);
+    //free(txTestRun);
 }
 
 void sendStarOfTest(struct TestRunConfig *cfg, struct FiveTuple *fiveTuple, int sockfd) {
@@ -129,7 +131,7 @@ int32_t getLastSeq(const struct TestRun *respRun) {
 
 int runTests(int sockfd, struct FiveTuple *txFiveTuple,
              struct TestRunConfig *testRunConfig, struct TestRunManager *testRunManager) {
-    int numPkt = 0;
+    uint64_t numPkt = 0;
     int numPkts_to_send = testRunConfig->pktConfig.numPktsToSend;
     uint8_t buf[(*testRunConfig).pktConfig.pkt_size];
     memset(&buf, 43, sizeof(buf));
@@ -177,10 +179,12 @@ int runTests(int sockfd, struct FiveTuple *txFiveTuple,
         }
 
         if(testRunManager->TestRun_status_cb != NULL){
+            //struct TestRun *txrun = findTestRun(testRunManager, txFiveTuple);
+            //testRunManager->TestRun_status_cb(TestRunGetBw(txrun), TestRunGetPs(txrun));
             struct timespec elapsed = {0,0};
             timespec_sub(&elapsed, &timingInfo.timeBeforeSendPacket, &timingInfo.startOfTest);
             double sec = (double)elapsed.tv_sec + (double)elapsed.tv_nsec / 1000000000;
-            double mbps = (((double)(testRunConfig->pktConfig.pkt_size *numPkt * 8) / sec)/ 1000000);
+            double mbps = ((double)((testRunConfig->pktConfig.pkt_size *numPkt * 8) / sec)/ 1000000);
             double ps = numPkt / sec;
             testRunManager->TestRun_status_cb(mbps, ps);
             //printf("\r(Mbps : %f, p/s: %f Progress: %i %%)", (((pktSize *numPkts * 8) / sec) / 1000000), numPkts / sec, done);

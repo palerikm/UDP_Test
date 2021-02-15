@@ -183,7 +183,7 @@ main(int   argc,
            sizeof(addrStr),
                        true ) );
 
-    struct TestRunManager *testRunManager = newTestRunManager();
+    struct TestRunManager *testRunManager = newTestRunManager(NULL);
 
     addTxAndRxTests(&testRunConfig, testRunManager, &listenConfig, NULL, NULL, true);
     int sockfd = startListenThread(testRunManager, &listenConfig);

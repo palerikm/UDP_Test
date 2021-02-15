@@ -69,12 +69,12 @@ void TestRunWorker::startTests()
     }
 
     freeTestRunManager(&testRunManager);
-    testRunManager = newTestRunManager();
+
 
 
     Callback<void(double,double)>::func = std::bind(&TestRunWorker::testRunStatusCB, this, std::placeholders::_1, std::placeholders::_2);
     TestRun_status_cb status_cb = static_cast<TestRun_status_cb>(Callback<void(double, double)>::callback);
-    testRunManager->TestRun_status_cb = status_cb;
+    testRunManager = newTestRunManager(status_cb);
 
     /* Setting up UDP socket  */
     setupSocket(listenConfig);

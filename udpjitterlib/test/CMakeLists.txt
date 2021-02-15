@@ -7,7 +7,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(doctest)
 
-add_executable(${TEST_APP_NAME} ${TEST_SOURCES} main.cpp fivetuple_test.cpp testrun_test.cpp packetloss_test.cpp responseoverrun_test.cpp)
+add_executable(${TEST_APP_NAME} ${TEST_SOURCES} main.cpp fivetuple_test.cpp testrun_test.cpp packetloss_test.cpp responseoverrun_test.cpp bwreport_test.cpp)
 add_dependencies(${TEST_APP_NAME} ${LIB_NAME} )
 target_include_directories(${TEST_APP_NAME} PUBLIC ${doctest_SOURCE_DIR}/doctest../include)
 target_link_libraries(${TEST_APP_NAME} ${LIB_NAME}
